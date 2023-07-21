@@ -382,6 +382,9 @@ bfin*-*)
 bpf-*-*)
 	cpu_type=bpf
 	;;
+etca-*)	cpu_type=etca
+	target_has_targetm_common=no
+	;;
 frv*)	cpu_type=frv
 	extra_options="${extra_options} g.opt"
 	;;
@@ -1690,6 +1693,9 @@ epiphany-*-elf | epiphany-*-rtems*)
 	extra_objs="${extra_objs} mode-switch-use.o resolve-sw-modes.o"
 	tm_defines="${tm_defines} EPIPHANY_STACK_OFFSET=${with_stack_offset:-8}"
 	extra_headers="epiphany_intrinsics.h"
+	;;
+etca-*-elf)
+	tm_file="elfos.h newlib-stdint.h ${tm_file}"
 	;;
 fr30-*-elf)
 	tm_file="elfos.h newlib-stdint.h ${tm_file}"

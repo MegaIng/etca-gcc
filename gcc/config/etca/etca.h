@@ -25,8 +25,8 @@
 #define LONG_DOUBLE_TYPE_SIZE 64
 
 /* Stack alignment */
-#define PARM_BOUNDARY 32
-#define STACK_BOUNDARY 8
+#define PARM_BOUNDARY 16
+#define STACK_BOUNDARY 16
 
 /* Function entry point alignment */
 #define FUNCTION_BOUNDARY 8
@@ -43,7 +43,7 @@
    "%s1", "%bp",  "%sp",  "%ln",  \
    "%t0", "%t1",  "%t2",  "%t3",  \
    "%t4", "%s2",  "%s3",  "%s4",  \
-   "?cc"            }
+   "?ag", "?fp",  "?pc",  "?cc",  }
 
 /* Registers */
 #define ETCA_R0		0
@@ -62,21 +62,24 @@
 #define ETCA_R13	13
 #define ETCA_R14	14
 #define ETCA_R15	15
-#define ETCA_CC		16
+#define ETCA_ARG	16
+#define ETCA_VFP	17
+#define ETCA_PC		18
+#define ETCA_CC		19
 
-#define FIRST_PSEUDO_REGISTER 17
+#define FIRST_PSEUDO_REGISTER 20
 #define FIXED_REGISTERS  /*  a0  a1  a2  s0 */   { 0, 0, 0, 0, \
                          /*  s1  bp  sp  ln */     0, 0, 1, 1, \
                          /*  t0  t1  t2  t3 */     0, 0, 0, 0, \
                          /*  t4  s2  s3  s4 */     0, 0, 0, 0, \
-			 /*  cc             */     1          }
+			 /*  ag  fp  pc  cc */     1, 1, 1, 1, }
 
 #define CALL_REALLY_USED_REGISTERS \
                          /*  a0  a1  a2  s0 */   { 1, 1, 1, 0, \
                          /*  s1  bp  sp  ln */     0, 0, 0, 0, \
                          /*  t0  t1  t2  t3 */     1, 1, 1, 1, \
                          /*  t4  s2  s3  s4 */     1, 0, 0, 0, \
-			 /*  cc             */     0          }
+			 /*  ag  fp  pc  cc */     0, 0, 0, 0, }
 
 /* Register Classes */
 
@@ -84,6 +87,7 @@ enum reg_class
 {
     NO_REGS,
     GENERAL_REGS,
+    SPECIAL_REGS,
     CC_REGS,
     ALL_REGS,
     LIM_REG_CLASSES
@@ -94,16 +98,18 @@ enum reg_class
 #define REG_CLASS_NAMES {\
     "NO_REGS", \
     "GENERAL_REGS", \
+    "SPECIAL_REGS", \
     "CC_REGS", \
     "ALL_REGS" }
 
 #define REG_CLASS_CONTENTS {\
     0x00000, \
-    0x0FFFF,  /* GENERAL_REGS*/ \
-    0x10000,  /* CC_REGS */ \
-    0x1FFFF }
+    0x3FFFF,  /* GENERAL_REGS*/ \
+    0x40000,  /* SPECIAL_REGS */ \
+    0x80000,  /* CC_REGS */ \
+    0xFFFFF }
 
-#define REGNO_REG_CLASS(R) ((R == ETCA_CC) ? CC_REGS : GENERAL_REGS)
+#define REGNO_REG_CLASS(R) ((R <= ETCA_VFP) ? GENERAL_REGS : ((R == ETCA_CC)? CC_REGS : SPECIAL_REGS))
 
 #define BASE_REG_CLASS GENERAL_REGS
 #define INDEX_REG_CLASS GENERAL_REGS
@@ -112,7 +118,7 @@ enum reg_class
 
 #define MOVE_MAX 2
 
-#define Pmode SImode
+#define Pmode HImode
 
 #define FUNCTION_MODE QImode
 
@@ -120,22 +126,50 @@ enum reg_class
 
 /* STACK AND CALLING */
 
+/* To allow initialization of `cfun->machine`*/
+#define INIT_EXPANDERS  etca_init_expanders ()
+
 #define STACK_GROWS_DOWNWARD 1
+#define FRAME_GROWS_DOWNWARD 1
+#define STACK_ALIGNMENT_NEEDED 0
 
 #define STACK_POINTER_REGNUM ETCA_SP
-#define FRAME_POINTER_REGNUM ETCA_BP
-#define ARG_POINTER_REGNUM FRAME_POINTER_REGNUM
+#define FRAME_POINTER_REGNUM ETCA_VFP
+#define HARD_FRAME_POINTER_REGNUM ETCA_BP
+#define ARG_POINTER_REGNUM ETCA_ARG
 
-#define FIRST_PARM_OFFSET(F) 12
+#define FIRST_PARM_OFFSET(F) 0
 
 #define FUNCTION_ARG_REGNO_P(regno) (regno <= ETCA_R2)
 
 
-#define ELIMINABLE_REGS	{{ FIRST_PSEUDO_REGISTER, FIRST_PSEUDO_REGISTER }}
-#define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)	0
+#define ELIMINABLE_REGS	{ \
+    { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM }, \
+    { ARG_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM }, \
+}
 
-
+#define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\
+  do {									\
+    (OFFSET) = etca_initial_elimination_offset ((FROM), (TO));		\
+  } while (0)
 #define TRAMPOLINE_SIZE  (abort (), 0)
+
+/* func types to be used in machine_function.func_type*/
+#define ETCA_FT_UNKNOWN		0x0000
+#define ETCA_FT_NORMAL		0x0001
+#define ETCA_FT_MASK		0x0001
+#define ETCA_FT_CC_UNKNOWN	(0b00 << 1)
+#define ETCA_FT_CC_CC16		(0b01 << 1)
+#define ETCA_FT_CC_CC32		(0b10 << 1)
+#define ETCA_FT_CC_CC64		(0b11 << 1)
+#define ETCA_FT_CC_MASK		(0b11 << 1)
+
+#define ETCA_FT_NAKED	(1 << 3)
+
+#define EXTRACT_CC(FT)	(FT & ETCA_FT_CC_MASK)
+#define DECIDE_CC(FT)	(FT & ETCA_FT_CC_MASK)
+
+#define IS_NAKED(FT)	((FT & ETCA_FT_NAKED) != 0)
 
 /* Passing Arguments in Registers */
 
@@ -150,7 +184,7 @@ enum reg_class
 /* Addressing Modes */
 
 #define MAX_REGS_PER_ADDRESS 2
-#define CASE_VECTOR_MODE SImode
+#define CASE_VECTOR_MODE HImode
 
 #define HARD_REGNO_OK_FOR_BASE_P(NUM) ((unsigned) (NUM) < ETCA_CC )
 

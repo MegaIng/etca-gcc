@@ -1,3 +1,5 @@
+
+#define IN_TARGET_CODE 1
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -88,6 +90,277 @@ etca_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
 }
 
 
+static void
+etca_print_operand (FILE *file, rtx x, int code)
+{
+    rtx operand = x;
+    if (!(code == 0 || code == 'h' || code == 'x' || code == 'd' || code == 'q')) {
+	debug_rtx (x);
+	output_operand_lossage ("invalid operand modifier letter");
+	return;
+    }
+
+    /* Print an operand as without a modifier letter.  */
+    switch (GET_CODE (operand))
+    {
+	case REG: {
+	    if (REGNO(operand) > ETCA_R15)
+		internal_error("internal error: bad register: %d", REGNO(operand));
+	    const char* reg_name = reg_names[REGNO(operand)];
+	    /* reg_name is always 3 chars long (plus 0 term)
+	     * first is either % for a real register or ? for a virtual one
+	     * second is either always a letter
+	     * third is either a letter or a digit.
+	     *
+	     * Depending on whether the third is a letter, the modifier
+	     * goes either between or after the name.
+	     * */
+	    if (code == 0) {
+		fprintf(file, "%s", reg_name);
+	    } else if ('0' <= reg_name[2] && reg_name[2] < '9') {
+		fprintf(file, "%c%c%c%c", reg_name[0], reg_name[1], code, reg_name[2]);
+	    } else {
+		fprintf(file, "%s%c", reg_name, code);
+	    }
+
+	    return;
+	}
+	case MEM:
+	    output_address (GET_MODE (XEXP (operand, 0)), XEXP (operand, 0));
+	    return;
+
+	default:
+	    if (CONSTANT_P (operand))
+	    {
+		output_addr_const (file, operand);
+		return;
+	    }
+
+	    debug_rtx (x);
+	    output_operand_lossage ("unexpected operand");
+	    return;
+    }
+}
+
+
+static void
+etca_print_operand_address (FILE *file, machine_mode, rtx x)
+{
+    switch (GET_CODE (x))
+    {
+	case REG:
+	    fprintf (file, "[%s]", reg_names[REGNO (x)]);
+	    break;
+
+	case PLUS:
+	    switch (GET_CODE (XEXP (x, 1)))
+	    {
+		case CONST_INT:
+		    fprintf (file, "[%s + %ld]",
+			     reg_names[REGNO (XEXP (x, 0))], INTVAL(XEXP (x, 1)));
+		    break;
+		case SYMBOL_REF:
+		    fprintf (file, "[%s + ", reg_names[REGNO (XEXP (x, 0))]);
+		    output_addr_const (file, XEXP (x, 1));
+		    fprintf (file, "]");
+		    break;
+		    /*
+		case CONST:
+		{
+		    rtx plus = XEXP (XEXP (x, 1), 0);
+		    if (GET_CODE (XEXP (plus, 0)) == SYMBOL_REF
+			&& CONST_INT_P (XEXP (plus, 1)))
+		    {
+			output_addr_const(file, XEXP (plus, 0));
+			fprintf (file,"+%ld(%s)", INTVAL (XEXP (plus, 1)),
+				 reg_names[REGNO (XEXP (x, 0))]);
+		    }
+		    else
+			abort();
+		}
+		    break;
+		     */
+		default:
+		    abort();
+	    }
+	    break;
+
+	default:
+	    output_addr_const (file, x);
+	    break;
+    }
+}
+
+
+/* Per-function machine data.  */
+struct GTY(()) machine_function
+{
+    /* various flags for how to treat the function */
+    uint32_t func_type;
+    /* Number of bytes saved on the stack for callee saved registers.  */
+    uint32_t callee_saved_reg_size;
+    /* Number of bytes saved on the stack for local variables.  */
+    uint32_t local_vars_size;
+};
+
+/* Zero initialization is OK for all current fields.  */
+
+static struct machine_function *
+etca_init_machine_status (void)
+{
+    return ggc_cleared_alloc<machine_function> ();
+}
+
+static uint32_t
+etca_compute_function_type (void)
+{
+    uint32_t res = ETCA_FT_NORMAL | ETCA_FT_CC_UNKNOWN;
+    tree a;
+    tree attr;
+
+    attr = DECL_ATTRIBUTES (current_function_decl);
+    a = lookup_attribute ("naked", attr);
+    if (a != NULL_TREE) {
+	res |= ETCA_FT_NAKED;
+    }
+    return res;
+}
+
+
+static uint32_t
+etca_get_function_type (void) {
+    if (cfun->machine->func_type == ETCA_FT_UNKNOWN) {
+	cfun->machine->func_type = etca_compute_function_type ();
+    }
+    return cfun->machine->func_type;
+}
+
+/* Compute the size of the local area and the size to be adjusted by the
+ * prologue and epilogue.  */
+
+static void
+etca_compute_frame (void)
+{
+    /* For aligning the local variables.  */
+    int stack_alignment = STACK_BOUNDARY / BITS_PER_UNIT;
+    int padding_locals;
+    int regno;
+
+    /* Padding needed for each element of the frame.  */
+    cfun->machine->local_vars_size = get_frame_size ();
+    cfun->machine->func_type = etca_compute_function_type ();
+
+    /* Align to the stack alignment.  */
+    padding_locals = cfun->machine->local_vars_size % stack_alignment;
+    if (padding_locals) {
+	padding_locals = stack_alignment - padding_locals;
+    }
+
+    cfun->machine->local_vars_size += padding_locals;
+
+    cfun->machine->callee_saved_reg_size = 0;
+
+    /* Save callee-saved registers.  */
+    for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++) {
+	if (df_regs_ever_live_p(regno) && (!call_used_or_fixed_reg_p(regno))) {
+	    cfun->machine->callee_saved_reg_size += 2;
+	}
+    }
+}
+
+
+void
+etca_init_expanders (void) {
+    /* Arrange to initialize and mark the machine per-function status.  */
+    init_machine_status = etca_init_machine_status;
+}
+
+int
+etca_initial_elimination_offset (int from, int to)
+{
+    int ret;
+
+    if ((from) == ARG_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
+    {
+	ret = 2;
+    } else if ((from) == FRAME_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
+    {
+	ret = cfun->machine->callee_saved_reg_size;
+    }
+    else {
+	abort();
+    }
+    return ret;
+}
+
+static void
+etca_function_prologue (FILE *file)
+{
+    uint32_t ft = etca_get_function_type();
+    if (IS_NAKED(ft)) {
+	return;
+    }
+    /* Store base old base pointer */
+    fprintf (file, "	pushx	%%bpx\n");
+    /* Create the new base pointer*/
+    fprintf (file, "	mov	%%bpx, %%spx\n");
+    /* Store the link register */
+    fprintf (file, "	pushx	%%lnx\n");
+
+    /* Store the other callee saved registers */
+    for(int i = 0; i < ETCA_R15; i++) {
+	if (i == ETCA_SP || i == ETCA_LN || i == ETCA_BP) { continue; }
+	if (df_regs_ever_live_p(i) && !call_used_or_fixed_reg_p(i)) {
+	    fprintf (file, "	pushx	%%rx%d\n", i);
+	}
+    }
+    /* Allocated memory for the local variables */
+    fprintf (file, "	subx	%%spx, %d\n", cfun->machine->local_vars_size);
+}
+
+static void
+etca_function_epilogue (FILE *file)
+{
+    uint32_t ft = etca_get_function_type();
+    if (IS_NAKED(ft)) {
+	/* We don't even have a return instruction in this case. That's the job of the programmer now*/
+	return;
+    }
+    fprintf (file, "	mov		%%spx, %%bpx\n");
+    fprintf (file, "	subx	%%bpx, 2\n");
+    fprintf (file, "	mov		%%lnx, [%%bp]\n");
+    fprintf (file, "	pop		%%bp\n");
+    fprintf (file, "	ret\n");
+}
+
+
+/* Handle an attribute requiring a FUNCTION_DECL;
+   arguments as in struct attribute_spec.handler.  */
+static tree
+etca_handle_fndecl_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
+			     int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+{
+    if (TREE_CODE (*node) != FUNCTION_DECL)
+    {
+	warning (OPT_Wattributes, "%qE attribute only applies to functions",
+		 name);
+	*no_add_attrs = true;
+    }
+
+    return NULL_TREE;
+}
+
+/* Table of machine attributes.  */
+static const struct attribute_spec etca_attribute_table[] = {
+	/* { name, min_len, max_len, decl_req, type_req, fn_type_req,
+	     affects_type_identity, handler, exclude } */
+	{ "naked",        0, 0, true,  false, false, false,
+	  etca_handle_fndecl_attribute, NULL },
+	{ NULL,        0, 0, false,  false, false, false,
+		NULL, NULL },
+};
+
+
 #undef  TARGET_FUNCTION_ARG
 #define TARGET_FUNCTION_ARG		etca_function_arg
 #undef  TARGET_FUNCTION_ARG_ADVANCE
@@ -96,7 +369,25 @@ etca_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
 #define TARGET_FUNCTION_VALUE 		etca_function_value
 #undef  TARGET_FUNCTION_VALUE_REGNO_P
 #define TARGET_FUNCTION_VALUE_REGNO_P 	etca_function_value_regno_p
+
+#undef TARGET_COMPUTE_FRAME_LAYOUT
+#define TARGET_COMPUTE_FRAME_LAYOUT	etca_compute_frame
+#undef TARGET_ASM_FUNCTION_PROLOGUE
+#define TARGET_ASM_FUNCTION_PROLOGUE	etca_function_prologue
+#undef TARGET_ASM_FUNCTION_EPILOGUE
+#define TARGET_ASM_FUNCTION_EPILOGUE	etca_function_epilogue
+
 #undef  TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
 #define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P	etca_legitimate_address_p
 
+#undef  TARGET_ATTRIBUTE_TABLE
+#define TARGET_ATTRIBUTE_TABLE etca_attribute_table
+
+#undef  TARGET_PRINT_OPERAND
+#define TARGET_PRINT_OPERAND etca_print_operand
+#undef  TARGET_PRINT_OPERAND_ADDRESS
+#define TARGET_PRINT_OPERAND_ADDRESS etca_print_operand_address
+
 struct gcc_target targetm = TARGET_INITIALIZER;
+
+#include "gt-etca.h"

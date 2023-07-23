@@ -40,7 +40,7 @@ etca_function_arg_advance (cumulative_args_t cum_v,
 {
     CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-    *cum = (*cum < ETCA_R2
+    *cum = (*cum <= ETCA_R2
 	    ? *cum + 1
 	    : *cum);
 }
@@ -191,6 +191,17 @@ etca_print_operand_address (FILE *file, machine_mode, rtx x)
     }
 }
 
+/* Return the fixed registers used for condition codes.  */
+
+static bool
+etca_fixed_condition_code_regs (unsigned int *p1, unsigned int *p2)
+{
+    *p1 = ETCA_CC;
+    *p2 = INVALID_REGNUM;
+    return false; /* The pass that get's enabled probably does nothing for us. */
+}
+
+
 
 /* Per-function machine data.  */
 struct GTY(()) machine_function
@@ -286,51 +297,80 @@ etca_initial_elimination_offset (int from, int to)
     } else if ((from) == FRAME_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
     {
 	ret = cfun->machine->callee_saved_reg_size;
-    }
-    else {
+    }  else if ((from) == HARD_FRAME_POINTER_REGNUM && (to) == STACK_POINTER_REGNUM)
+    {
+	ret = -(cfun->machine->callee_saved_reg_size + cfun->machine->local_vars_size);
+    } else {
 	abort();
     }
     return ret;
 }
+#define MUST_SAVE_FRAME_POINTER	 (df_regs_ever_live_p (HARD_FRAME_POINTER_REGNUM)  || frame_pointer_needed)
 
-static void
-etca_function_prologue (FILE *file)
-{
+
+void
+etca_expand_prologue (void) {
+    int regno;
+    rtx insn;
     uint32_t ft = etca_get_function_type();
     if (IS_NAKED(ft)) {
 	return;
     }
-    /* Store base old base pointer */
-    fprintf (file, "	pushx	%%bpx\n");
-    /* Create the new base pointer*/
-    fprintf (file, "	mov	%%bpx, %%spx\n");
-    /* Store the link register */
-    fprintf (file, "	pushx	%%lnx\n");
-
-    /* Store the other callee saved registers */
-    for(int i = 0; i < ETCA_R15; i++) {
-	if (i == ETCA_SP || i == ETCA_LN || i == ETCA_BP) { continue; }
+    if (MUST_SAVE_FRAME_POINTER) {
+	/* Store base old base pointer */
+	insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_BP)));
+	RTX_FRAME_RELATED_P (insn) = 1;
+	/* Create the new base pointer*/
+	RTX_FRAME_RELATED_P (insn) = 1;
+	insn = emit_insn (gen_movhi (gen_rtx_REG (Pmode, ETCA_BP), gen_rtx_REG (Pmode, ETCA_SP)));
+    }
+    for (int i = 0; i <= ETCA_R15; i++) {
+	if (i == ETCA_SP || i == ETCA_BP) { continue; }
 	if (df_regs_ever_live_p(i) && !call_used_or_fixed_reg_p(i)) {
-	    fprintf (file, "	pushx	%%rx%d\n", i);
+	    insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, i)));
+	    RTX_FRAME_RELATED_P (insn) = 1;
 	}
     }
     /* Allocated memory for the local variables */
-    fprintf (file, "	subx	%%spx, %d\n", cfun->machine->local_vars_size);
+    if (cfun->machine->local_vars_size) {
+	insn = emit_insn (gen_subhi3 (
+		gen_rtx_REG (Pmode, ETCA_SP),
+		gen_rtx_REG (Pmode, ETCA_SP),
+		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
+	RTX_FRAME_RELATED_P (insn) = 1;
+    }
 }
 
-static void
-etca_function_epilogue (FILE *file)
+
+void
+etca_expand_epilogue ()
 {
+    rtx insn;
     uint32_t ft = etca_get_function_type();
     if (IS_NAKED(ft)) {
-	/* We don't even have a return instruction in this case. That's the job of the programmer now*/
+	/* We don't even have a return instruction in this case. That's the job of the programmer now */
 	return;
     }
-    fprintf (file, "	mov		%%spx, %%bpx\n");
-    fprintf (file, "	subx	%%bpx, 2\n");
-    fprintf (file, "	mov		%%lnx, [%%bp]\n");
-    fprintf (file, "	pop		%%bp\n");
-    fprintf (file, "	ret\n");
+    if(cfun->machine->local_vars_size) {
+	insn = emit_insn (gen_addhi3 (
+		gen_rtx_REG (Pmode, ETCA_SP),
+		gen_rtx_REG (Pmode, ETCA_SP),
+		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
+	RTX_FRAME_RELATED_P (insn) = 1;
+    }
+    for (int i = ETCA_R15; i >= 0; i--) {
+	if (i == ETCA_SP || i == ETCA_BP) { continue; }
+	if (df_regs_ever_live_p(i) && !call_used_or_fixed_reg_p(i)) {
+	    insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, i)));
+	    RTX_FRAME_RELATED_P (insn) = 1;
+	}
+    }
+    if(MUST_SAVE_FRAME_POINTER) {
+	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
+	RTX_FRAME_RELATED_P (insn) = 1;
+    }
+    insn = emit_insn (gen_etca_returner ());
+    RTX_FRAME_RELATED_P (insn) = 1;
 }
 
 
@@ -372,10 +412,11 @@ static const struct attribute_spec etca_attribute_table[] = {
 
 #undef TARGET_COMPUTE_FRAME_LAYOUT
 #define TARGET_COMPUTE_FRAME_LAYOUT	etca_compute_frame
-#undef TARGET_ASM_FUNCTION_PROLOGUE
-#define TARGET_ASM_FUNCTION_PROLOGUE	etca_function_prologue
-#undef TARGET_ASM_FUNCTION_EPILOGUE
-#define TARGET_ASM_FUNCTION_EPILOGUE	etca_function_epilogue
+
+#undef  TARGET_FIXED_CONDITION_CODE_REGS
+#define TARGET_FIXED_CONDITION_CODE_REGS	etca_fixed_condition_code_regs
+#undef  TARGET_FLAGS_REGNUM
+#define TARGET_FLAGS_REGNUM  ETCA_CC
 
 #undef  TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
 #define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P	etca_legitimate_address_p

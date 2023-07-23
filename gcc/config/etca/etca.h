@@ -46,26 +46,7 @@
    "?ag", "?fp",  "?pc",  "?cc",  }
 
 /* Registers */
-#define ETCA_R0		0
-#define ETCA_R1		1
-#define ETCA_R2		2
-#define ETCA_R3		3
-#define ETCA_R4		4
-#define ETCA_BP		5
-#define ETCA_SP		6
-#define ETCA_LN		7
-#define ETCA_R8		8
-#define ETCA_R9		9
-#define ETCA_R10	10
-#define ETCA_R11	11
-#define ETCA_R12	12
-#define ETCA_R13	13
-#define ETCA_R14	14
-#define ETCA_R15	15
-#define ETCA_ARG	16
-#define ETCA_VFP	17
-#define ETCA_PC		18
-#define ETCA_CC		19
+/* Names are defined in etca.md*/
 
 #define FIRST_PSEUDO_REGISTER 20
 #define FIXED_REGISTERS  /*  a0  a1  a2  s0 */   { 0, 0, 0, 0, \
@@ -122,6 +103,7 @@ enum reg_class
 
 #define FUNCTION_MODE QImode
 
+#define AVOID_CCMODE_COPIES 1
 
 
 /* STACK AND CALLING */
@@ -146,6 +128,7 @@ enum reg_class
 #define ELIMINABLE_REGS	{ \
     { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM }, \
     { ARG_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM }, \
+    { HARD_FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM }, \
 }
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\

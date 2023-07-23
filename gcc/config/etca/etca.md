@@ -2,6 +2,34 @@
 (include "predicates.md")
 
 ;; -------------------------------------------------------------------------
+;; Register Constants
+;; -------------------------------------------------------------------------
+
+(define_constants
+[	(ETCA_R0	0)
+	(ETCA_R1	1)
+	(ETCA_R2	2)
+	(ETCA_R3	3)
+	(ETCA_R4	4)
+	(ETCA_BP	5)   ; Hard Base/Frame Pointer
+	(ETCA_SP	6)   ; Stack Pointer
+	(ETCA_LN	7)   ; Link register
+	(ETCA_R8	8)
+	(ETCA_R9	9)
+	(ETCA_R10	10)
+	(ETCA_R11	11)
+	(ETCA_R12	12)
+	(ETCA_R13	13)
+	(ETCA_R14	14)
+	(ETCA_R15	15)
+	(ETCA_ARG	16)  ; Argument Pointer, will always be eliminated
+	(ETCA_VFP	17)  ; Virtual Frame Pointer, will always be eliminated
+	(ETCA_PC	18)  ; Program Counter
+	(ETCA_CC	19)  ; Condition Code registers, i.e. Flags
+])
+
+
+;; -------------------------------------------------------------------------
 ;; Mode Iterator
 ;; -------------------------------------------------------------------------
 
@@ -17,6 +45,24 @@
   [(const_int 0)]
   ""
   "nop")
+
+;; -------------------------------------------------------------------------
+;; Stack Operations
+;; -------------------------------------------------------------------------
+
+
+
+(define_insn "push<mode>1"
+  [(set (mem:SS (pre_dec:SS (reg:SS ETCA_SP)))
+        (match_operand:SS 0 "etca_arithmetic_operand" "ri"))]
+  ""
+  "push<x>\t%<x>0")
+
+(define_insn "pop<mode>1"
+  [(set (mem:SS (post_inc:SS (reg:SS ETCA_SP)))
+        (match_operand:SS 0 "etca_arithmetic_operand" "ri"))]
+  ""
+  "pop<x>\t%<x>0")
 
 ;; -------------------------------------------------------------------------
 ;; Move instructions
@@ -104,6 +150,36 @@
 
 
 ;; -------------------------------------------------------------------------
+;; Function body
+;; -------------------------------------------------------------------------
+
+(define_expand "prologue"
+  [(const_int 0)]
+  ""
+  "
+{
+  etca_expand_prologue ();
+  DONE;
+}
+")
+(define_expand "epilogue"
+  [(return)]
+  ""
+  "
+{
+  etca_expand_epilogue ();
+  DONE;
+}
+")
+
+
+(define_insn "etca_returner"
+  [(return)]
+  "reload_completed"
+  "ret")
+
+
+;; -------------------------------------------------------------------------
 ;; Jump instructions
 ;; -------------------------------------------------------------------------
 
@@ -119,8 +195,9 @@
   "jmp\\t%l0%#")
 
 (define_expand "call"
-  [(call (match_operand:QI 0 "memory_operand" "")
-		(match_operand 1 "general_operand" ""))]
+  [(parallel [(call (match_operand:QI 0 "memory_operand" "")
+                    (match_operand 1 "general_operand" ""))
+              (clobber (reg:SI ETCA_LN))])]
   ""
 {
   gcc_assert (MEM_P (operands[0]));
@@ -130,14 +207,16 @@
 (define_insn "*call"
   [(call (mem:QI (match_operand:HI
 		  0 "nonmemory_operand" "i,r"))
-	 (match_operand 1 "" ""))]
+	 (match_operand 1 "" ""))
+   (clobber (reg:SI ETCA_LN))]
   ""
   "call\\t%0")
 
 (define_expand "call_value"
-  [(set (match_operand 0 "" "")
-		(call (match_operand:QI 1 "memory_operand" "")
-		 (match_operand 2 "" "")))]
+  [(parallel [(set (match_operand 0 "" "")
+                    (call (match_operand:QI 1 "memory_operand" "")
+                     (match_operand 2 "" "")))
+              (clobber (reg:SI ETCA_LN))])]
   ""
 {
   gcc_assert (MEM_P (operands[1]));
@@ -147,6 +226,56 @@
   [(set (match_operand 0 "register_operand" "=r")
 	(call (mem:QI (match_operand:HI
 		       1 "immediate_operand" "i"))
-	      (match_operand 2 "" "")))]
+	      (match_operand 2 "" "")))
+   (clobber (reg:SI ETCA_LN))]
   ""
   "call\\t%1")
+
+
+;; -------------------------------------------------------------------------
+;; Conditions
+;; -------------------------------------------------------------------------
+
+(define_expand "cbranch<mode>4"
+  [(set (reg:CC ETCA_CC)
+        (compare:CC
+         (match_operand:SS 1 "general_operand")
+         (match_operand:SS 2 "general_operand")))
+   (set (pc)
+        (if_then_else (match_operator 0 "comparison_operator"
+                       [(reg:CC ETCA_CC) (const_int 0)])
+                      (label_ref (match_operand 3))
+                      (pc)))]
+  ""
+  "
+  if (GET_CODE (operands[1]) != REG)
+	operands[1] = force_reg (<MODE>mode, operands[1]);
+  if (GET_CODE (operands[2]) != REG)
+	operands[2] = force_reg (<MODE>mode, operands[2]);
+  ")
+
+(define_insn "*comp<mode>"
+  [(set (reg:CC ETCA_CC)
+        (compare:CC
+         (match_operand:SS 0 "register_operand" "r")
+         (match_operand:SS 1 "etca_arithmetic_operand" "ri")))]
+  ""
+  " comp<x> %<x>0   %<x>1")
+
+
+
+(define_code_iterator cond [ne eq lt ltu gt gtu ge le geu leu])
+(define_code_attr asm_cond [(ne "ne") (eq "eq") (lt "lt") (ltu "b")
+		      (gt "gt") (gtu "a") (ge "ge") (le "le")
+		      (geu "ae") (leu "be") ])
+
+
+
+(define_insn "*branch<code>"
+  [(set (pc)
+	(if_then_else (cond (reg:CC ETCA_CC)
+			            (const_int 0))
+		          (label_ref (match_operand 0 "" ""))
+		          (pc)))]
+  ""
+  " j<asm_cond>  %0")

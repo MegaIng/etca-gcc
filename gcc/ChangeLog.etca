@@ -1,0 +1,7 @@
+2023-07-20  MegaIng  <trampchamp@hotmail.de>
+
+	* config/etca/etca.c: New file.
+	* config/etca/etca.h: New file.
+	* config/etca/t-etca: Created.
+	* config/etca/etca.md: Created.
+    * config.gcc: Add etca support.

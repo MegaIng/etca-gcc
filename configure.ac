@@ -1054,6 +1054,9 @@ case "${target}" in
   d30v-*-*)
     noconfigdirs="$noconfigdirs gdb"
     ;;
+  etca-*-elf*)
+    noconfigdirs="$noconfigdirs gdb"
+    ;;
   fr30-*-elf*)
     noconfigdirs="$noconfigdirs gdb"
     ;;

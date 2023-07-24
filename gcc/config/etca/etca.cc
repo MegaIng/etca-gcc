@@ -96,7 +96,7 @@ etca_print_operand (FILE *file, rtx x, int code)
     rtx operand = x;
     if (!(code == 0 || code == 'h' || code == 'x' || code == 'd' || code == 'q')) {
 	debug_rtx (x);
-	output_operand_lossage ("invalid operand modifier letter");
+	output_operand_lossage ("invalid operand modifier code: '%c'", code);
 	return;
     }
 
@@ -136,7 +136,7 @@ etca_print_operand (FILE *file, rtx x, int code)
 		return;
 	    }
 
-	    debug_rtx (x);
+	    debug_rtx (operand);
 	    output_operand_lossage ("unexpected operand");
 	    return;
     }
@@ -199,6 +199,18 @@ etca_fixed_condition_code_regs (unsigned int *p1, unsigned int *p2)
     *p1 = ETCA_CC;
     *p2 = INVALID_REGNUM;
     return false; /* The pass that get's enabled probably does nothing for us. */
+}
+
+/* We need to override this because otherwise GCC thinks the CC registers is split up.
+ * This is because GET_MODE_SIZE(CCmode) is hardcoded for MODE_CC to be 4, but our
+ * registers are only 2 units.
+ * */
+static unsigned int
+etca_hard_regno_nregs (unsigned int regno, machine_mode mode)
+{
+    if (regno < ETCA_PC)
+	return CEIL (GET_MODE_SIZE (mode), UNITS_PER_WORD);
+    return 1;
 }
 
 
@@ -369,8 +381,7 @@ etca_expand_epilogue ()
 	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
 	RTX_FRAME_RELATED_P (insn) = 1;
     }
-    insn = emit_insn (gen_etca_returner ());
-    RTX_FRAME_RELATED_P (insn) = 1;
+    emit_jump_insn (gen_etca_returner ());
 }
 
 
@@ -417,6 +428,8 @@ static const struct attribute_spec etca_attribute_table[] = {
 #define TARGET_FIXED_CONDITION_CODE_REGS	etca_fixed_condition_code_regs
 #undef  TARGET_FLAGS_REGNUM
 #define TARGET_FLAGS_REGNUM  ETCA_CC
+#undef  TARGET_HARD_REGNO_NREGS
+#define TARGET_HARD_REGNO_NREGS etca_hard_regno_nregs
 
 #undef  TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P
 #define TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P	etca_legitimate_address_p

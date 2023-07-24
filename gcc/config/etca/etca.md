@@ -186,13 +186,18 @@
 (define_insn "indirect_jump"
  [(set (pc) (match_operand:HI 0 "nonimmediate_operand" "r"))]
   ""
-  "jmp\\t%0")
+  "jmp\\t\\t%0")
 
-(define_insn "jump"
+(define_expand "jump"
+  [(set (pc)
+	(label_ref (match_operand 0 "" "")))]
+  "")
+
+(define_insn "*jump"
   [(set (pc)
 	(label_ref (match_operand 0 "" "")))]
   ""
-  "jmp\\t%l0%#")
+  "jmp\\t\\t%l0")
 
 (define_expand "call"
   [(parallel [(call (match_operand:QI 0 "memory_operand" "")
@@ -237,13 +242,13 @@
 ;; -------------------------------------------------------------------------
 
 (define_expand "cbranch<mode>4"
-  [(set (reg:CC ETCA_CC)
-        (compare:CC
+  [(set (reg:CC_NZCV ETCA_CC)
+        (compare:CC_NZCV
          (match_operand:SS 1 "general_operand")
          (match_operand:SS 2 "general_operand")))
    (set (pc)
         (if_then_else (match_operator 0 "comparison_operator"
-                       [(reg:CC ETCA_CC) (const_int 0)])
+                       [(reg:CC_NZCV ETCA_CC) (const_int 0)])
                       (label_ref (match_operand 3))
                       (pc)))]
   ""
@@ -255,12 +260,12 @@
   ")
 
 (define_insn "*comp<mode>"
-  [(set (reg:CC ETCA_CC)
-        (compare:CC
+  [(set (reg:CC_NZCV ETCA_CC)
+        (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
          (match_operand:SS 1 "etca_arithmetic_operand" "ri")))]
   ""
-  " comp<x> %<x>0   %<x>1")
+  "comp<x>	%<x>0, %<x>1")
 
 
 
@@ -273,9 +278,9 @@
 
 (define_insn "*branch<code>"
   [(set (pc)
-	(if_then_else (cond (reg:CC ETCA_CC)
+	(if_then_else (cond (reg:CC_NZCV ETCA_CC)
 			            (const_int 0))
-		          (label_ref (match_operand 0 "" ""))
+		          (match_operand 0 "" "")
 		          (pc)))]
   ""
-  " j<asm_cond>  %0")
+  "j<asm_cond>		%0")

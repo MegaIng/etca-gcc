@@ -141,16 +141,17 @@ enum reg_class
 #define ETCA_FT_UNKNOWN		0x0000
 #define ETCA_FT_NORMAL		0x0001
 #define ETCA_FT_MASK		0x0001
+
 #define ETCA_FT_CC_UNKNOWN	(0b00 << 1)
 #define ETCA_FT_CC_CC16		(0b01 << 1)
 #define ETCA_FT_CC_CC32		(0b10 << 1)
 #define ETCA_FT_CC_CC64		(0b11 << 1)
 #define ETCA_FT_CC_MASK		(0b11 << 1)
 
-#define ETCA_FT_NAKED	(1 << 3)
+#define ETCA_FT_NAKED		(1 << 3)
 
-#define EXTRACT_CC(FT)	(FT & ETCA_FT_CC_MASK)
-#define DECIDE_CC(FT)	(FT & ETCA_FT_CC_MASK)
+#define EXTRACT_FT_CC(FT)	(FT & ETCA_FT_CC_MASK)
+#define DECIDE_FT_CC(FT)	(FT & ETCA_FT_CC_MASK)
 
 #define IS_NAKED(FT)	((FT & ETCA_FT_NAKED) != 0)
 
@@ -169,7 +170,7 @@ enum reg_class
 #define MAX_REGS_PER_ADDRESS 2
 #define CASE_VECTOR_MODE HImode
 
-#define HARD_REGNO_OK_FOR_BASE_P(NUM) ((unsigned) (NUM) < ETCA_CC )
+#define HARD_REGNO_OK_FOR_BASE_P(NUM) ((unsigned) (NUM) <= ETCA_VFP )
 
 #ifdef REG_OK_STRICT
 #define REGNO_OK_FOR_BASE_P(NUM)		 \

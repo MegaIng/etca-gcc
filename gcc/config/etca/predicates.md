@@ -18,5 +18,8 @@
 (define_predicate "etca_arithmetic_operand"
   (match_code "const_int,reg,subreg,const")
 {
+  if (CONST_INT_P (op)) {
+  	return IN_RANGE(INTVAL(op), -16, 32);
+  }
   return general_operand (op, mode);
 })

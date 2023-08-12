@@ -265,7 +265,7 @@
          (match_operand:SS 0 "register_operand" "r")
          (match_operand:SS 1 "etca_arithmetic_operand" "ri")))]
   ""
-  "comp<x>	%<x>0, %<x>1")
+  "cmp<x>	%<x>0, %<x>1")
 
 
 

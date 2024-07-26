@@ -24,6 +24,9 @@
 #define DOUBLE_TYPE_SIZE 64
 #define LONG_DOUBLE_TYPE_SIZE 64
 
+#define POINTER_SIZE 16
+#define POINTERS_EXTEND_UNSIGNED 0
+
 /* Stack alignment */
 #define PARM_BOUNDARY 16
 #define STACK_BOUNDARY 16
@@ -124,6 +127,7 @@ enum reg_class
 
 #define FUNCTION_ARG_REGNO_P(regno) (regno <= ETCA_R2)
 
+#define INCOMING_RETURN_ADDR_RTX gen_rtx_REG (Pmode, ETCA_LN)
 
 #define ELIMINABLE_REGS	{ \
     { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM }, \
@@ -194,10 +198,9 @@ enum reg_class
 
 /* Assembly Output */
 
-/*
+
 #undef  ASM_SPEC
-#define ASM_SPEC "%{!mel:-EB} %{mel:-EL}"
-*/
+#define ASM_SPEC "-mextensions=SAF,BYTE,DW,QW" /*TODO: We shouldn't depend on all these being present to generate valid assembly (only SAF should be an unconditional requirement)*/
 
 #define ASM_COMMENT_START ";"
 #define ASM_APP_ON ""

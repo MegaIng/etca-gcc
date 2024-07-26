@@ -15,11 +15,20 @@
   return general_operand (op, mode);
 })
 
-(define_predicate "etca_arithmetic_operand"
+(define_predicate "etca_arithmetic_operand_signed"
   (match_code "const_int,reg,subreg,const")
 {
   if (CONST_INT_P (op)) {
-  	return IN_RANGE(INTVAL(op), -16, 32);
+  	return IN_RANGE(INTVAL(op), -16, 15);
+  }
+  return general_operand (op, mode);
+})
+
+(define_predicate "etca_arithmetic_operand_unsigned"
+  (match_code "const_int,reg,subreg,const")
+{
+  if (CONST_INT_P (op)) {
+  	return IN_RANGE(INTVAL(op), 0, 32);
   }
   return general_operand (op, mode);
 })

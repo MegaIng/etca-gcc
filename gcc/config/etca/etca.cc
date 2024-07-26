@@ -100,7 +100,6 @@ etca_print_operand (FILE *file, rtx x, int code)
 	return;
     }
 
-    /* Print an operand as without a modifier letter.  */
     switch (GET_CODE (operand))
     {
 	case REG: {
@@ -109,7 +108,7 @@ etca_print_operand (FILE *file, rtx x, int code)
 	    const char* reg_name = reg_names[REGNO(operand)];
 	    /* reg_name is always 3 chars long (plus 0 term)
 	     * first is either % for a real register or ? for a virtual one
-	     * second is either always a letter
+	     * second is always a letter
 	     * third is either a letter or a digit.
 	     *
 	     * Depending on whether the third is a letter, the modifier
@@ -333,13 +332,13 @@ etca_expand_prologue (void) {
 	insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_BP)));
 	RTX_FRAME_RELATED_P (insn) = 1;
 	/* Create the new base pointer*/
-	RTX_FRAME_RELATED_P (insn) = 1;
 	insn = emit_insn (gen_movhi (gen_rtx_REG (Pmode, ETCA_BP), gen_rtx_REG (Pmode, ETCA_SP)));
+	RTX_FRAME_RELATED_P (insn) = 1;
     }
-    for (int i = 0; i <= ETCA_R15; i++) {
-	if (i == ETCA_SP || i == ETCA_BP) { continue; }
-	if (df_regs_ever_live_p(i) && !call_used_or_fixed_reg_p(i)) {
-	    insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, i)));
+    for (regno = 0; regno <= ETCA_R15; regno++) {
+	if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
+	if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
+	    insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, regno)));
 	    RTX_FRAME_RELATED_P (insn) = 1;
 	}
     }
@@ -357,6 +356,7 @@ etca_expand_prologue (void) {
 void
 etca_expand_epilogue ()
 {
+    int regno;
     rtx insn;
     uint32_t ft = etca_get_function_type();
     if (IS_NAKED(ft)) {
@@ -368,20 +368,17 @@ etca_expand_epilogue ()
 		gen_rtx_REG (Pmode, ETCA_SP),
 		gen_rtx_REG (Pmode, ETCA_SP),
 		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
-	RTX_FRAME_RELATED_P (insn) = 1;
     }
-    for (int i = ETCA_R15; i >= 0; i--) {
-	if (i == ETCA_SP || i == ETCA_BP) { continue; }
-	if (df_regs_ever_live_p(i) && !call_used_or_fixed_reg_p(i)) {
-	    insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, i)));
-	    RTX_FRAME_RELATED_P (insn) = 1;
+    for (regno = ETCA_R15; regno >= 0; regno--) {
+	if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
+	if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
+	    insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, regno)));
 	}
     }
     if(MUST_SAVE_FRAME_POINTER) {
 	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
-	RTX_FRAME_RELATED_P (insn) = 1;
     }
-    emit_jump_insn (gen_etca_returner ());
+    emit_insn (gen_returner());
 }
 
 

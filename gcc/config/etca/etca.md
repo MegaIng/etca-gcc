@@ -54,13 +54,13 @@
 
 (define_insn "push<mode>1"
   [(set (mem:SS (pre_dec:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
   ""
   "push<x>\t%<x>0")
 
 (define_insn "pop<mode>1"
   [(set (mem:SS (post_inc:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
   ""
   "pop<x>\t%<x>0")
 
@@ -105,7 +105,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (plus:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
   "add<x>\\t%<x>0, %<x>2"
 )
@@ -113,8 +113,8 @@
 (define_insn "sub<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r,r")
 	  (minus:SS
-	   (match_operand:SS 1 "etca_arithmetic_operand" "0,ri")
-	   (match_operand:SS 2 "etca_arithmetic_operand" "ri,0")))]
+	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,ri")
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri,0")))]
   ""
   "@
   sub<x>\\t%<x>0, %<x>2
@@ -125,7 +125,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (ior:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
   "or<x>\\t%<x>0, %<x>2"
 )
@@ -134,7 +134,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (xor:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
   "xor<x>\\t%<x>0, %<x>2"
 )
@@ -143,7 +143,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
   "and<x>\\t%<x>0, %<x>2"
 )
@@ -163,7 +163,7 @@
 }
 ")
 (define_expand "epilogue"
-  [(return)]
+  [(const_int 0)]
   ""
   "
 {
@@ -172,10 +172,15 @@
 }
 ")
 
+(define_expand "return"
+  [(simple_return)]
+  "reload_completed & !reload_completed"
+{
+})
 
-(define_insn "etca_returner"
+(define_insn "returner"
   [(return)]
-  "reload_completed"
+  ""
   "ret")
 
 
@@ -228,10 +233,9 @@
 })
 
 (define_insn "*call_value"
-  [(set (match_operand 0 "register_operand" "=r")
-	(call (mem:QI (match_operand:HI
-		       1 "immediate_operand" "i"))
-	      (match_operand 2 "" "")))
+  [(set (match_operand 0 "register_operand" "=r,r")
+	     (call (mem:QI (match_operand:HI 1 "nonmemory_operand" "i,r"))
+	           (match_operand 2 "" "")))
    (clobber (reg:SI ETCA_LN))]
   ""
   "call\\t%1")
@@ -263,15 +267,15 @@
   [(set (reg:CC_NZCV ETCA_CC)
         (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
-         (match_operand:SS 1 "etca_arithmetic_operand" "ri")))]
+         (match_operand:SS 1 "etca_arithmetic_operand_signed" "ri")))]
   ""
   "cmp<x>	%<x>0, %<x>1")
 
 
 
 (define_code_iterator cond [ne eq lt ltu gt gtu ge le geu leu])
-(define_code_attr asm_cond [(ne "ne") (eq "eq") (lt "lt") (ltu "b")
-		      (gt "gt") (gtu "a") (ge "ge") (le "le")
+(define_code_attr asm_cond [(ne "ne") (eq "e") (lt "l") (ltu "b")
+		      (gt "g") (gtu "a") (ge "ge") (le "le")
 		      (geu "ae") (leu "be") ])
 
 

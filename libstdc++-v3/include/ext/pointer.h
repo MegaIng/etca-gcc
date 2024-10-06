@@ -1,6 +1,6 @@
 // Custom pointer adapter and sample storage policies
 
-// Copyright (C) 2008-2023 Free Software Foundation, Inc.
+// Copyright (C) 2008-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,12 +36,15 @@
 #ifndef _POINTER_H
 #define _POINTER_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if _GLIBCXX_HOSTED
 #  include <iosfwd>
 #endif
 
+#include <stdint.h> // uintptr_t
 #include <bits/stl_iterator_base_types.h>
 #include <ext/cast.h>
 #include <ext/type_traits.h>
@@ -436,8 +439,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _CXX_POINTER_ARITH_OPERATOR_SET(long);
       _CXX_POINTER_ARITH_OPERATOR_SET(unsigned long);
 #ifdef _GLIBCXX_USE_LONG_LONG
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlong-long"
       _CXX_POINTER_ARITH_OPERATOR_SET(long long);
       _CXX_POINTER_ARITH_OPERATOR_SET(unsigned long long);
+#pragma GCC diagnostic pop
 #endif
 
       // Mathematical Manipulators

@@ -1,5 +1,5 @@
 /* Floating point range operators.
-   Copyright (C) 2022-2023 Free Software Foundation, Inc.
+   Copyright (C) 2022-2024 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>.
 
 This file is part of GCC.
@@ -62,35 +62,14 @@ range_operator::fold_range (frange &r, tree type,
       return true;
     }
 
-  REAL_VALUE_TYPE lb, ub;
-  bool maybe_nan;
-  rv_fold (lb, ub, maybe_nan, type,
+  rv_fold (r, type,
 	   op1.lower_bound (), op1.upper_bound (),
 	   op2.lower_bound (), op2.upper_bound (), trio.op1_op2 ());
 
-  // Handle possible NANs by saturating to the appropriate INF if only
-  // one end is a NAN.  If both ends are a NAN, just return a NAN.
-  bool lb_nan = real_isnan (&lb);
-  bool ub_nan = real_isnan (&ub);
-  if (lb_nan && ub_nan)
-    {
-      r.set_nan (type);
-      return true;
-    }
-  if (lb_nan)
-    lb = dconstninf;
-  else if (ub_nan)
-    ub = dconstinf;
-
-  r.set (type, lb, ub);
-
-  if (lb_nan || ub_nan || maybe_nan
-      || op1.maybe_isnan ()
-      || op2.maybe_isnan ())
-    // Keep the default NAN (with a varying sign) set by the setter.
-    ;
-  else
-    r.clear_nan ();
+  if (r.known_isnan ())
+    return true;
+  if (op1.maybe_isnan () || op2.maybe_isnan ())
+    r.update_nan ();
 
   // If the result has overflowed and flag_trapping_math, folding this
   // operation could elide an overflow or division by zero exception.
@@ -122,19 +101,13 @@ range_operator::fold_range (frange &r, tree type,
 // MAYBE_NAN is set to TRUE if, in addition to any result in LB or
 // UB, the final range has the possibility of a NAN.
 void
-range_operator::rv_fold (REAL_VALUE_TYPE &lb,
-			       REAL_VALUE_TYPE &ub,
-			       bool &maybe_nan,
-			       tree type ATTRIBUTE_UNUSED,
-			       const REAL_VALUE_TYPE &lh_lb ATTRIBUTE_UNUSED,
-			       const REAL_VALUE_TYPE &lh_ub ATTRIBUTE_UNUSED,
-			       const REAL_VALUE_TYPE &rh_lb ATTRIBUTE_UNUSED,
-			       const REAL_VALUE_TYPE &rh_ub ATTRIBUTE_UNUSED,
-			       relation_kind) const
+range_operator::rv_fold (frange &r, tree type,
+			 const REAL_VALUE_TYPE &,
+			 const REAL_VALUE_TYPE &,
+			 const REAL_VALUE_TYPE &,
+			 const REAL_VALUE_TYPE &, relation_kind) const
 {
-  lb = dconstninf;
-  ub = dconstinf;
-  maybe_nan = true;
+  r.set (type, dconstninf, dconstinf, nan_state (true));
 }
 
 bool
@@ -244,7 +217,18 @@ range_operator::lhs_op2_relation (const frange &lhs ATTRIBUTE_UNUSED,
 }
 
 relation_kind
-range_operator::op1_op2_relation (const frange &lhs ATTRIBUTE_UNUSED) const
+range_operator::op1_op2_relation (const irange &,
+				  const frange &,
+				  const frange &) const
+{
+  return VREL_VARYING;
+}
+
+
+relation_kind
+range_operator::op1_op2_relation (const frange &,
+				  const frange &,
+				  const frange &) const
 {
   return VREL_VARYING;
 }
@@ -257,22 +241,55 @@ maybe_isnan (const frange &op1, const frange &op2)
   return op1.maybe_isnan () || op2.maybe_isnan ();
 }
 
-// Floating version of relop_early_resolve that takes into account NAN
-// and -ffinite-math-only.
+// Floating point version of relop_early_resolve that takes NANs into
+// account.
+//
+// For relation opcodes, first try to see if the supplied relation
+// forces a true or false result, and return that.
+// Then check for undefined operands.  If none of this applies,
+// return false.
+//
+// TRIO are the relations between operands as they appear in the IL.
+// MY_REL is the relation that corresponds to the operator being
+// folded.  For example, when attempting to fold x_3 == y_5, MY_REL is
+// VREL_EQ, and if the statement is dominated by x_3 > y_5, then
+// TRIO.op1_op2() is VREL_GT.
 
 static inline bool
 frelop_early_resolve (irange &r, tree type,
 		      const frange &op1, const frange &op2,
-		      relation_trio rel, relation_kind my_rel)
+		      relation_trio trio, relation_kind my_rel)
 {
+  relation_kind rel = trio.op1_op2 ();
+
+  // If known relation is a complete subset of this relation, always
+  // return true.  However, avoid doing this when NAN is a possibility
+  // as we'll incorrectly fold conditions:
+  //
+  //   if (x_3 >= y_5)
+  //     ;
+  //   else
+  //     ;; With NANs the relation here is basically VREL_UNLT, so we
+  //     ;; can't fold the following:
+  //     if (x_3 < y_5)
+  if (!maybe_isnan (op1, op2) && relation_union (rel, my_rel) == my_rel)
+    {
+      r = range_true (type);
+      return true;
+    }
+
+  // If known relation has no subset of this relation, always false.
+  if (relation_intersect (rel, my_rel) == VREL_UNDEFINED)
+    {
+      r = range_false (type);
+      return true;
+    }
+
   // If either operand is undefined, return VARYING.
   if (empty_range_varying (r, type, op1, op2))
     return true;
 
-  // We can fold relations from the oracle when we know both operands
-  // are free of NANs, or when -ffinite-math-only.
-  return (!maybe_isnan (op1, op2)
-	  && relop_early_resolve (r, type, op1, op2, rel, my_rel));
+  return false;
 }
 
 // Set VALUE to its next real value, or INF if the operation overflows.
@@ -323,6 +340,24 @@ frange_arithmetic (enum tree_code code, tree type,
 
   bool inexact = real_arithmetic (&value, code, &op1, &op2);
   real_convert (&result, mode, &value);
+
+  /* When rounding towards negative infinity, x + (-x) and
+     x - x is -0 rather than +0 real_arithmetic computes.
+     So, when we are looking for lower bound (inf is negative),
+     use -0 rather than +0.  */
+  if (flag_rounding_math
+      && (code == PLUS_EXPR || code == MINUS_EXPR)
+      && !inexact
+      && real_iszero (&result)
+      && !real_isneg (&result)
+      && real_isneg (&inf))
+    {
+      REAL_VALUE_TYPE op2a = op2;
+      if (code == PLUS_EXPR)
+	op2a.sign ^= 1;
+      if (real_isneg (&op1) == real_isneg (&op2a) && real_equal (&op1, &op2a))
+	result.sign = 1;
+    }
 
   // Be extra careful if there may be discrepancies between the
   // compile and runtime results.
@@ -687,12 +722,45 @@ operator_equal::op1_range (frange &r, tree type,
   return true;
 }
 
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_equal::op1_op2_relation (const irange &lhs, const frange &,
+				  const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 == op2 indicates NE_EXPR.
+  if (lhs.zero_p ())
+    return VREL_NE;
+
+  // TRUE = op1 == op2 indicates EQ_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_EQ;
+  return VREL_VARYING;
+}
+
 bool
 operator_not_equal::fold_range (irange &r, tree type,
 				const frange &op1, const frange &op2,
-				relation_trio rel) const
+				relation_trio trio) const
 {
-  if (frelop_early_resolve (r, type, op1, op2, rel, VREL_NE))
+  relation_kind rel = trio.op1_op2 ();
+
+  // VREL_NE & NE_EXPR is always true, even with NANs.
+  if (rel == VREL_NE)
+    {
+      r = range_true (type);
+      return true;
+    }
+  if (rel == VREL_EQ && maybe_isnan (op1, op2))
+    {
+      // Avoid frelop_early_resolve() below as it could fold to FALSE
+      // without regards to NANs.  This would be incorrect if trying
+      // to fold x_5 != x_5 without prior knowledge of NANs.
+    }
+  else if (frelop_early_resolve (r, type, op1, op2, trio, VREL_NE))
     return true;
 
   // x != NAN is always TRUE.
@@ -792,11 +860,39 @@ operator_not_equal::op1_range (frange &r, tree type,
 }
 
 bool
+operator_not_equal::op2_range (frange &r, tree type,
+			       const irange &lhs,
+			       const frange &op1,
+			       relation_trio trio) const
+{
+  return op1_range (r, type, lhs, op1, trio);
+}
+
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_not_equal::op1_op2_relation (const irange &lhs, const frange &,
+				      const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 != op2  indicates EQ_EXPR.
+  if (lhs.zero_p ())
+    return VREL_EQ;
+
+  // TRUE = op1 != op2  indicates NE_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_NE;
+  return VREL_VARYING;
+}
+
+bool
 operator_lt::fold_range (irange &r, tree type,
 			 const frange &op1, const frange &op2,
-			 relation_trio rel) const
+			 relation_trio trio) const
 {
-  if (frelop_early_resolve (r, type, op1, op2, rel, VREL_LT))
+  if (frelop_early_resolve (r, type, op1, op2, trio, VREL_LT))
     return true;
 
   if (op1.known_isnan ()
@@ -836,7 +932,7 @@ operator_lt::op1_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of x < NAN, we know nothing about x.
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else
 	build_ge (r, type, op2);
@@ -873,7 +969,7 @@ operator_lt::op2_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of NAN < x, we know nothing about x.
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else
 	build_le (r, type, op1);
@@ -883,6 +979,26 @@ operator_lt::op2_range (frange &r,
       break;
     }
   return true;
+}
+
+
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_lt::op1_op2_relation (const irange &lhs, const frange &,
+			       const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 < op2 indicates GE_EXPR.
+  if (lhs.zero_p ())
+    return VREL_GE;
+
+  // TRUE = op1 < op2 indicates LT_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_LT;
+  return VREL_VARYING;
 }
 
 bool
@@ -926,7 +1042,7 @@ operator_le::op1_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of x <= NAN, we know nothing about x.
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else
 	build_gt (r, type, op2);
@@ -959,7 +1075,7 @@ operator_le::op2_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of NAN <= x, we know nothing about x.
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -973,12 +1089,31 @@ operator_le::op2_range (frange &r,
   return true;
 }
 
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_le::op1_op2_relation (const irange &lhs, const frange &,
+			       const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 <= op2 indicates GT_EXPR.
+  if (lhs.zero_p ())
+    return VREL_GT;
+
+  // TRUE = op1 <= op2 indicates LE_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_LE;
+  return VREL_VARYING;
+}
+
 bool
 operator_gt::fold_range (irange &r, tree type,
 			 const frange &op1, const frange &op2,
-			 relation_trio rel) const
+			 relation_trio trio) const
 {
-  if (frelop_early_resolve (r, type, op1, op2, rel, VREL_GT))
+  if (frelop_early_resolve (r, type, op1, op2, trio, VREL_GT))
     return true;
 
   if (op1.known_isnan ()
@@ -1018,7 +1153,7 @@ operator_gt::op1_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of x > NAN, we know nothing about x.
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1057,7 +1192,7 @@ operator_gt::op2_range (frange &r,
 
     case BRS_FALSE:
       // On The FALSE side of NAN > x, we know nothing about x.
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1069,6 +1204,25 @@ operator_gt::op2_range (frange &r,
       break;
     }
   return true;
+}
+
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_gt::op1_op2_relation (const irange &lhs, const frange &,
+			       const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 > op2 indicates LE_EXPR.
+  if (lhs.zero_p ())
+    return VREL_LE;
+
+  // TRUE = op1 > op2 indicates GT_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_GT;
+  return VREL_VARYING;
 }
 
 bool
@@ -1112,7 +1266,7 @@ operator_ge::op1_range (frange &r,
 
     case BRS_FALSE:
       // On the FALSE side of x >= NAN, we know nothing about x.
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1146,7 +1300,7 @@ operator_ge::op2_range (frange &r, tree type,
 
     case BRS_FALSE:
       // On the FALSE side of NAN >= x, we know nothing about x.
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1158,6 +1312,25 @@ operator_ge::op2_range (frange &r, tree type,
       break;
     }
   return true;
+}
+
+// Check if the LHS range indicates a relation between OP1 and OP2.
+
+relation_kind
+operator_ge::op1_op2_relation (const irange &lhs, const frange &,
+			       const frange &) const
+{
+  if (lhs.undefined_p ())
+    return VREL_UNDEFINED;
+
+  // FALSE = op1 >= op2 indicates LT_EXPR.
+  if (lhs.zero_p ())
+    return VREL_LT;
+
+  // TRUE = op1 >= op2 indicates GE_EXPR.
+  if (!contains_zero_p (lhs))
+    return VREL_GE;
+  return VREL_VARYING;
 }
 
 // UNORDERED_EXPR comparison.
@@ -1442,7 +1615,7 @@ class foperator_unordered_lt : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1456,7 +1629,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (LT_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -1487,7 +1660,7 @@ foperator_unordered_lt::op1_range (frange &r, tree type,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1521,7 +1694,7 @@ foperator_unordered_lt::op2_range (frange &r, tree type,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1554,7 +1727,7 @@ class foperator_unordered_le : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1568,7 +1741,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (LE_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -1596,7 +1769,7 @@ foperator_unordered_le::op1_range (frange &r, tree type,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1629,7 +1802,7 @@ foperator_unordered_le::op2_range (frange &r,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1662,7 +1835,7 @@ class foperator_unordered_gt : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1676,7 +1849,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (GT_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -1706,7 +1879,7 @@ foperator_unordered_gt::op1_range (frange &r,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1741,7 +1914,7 @@ foperator_unordered_gt::op2_range (frange &r,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1774,7 +1947,7 @@ class foperator_unordered_ge : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1788,7 +1961,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (GE_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -1818,7 +1991,7 @@ foperator_unordered_ge::op1_range (frange &r,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op2.known_isnan () || op2.maybe_isnan ())
+      if (op2.maybe_isnan ())
 	r.set_varying (type);
       else if (op2.undefined_p ())
 	return false;
@@ -1852,7 +2025,7 @@ foperator_unordered_ge::op2_range (frange &r, tree type,
   switch (get_bool_state (r, lhs, type))
     {
     case BRS_TRUE:
-      if (op1.known_isnan () || op1.maybe_isnan ())
+      if (op1.maybe_isnan ())
 	r.set_varying (type);
       else if (op1.undefined_p ())
 	return false;
@@ -1885,7 +2058,7 @@ class foperator_unordered_equal : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1899,7 +2072,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (EQ_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -1967,7 +2140,7 @@ class foperator_ltgt : public range_operator
 public:
   bool fold_range (irange &r, tree type,
 		   const frange &op1, const frange &op2,
-		   relation_trio rel = TRIO_VARYING) const final override
+		   relation_trio trio = TRIO_VARYING) const final override
   {
     if (op1.known_isnan () || op2.known_isnan ())
       {
@@ -1981,7 +2154,7 @@ public:
     if (op2.maybe_isnan ())
       op2_no_nan.clear_nan ();
     if (!range_op_handler (NE_EXPR).fold_range (r, type, op1_no_nan,
-						op2_no_nan, rel))
+						op2_no_nan, trio))
       return false;
     // The result is the same as the ordered version when the
     // comparison is true or when the operands cannot be NANs.
@@ -2271,14 +2444,16 @@ operator_plus::op2_range (frange &r, tree type,
 }
 
 void
-operator_plus::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
-			bool &maybe_nan, tree type,
+operator_plus::rv_fold (frange &r, tree type,
 			const REAL_VALUE_TYPE &lh_lb,
 			const REAL_VALUE_TYPE &lh_ub,
 			const REAL_VALUE_TYPE &rh_lb,
 			const REAL_VALUE_TYPE &rh_ub,
 			relation_kind) const
 {
+  REAL_VALUE_TYPE lb, ub;
+  bool maybe_nan = false;
+
   frange_arithmetic (PLUS_EXPR, type, lb, lh_lb, rh_lb, dconstninf);
   frange_arithmetic (PLUS_EXPR, type, ub, lh_ub, rh_ub, dconstinf);
 
@@ -2288,8 +2463,21 @@ operator_plus::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
   // [+INF] + [-INF] = NAN
   else if (real_isinf (&lh_ub, false) && real_isinf (&rh_lb, true))
     maybe_nan = true;
-  else
-    maybe_nan = false;
+
+  // Handle possible NANs by saturating to the appropriate INF if only
+  // one end is a NAN.  If both ends are a NAN, just return a NAN.
+  bool lb_nan = real_isnan (&lb);
+  bool ub_nan = real_isnan (&ub);
+  if (lb_nan && ub_nan)
+    {
+      r.set_nan (type);
+      return;
+    }
+  if (lb_nan)
+    lb = dconstninf;
+  else if (ub_nan)
+    ub = dconstinf;
+  r.set (type, lb, ub, nan_state (maybe_nan));
 }
 
 
@@ -2319,14 +2507,16 @@ operator_minus::op2_range (frange &r, tree type,
 }
 
 void
-operator_minus::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
-			 bool &maybe_nan, tree type,
+operator_minus::rv_fold (frange &r, tree type,
 			 const REAL_VALUE_TYPE &lh_lb,
 			 const REAL_VALUE_TYPE &lh_ub,
 			 const REAL_VALUE_TYPE &rh_lb,
 			 const REAL_VALUE_TYPE &rh_ub,
 			 relation_kind) const
 {
+  REAL_VALUE_TYPE lb, ub;
+  bool maybe_nan = false;
+
   frange_arithmetic (MINUS_EXPR, type, lb, lh_lb, rh_ub, dconstninf);
   frange_arithmetic (MINUS_EXPR, type, ub, lh_ub, rh_lb, dconstinf);
 
@@ -2336,8 +2526,21 @@ operator_minus::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
   // [-INF] - [-INF] = NAN
   else if (real_isinf (&lh_lb, true) && real_isinf (&rh_lb, true))
     maybe_nan = true;
-  else
-    maybe_nan = false;
+
+  // Handle possible NANs by saturating to the appropriate INF if only
+  // one end is a NAN.  If both ends are a NAN, just return a NAN.
+  bool lb_nan = real_isnan (&lb);
+  bool ub_nan = real_isnan (&ub);
+  if (lb_nan && ub_nan)
+    {
+      r.set_nan (type);
+      return;
+    }
+  if (lb_nan)
+    lb = dconstninf;
+  else if (ub_nan)
+    ub = dconstinf;
+  r.set (type, lb, ub, nan_state (maybe_nan));
 }
 
 
@@ -2412,8 +2615,7 @@ operator_mult::op2_range (frange &r, tree type,
 }
 
 void
-operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
-			bool &maybe_nan, tree type,
+operator_mult::rv_fold (frange &r, tree type,
 			const REAL_VALUE_TYPE &lh_lb,
 			const REAL_VALUE_TYPE &lh_ub,
 			const REAL_VALUE_TYPE &rh_lb,
@@ -2426,8 +2628,8 @@ operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
        && real_equal (&lh_ub, &rh_ub)
        && real_isneg (&lh_lb) == real_isneg (&rh_lb)
        && real_isneg (&lh_ub) == real_isneg (&rh_ub));
-
-  maybe_nan = false;
+  REAL_VALUE_TYPE lb, ub;
+  bool maybe_nan = false;
   // x * x never produces a new NAN and we only multiply the same
   // values, so the 0 * INF problematic cases never appear there.
   if (!is_square)
@@ -2436,9 +2638,7 @@ operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
       if ((zero_p (lh_lb, lh_ub) && singleton_inf_p (rh_lb, rh_ub))
 	  || (zero_p (rh_lb, rh_ub) && singleton_inf_p (lh_lb, lh_ub)))
 	{
-	  real_nan (&lb, "", 0, TYPE_MODE (type));
-	  ub = lb;
-	  maybe_nan = true;
+	  r.set_nan (type);
 	  return;
 	}
 
@@ -2460,12 +2660,20 @@ operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
 	  // is INF.
 	  if (singleton_inf_p (lh_lb, lh_ub)
 	      || singleton_inf_p (rh_lb, rh_ub))
-	    return inf_range (lb, ub, signbit_known);
+	    {
+	      inf_range (lb, ub, signbit_known);
+	      r.set (type, lb, ub, nan_state (true));
+	      return;
+	    }
 
 	  // If one of the multiplicands must be zero, the resulting
 	  // range is +-0 and NAN.
 	  if (zero_p (lh_lb, lh_ub) || zero_p (rh_lb, rh_ub))
-	    return zero_range (lb, ub, signbit_known);
+	    {
+	      zero_range (lb, ub, signbit_known);
+	      r.set (type, lb, ub, nan_state (true));
+	      return;
+	    }
 
 	  // Otherwise one of the multiplicands could be
 	  // [0.0, nextafter (0.0, 1.0)] and the [DBL_MAX, INF]
@@ -2473,7 +2681,9 @@ operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
 	  // is still 0.0, nextafter (0.0, 1.0) * INF is still INF,
 	  // so if the signs are always the same or always different,
 	  // result is [+0.0, +INF] or [-INF, -0.0], otherwise VARYING.
-	  return zero_to_inf_range (lb, ub, signbit_known);
+	  zero_to_inf_range (lb, ub, signbit_known);
+	  r.set (type, lb, ub, nan_state (true));
+	  return;
 	}
     }
 
@@ -2513,6 +2723,10 @@ operator_mult::rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub,
   frange_arithmetic (MULT_EXPR, type, cp[7], lh_ub, rh_ub, dconstinf);
 
   find_range (lb, ub, cp);
+
+  gcc_checking_assert (!real_isnan (&lb));
+  gcc_checking_assert (!real_isnan (&ub));
+  r.set (type, lb, ub, nan_state (maybe_nan));
 }
 
 
@@ -2585,8 +2799,7 @@ public:
     return float_binary_op_range_finish (ret, r, type, wlhs, true);
   }
 private:
-  void rv_fold (REAL_VALUE_TYPE &lb, REAL_VALUE_TYPE &ub, bool &maybe_nan,
-		tree type,
+  void rv_fold (frange &r, tree type,
 		const REAL_VALUE_TYPE &lh_lb,
 		const REAL_VALUE_TYPE &lh_ub,
 		const REAL_VALUE_TYPE &rh_lb,
@@ -2597,12 +2810,12 @@ private:
     if ((zero_p (lh_lb, lh_ub) && zero_p (rh_lb, rh_ub))
 	|| (singleton_inf_p (lh_lb, lh_ub) && singleton_inf_p (rh_lb, rh_ub)))
       {
-	real_nan (&lb, "", 0, TYPE_MODE (type));
-	ub = lb;
-	maybe_nan = true;
+	r.set_nan (type);
 	return;
       }
 
+    REAL_VALUE_TYPE lb, ub;
+    bool maybe_nan = false;
     // If +-0.0 is in both ranges, it is a maybe NAN.
     if (contains_zero_p (lh_lb, lh_ub) && contains_zero_p (rh_lb, rh_ub))
       maybe_nan = true;
@@ -2610,8 +2823,6 @@ private:
     else if ((real_isinf (&lh_lb) || real_isinf (&lh_ub))
 	     && (real_isinf (&rh_lb) || real_isinf (&rh_ub)))
       maybe_nan = true;
-    else
-      maybe_nan = false;
 
     int signbit_known = signbit_known_p (lh_lb, lh_ub, rh_lb, rh_ub);
 
@@ -2620,14 +2831,22 @@ private:
     // If divisor must be +-INF, the range is just +-0
     // (including if the dividend is zero).
     if (zero_p (lh_lb, lh_ub) || singleton_inf_p (rh_lb, rh_ub))
-      return zero_range (lb, ub, signbit_known);
+      {
+	zero_range (lb, ub, signbit_known);
+	r.set (type, lb, ub, nan_state (maybe_nan));
+	return;
+      }
 
     // If divisor must be zero, the range is just +-INF
     // (including if the dividend is +-INF).
     // If dividend must be +-INF, the range is just +-INF
     // (including if the dividend is zero).
     if (zero_p (rh_lb, rh_ub) || singleton_inf_p (lh_lb, lh_ub))
-      return inf_range (lb, ub, signbit_known);
+      {
+	inf_range (lb, ub, signbit_known);
+	r.set (type, lb, ub, nan_state (maybe_nan));
+	return;
+      }
 
     // Otherwise if both operands may be zero, divisor could be
     // nextafter(0.0, +-1.0) and dividend +-0.0
@@ -2643,7 +2862,11 @@ private:
     // [+0.0, +INF], if they are always different we have
     // [-INF, -0.0].  If they vary, VARYING.
     if (maybe_nan)
-      return zero_to_inf_range (lb, ub, signbit_known);
+      {
+	zero_to_inf_range (lb, ub, signbit_known);
+	r.set (type, lb, ub, nan_state (maybe_nan));
+	return;
+      }
 
     REAL_VALUE_TYPE cp[8];
     // Do a cross-division.  At this point none of the divisions should
@@ -2669,6 +2892,10 @@ private:
 	if (signbit_known >= 0)
 	  real_inf (&ub, false);
       }
+
+    gcc_checking_assert (!real_isnan (&lb));
+    gcc_checking_assert (!real_isnan (&ub));
+    r.set (type, lb, ub, nan_state (maybe_nan));
   }
 } fop_div;
 

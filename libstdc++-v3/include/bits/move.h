@@ -1,6 +1,6 @@
 // Move, forward and identity for C++11 + swap -*- C++ -*-
 
-// Copyright (C) 2007-2023 Free Software Foundation, Inc.
+// Copyright (C) 2007-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -86,6 +86,36 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return static_cast<_Tp&&>(__t);
     }
 
+#if __glibcxx_forward_like // C++ >= 23
+  template<typename _Tp, typename _Up>
+  struct __like_impl; // _Tp must be a reference and _Up an lvalue reference
+
+  template<typename _Tp, typename _Up>
+  struct __like_impl<_Tp&, _Up&>
+  { using type = _Up&; };
+
+  template<typename _Tp, typename _Up>
+  struct __like_impl<const _Tp&, _Up&>
+  { using type = const _Up&; };
+
+  template<typename _Tp, typename _Up>
+  struct __like_impl<_Tp&&, _Up&>
+  { using type = _Up&&; };
+
+  template<typename _Tp, typename _Up>
+  struct __like_impl<const _Tp&&, _Up&>
+  { using type = const _Up&&; };
+
+  template<typename _Tp, typename _Up>
+    using __like_t = typename __like_impl<_Tp&&, _Up&>::type;
+
+  template<typename _Tp, typename _Up>
+  [[nodiscard]]
+  constexpr __like_t<_Tp, _Up>
+  forward_like(_Up&& __x) noexcept
+  { return static_cast<__like_t<_Tp, _Up>>(__x); }
+#endif
+
   /**
    *  @brief  Convert a value to an rvalue.
    *  @param  __t  A thing of arbitrary type.
@@ -120,11 +150,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // declval, from type_traits.
 
-#if __cplusplus > 201402L
-  // _GLIBCXX_RESOLVE_LIB_DEFECTS
-  // 2296. std::addressof should be constexpr
-# define __cpp_lib_addressof_constexpr 201603L
-#endif
   /**
    *  @brief Returns the actual address of the object or function
    *         referenced by r, even in the presence of an overloaded

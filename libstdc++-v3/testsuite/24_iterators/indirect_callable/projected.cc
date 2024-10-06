@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2023 Free Software Foundation, Inc.
+// Copyright (C) 2019-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,15 +15,19 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <iterator>
 
 template<typename T>
   using PI = std::projected<T, std::identity>;
 
+#if __GLIBCXX__
+// Verify our projected<I, identity> optimization.
+static_assert(std::same_as<PI<int*>, int*>);
+#else
 static_assert(std::same_as<PI<int*>::value_type, int>);
+#endif
 static_assert(std::same_as<decltype(*std::declval<const PI<int*>&>()), int&>);
 
 struct X

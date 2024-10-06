@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997-2023 Free Software Foundation, Inc.
+// Copyright (C) 1997-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,9 @@
 #ifndef _IOS_BASE_H
 #define _IOS_BASE_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <ext/atomicity.h>
 #include <bits/localefwd.h>
@@ -79,36 +81,50 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _S_ios_fmtflags_min = ~__INT_MAX__
     };
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Fmtflags
-  operator&(_Ios_Fmtflags __a, _Ios_Fmtflags __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Fmtflags
+  operator&(_Ios_Fmtflags __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return _Ios_Fmtflags(static_cast<int>(__a) & static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Fmtflags
-  operator|(_Ios_Fmtflags __a, _Ios_Fmtflags __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Fmtflags
+  operator|(_Ios_Fmtflags __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return _Ios_Fmtflags(static_cast<int>(__a) | static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Fmtflags
-  operator^(_Ios_Fmtflags __a, _Ios_Fmtflags __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Fmtflags
+  operator^(_Ios_Fmtflags __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return _Ios_Fmtflags(static_cast<int>(__a) ^ static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Fmtflags
-  operator~(_Ios_Fmtflags __a)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Fmtflags
+  operator~(_Ios_Fmtflags __a) _GLIBCXX_NOTHROW
   { return _Ios_Fmtflags(~static_cast<int>(__a)); }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Fmtflags&
-  operator|=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b)
+  operator|=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return __a = __a | __b; }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Fmtflags&
-  operator&=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b)
+  operator&=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return __a = __a & __b; }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Fmtflags&
-  operator^=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b)
+  operator^=(_Ios_Fmtflags& __a, _Ios_Fmtflags __b) _GLIBCXX_NOTHROW
   { return __a = __a ^ __b; }
 
+  // If std::ios_base::noreplace isn't available, -Wswitch should ignore
+  // _S_noreplace.
+#ifdef __glibcxx_ios_noreplace
+#define _NOREPLACE_UNUSED
+#else
+#define _NOREPLACE_UNUSED __attribute__((__unused__))
+#endif
 
-  enum _Ios_Openmode 
+  enum __attribute__((__flag_enum__)) _Ios_Openmode
     { 
       _S_app 		= 1L << 0,
       _S_ate 		= 1L << 1,
@@ -116,38 +132,47 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _S_in 		= 1L << 3,
       _S_out 		= 1L << 4,
       _S_trunc 		= 1L << 5,
-      _S_noreplace 	= 1L << 6,
-      _S_ios_openmode_end = 1L << 16,
-      _S_ios_openmode_max = __INT_MAX__,
-      _S_ios_openmode_min = ~__INT_MAX__
+      _S_noreplace _NOREPLACE_UNUSED = 1L << 6,
+      _S_ios_openmode_end __attribute__((__unused__)) = 1L << 16,
+      _S_ios_openmode_max __attribute__((__unused__)) = __INT_MAX__,
+      _S_ios_openmode_min __attribute__((__unused__)) = ~__INT_MAX__
     };
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Openmode
-  operator&(_Ios_Openmode __a, _Ios_Openmode __b)
+#undef _NOREPLACE_UNUSED
+
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Openmode
+  operator&(_Ios_Openmode __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return _Ios_Openmode(static_cast<int>(__a) & static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Openmode
-  operator|(_Ios_Openmode __a, _Ios_Openmode __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Openmode
+  operator|(_Ios_Openmode __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return _Ios_Openmode(static_cast<int>(__a) | static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Openmode
-  operator^(_Ios_Openmode __a, _Ios_Openmode __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Openmode
+  operator^(_Ios_Openmode __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return _Ios_Openmode(static_cast<int>(__a) ^ static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Openmode
-  operator~(_Ios_Openmode __a)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Openmode
+  operator~(_Ios_Openmode __a) _GLIBCXX_NOTHROW
   { return _Ios_Openmode(~static_cast<int>(__a)); }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Openmode&
-  operator|=(_Ios_Openmode& __a, _Ios_Openmode __b)
+  operator|=(_Ios_Openmode& __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return __a = __a | __b; }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Openmode&
-  operator&=(_Ios_Openmode& __a, _Ios_Openmode __b)
+  operator&=(_Ios_Openmode& __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return __a = __a & __b; }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Openmode&
-  operator^=(_Ios_Openmode& __a, _Ios_Openmode __b)
+  operator^=(_Ios_Openmode& __a, _Ios_Openmode __b) _GLIBCXX_NOTHROW
   { return __a = __a ^ __b; }
 
 
@@ -162,32 +187,39 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _S_ios_iostate_min = ~__INT_MAX__
     };
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Iostate
-  operator&(_Ios_Iostate __a, _Ios_Iostate __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Iostate
+  operator&(_Ios_Iostate __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return _Ios_Iostate(static_cast<int>(__a) & static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Iostate
-  operator|(_Ios_Iostate __a, _Ios_Iostate __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Iostate
+  operator|(_Ios_Iostate __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return _Ios_Iostate(static_cast<int>(__a) | static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Iostate
-  operator^(_Ios_Iostate __a, _Ios_Iostate __b)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Iostate
+  operator^(_Ios_Iostate __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return _Ios_Iostate(static_cast<int>(__a) ^ static_cast<int>(__b)); }
 
-  inline _GLIBCXX_CONSTEXPR _Ios_Iostate
-  operator~(_Ios_Iostate __a)
+  _GLIBCXX_NODISCARD _GLIBCXX_CONSTEXPR
+  inline _Ios_Iostate
+  operator~(_Ios_Iostate __a) _GLIBCXX_NOTHROW
   { return _Ios_Iostate(~static_cast<int>(__a)); }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Iostate&
-  operator|=(_Ios_Iostate& __a, _Ios_Iostate __b)
+  operator|=(_Ios_Iostate& __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return __a = __a | __b; }
 
+  _GLIBCXX14_CONSTEXPR
   inline const _Ios_Iostate&
-  operator&=(_Ios_Iostate& __a, _Ios_Iostate __b)
+  operator&=(_Ios_Iostate& __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return __a = __a & __b; }
 
-  inline const  _Ios_Iostate&
-  operator^=(_Ios_Iostate& __a, _Ios_Iostate __b)
+  _GLIBCXX14_CONSTEXPR
+  inline const _Ios_Iostate&
+  operator^=(_Ios_Iostate& __a, _Ios_Iostate __b) _GLIBCXX_NOTHROW
   { return __a = __a ^ __b; }
 
 
@@ -473,8 +505,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     static const openmode __noreplace =	_S_noreplace;
 
-#if __cplusplus >= 202100L
-#define __cpp_lib_ios_noreplace 202207L
+#ifdef __glibcxx_ios_noreplace // C++ >= 23 && HOSTED
     /// Open a file in exclusive mode.
     static const openmode noreplace =	_S_noreplace;
 #endif
@@ -658,6 +689,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *  @brief  Access to format flags.
      *  @return  The format control flags for both input and output.
     */
+    _GLIBCXX_NODISCARD
     fmtflags
     flags() const
     { return _M_flags; }
@@ -728,6 +760,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *  Be careful if you try to give a definition of @a precision here; see
      *  DR 189.
     */
+    _GLIBCXX_NODISCARD
     streamsize
     precision() const
     { return _M_precision; }
@@ -751,6 +784,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *
      *  <em>Minimum field width</em> refers to the number of characters.
     */
+    _GLIBCXX_NODISCARD
     streamsize
     width() const
     { return _M_width; }
@@ -802,6 +836,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
      *  returns @c loc.  Otherwise, it returns a copy of @c std::locale(),
      *  the global C++ locale.
     */
+    _GLIBCXX_NODISCARD
     locale
     getloc() const
     { return _M_ios_locale; }

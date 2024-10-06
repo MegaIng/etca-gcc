@@ -1,6 +1,6 @@
 // Character Traits for use by standard string and iostream -*- C++ -*-
 
-// Copyright (C) 1997-2023 Free Software Foundation, Inc.
+// Copyright (C) 1997-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,9 @@
 #ifndef _CHAR_TRAITS_H
 #define _CHAR_TRAITS_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 
@@ -227,19 +229,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cplusplus >= 202002L
       if (std::__is_constant_evaluated())
 	{
-	  if (__s1 == __s2) // unlikely, but saves a lot of work
-	    return __s1;
-	  const auto __end = __s2 + __n - 1;
-	  bool __overlap = false;
-	  for (std::size_t __i = 0; __i < __n - 1; ++__i)
-	    {
-	      if (__s1 + __i == __end)
-		{
-		  __overlap = true;
-		  break;
-		}
-	    }
-	  if (__overlap)
+	  // Use __builtin_constant_p to avoid comparing unrelated pointers.
+	  if (__builtin_constant_p(__s2 < __s1)
+		&& __s1 > __s2 && __s1 < (__s2 + __n))
 	    {
 	      do
 		{
@@ -315,14 +307,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-#ifdef __cpp_lib_is_constant_evaluated
-// Unofficial macro indicating P1032R1 support in C++20
-# define __cpp_lib_constexpr_char_traits 201811L
-#elif __cplusplus >= 201703L && _GLIBCXX_HAVE_IS_CONSTANT_EVALUATED
-// Unofficial macro indicating P0426R1 support in C++17
-# define __cpp_lib_constexpr_char_traits 201611L
-#endif
 
   // 21.1
   /**
@@ -669,10 +653,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	if (std::__is_constant_evaluated())
 	  return __gnu_cxx::char_traits<char_type>::length(__s);
 #endif
-	size_t __i = 0;
-	while (!eq(__s[__i], char_type()))
-	  ++__i;
-	return __i;
+	return __builtin_strlen((const char*)__s);
       }
 
       static _GLIBCXX17_CONSTEXPR const char_type*

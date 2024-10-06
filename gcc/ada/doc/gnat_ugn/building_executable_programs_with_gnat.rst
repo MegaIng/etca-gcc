@@ -2942,8 +2942,8 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 
   .. index:: Conditionals, constant
 
-  This switch activates warnings for conditional expressions used in
-  tests that are known to be True or False at compile time. The default
+  This switch activates warnings for boolean expressions that are known to
+  be True or False at compile time. The default
   is that such warnings are not generated.
   Note that this warning does
   not get issued for the use of boolean constants whose
@@ -3415,7 +3415,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 .. index:: -gnatw.l  (gcc)
 
 :switch:`-gnatw.l`
-  *List inherited aspects.*
+  *List inherited aspects as info messages.*
 
   This switch causes the compiler to list inherited invariants,
   preconditions, and postconditions from Type_Invariant'Class, Invariant'Class,
@@ -3425,9 +3425,26 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 .. index:: -gnatw.L  (gcc)
 
 :switch:`-gnatw.L`
-  *Suppress listing of inherited aspects.*
+  *Suppress listing of inherited aspects as info messages.*
 
   This switch suppresses listing of inherited aspects.
+
+
+.. index:: -gnatw_l  (gcc)
+
+:switch:`-gnatw_l`
+  *Activate warnings on implicitly limited types.*
+
+  This switch causes the compiler trigger warnings on record types that do not
+  have a limited keyword but contain a component that is a limited type.
+
+
+.. index:: -gnatw_L  (gcc)
+
+:switch:`-gnatw_L`
+  *Suppress warnings on implicitly limited types.*
+
+  This switch suppresses warnings on implicitly limited types.
 
 
 .. index:: -gnatwm  (gcc)
@@ -3497,7 +3514,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatw.n`
   *Activate warnings on atomic synchronization.*
 
-  This switch actives warnings when an access to an atomic variable
+  This switch activates warnings when an access to an atomic variable
   requires the generation of atomic synchronization code. These
   warnings are off by default.
 
@@ -3997,22 +4014,21 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 .. index:: bit order warnings
 
 :switch:`-gnatw.v`
-  *Activate info messages for non-default bit order.*
+  *Activate warnings for non-default bit order.*
 
-  This switch activates messages (labeled "info", they are not warnings,
-  just informational messages) about the effects of non-default bit-order
-  on records to which a component clause is applied. The effect of specifying
-  non-default bit ordering is a bit subtle (and changed with Ada 2005), so
-  these messages, which are given by default, are useful in understanding the
-  exact consequences of using this feature.
+  This switch activates warning messages about the effects of non-default
+  bit-order on records to which a component clause is applied. The effect of
+  specifying non-default bit ordering is a bit subtle
+  (and changed with Ada 2005), so these messages, which are given by default,
+  are useful in understanding the exact consequences of using this feature.
 
 
 .. index:: -gnatw.V  (gcc)
 
 :switch:`-gnatw.V`
-  *Suppress info messages for non-default bit order.*
+  *Suppress warnings for non-default bit order.*
 
-  This switch suppresses information messages for the effects of specifying
+  This switch suppresses warnings for the effects of specifying
   non-default bit order on record components with component clauses.
 
 
@@ -4095,7 +4111,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   should not complain at you.
 
 
-.. index:: -gnatwm  (gcc)
+.. index:: -gnatw.x  (gcc)
 
 :switch:`-gnatw.x`
   *Activate warnings for No_Exception_Propagation mode.*
@@ -4371,6 +4387,23 @@ When no switch :switch:`-gnatw` is used, this is equivalent to:
   * :switch:`-gnatw.z`
 
 .. _Debugging_and_Assertion_Control:
+
+
+
+Info message Control
+--------------------
+
+In addition to the warning messages, the compiler can also generate info
+messages. In order to control the generation of these messages, the following
+switch is provided:
+
+:switch:`-gnatis`
+  *Suppress all info messages.*
+
+  This switch completely suppresses the output of all info messages from the
+  GNAT front end.
+
+
 
 Debugging and Assertion Control
 -------------------------------
@@ -4750,7 +4783,7 @@ checks to be performed. The following checks are defined:
   then proper indentation is checked, with the digit indicating the
   indentation level required. A value of zero turns off this style check.
   The rule checks that the following constructs start on a column that is
-  a multiple of the alignment level:
+  one plus a multiple of the alignment level:
 
   * beginnings of declarations (except record component declarations)
     and statements;
@@ -4761,10 +4794,10 @@ checks to be performed. The following checks are defined:
     or body or that completes a compound statement.
 
   Full line comments must be
-  aligned with the ``--`` starting on a column that is a multiple of
+  aligned with the ``--`` starting on a column that is one plus a multiple of
   the alignment level, or they may be aligned the same way as the following
   non-blank line (this is useful when full line comments appear in the middle
-  of a statement, or they may be aligned with the source line on the previous
+  of a statement), or they may be aligned with the source line on the previous
   non-blank line.
 
 .. index:: -gnatya   (gcc)
@@ -6317,28 +6350,6 @@ Linker switches can be specified after :switch:`-largs` builder switch.
   recent and faster alternatives, but only available on GNU/Linux
   platforms.
 
-  .. only:: PRO
-
-    The GNAT distribution for native Linux platforms includes ``mold``,
-    compiled against OpenSSL version 1.1; however, the distribution does
-    not include OpenSSL.  In order to use this linker, you may either:
-
-    * use your system's OpenSSL library, if the version matches: in this
-      situation, you need not do anything beside using the
-      :switch:`-fuse-ld=mold` switch,
-
-    * obtain a source distribution for OpenSSL 1.1, compile the
-      :file:`libcrypto.so` library and install it in the directory of
-      your choice, then include this directory in the
-      :envvar:`LD_LIBRARY_PATH` environment variable,
-
-    * install another copy of ``mold`` by other means in the directory
-      of your choice, and include this directory in the :envvar:`PATH`
-      environment variable; you may find this alternative preferable if
-      the copy of ``mold`` included in GNAT does not suit your needs
-      (e.g. being able to link against your system's OpenSSL, or using
-      another version of ``mold``).
-
 .. _Binding_with_gnatbind:
 
 Binding with ``gnatbind``
@@ -6546,12 +6557,12 @@ be presented in subsequent sections.
   determines the initial size of the secondary stack for each task and the
   smallest amount the secondary stack can grow by.
 
-  For Ravenscar, ZFP, and Cert run-times the size of the secondary stack is
-  fixed. This switch can be used to change the default size of these stacks.
-  The default secondary stack size can be overridden on a per-task basis if
-  individual tasks have different secondary stack requirements. This is
-  achieved through the Secondary_Stack_Size aspect that takes the size of the
-  secondary stack in bytes.
+  For Light, Light-Tasking, and Embedded run-times the size of the secondary
+  stack is fixed. This switch can be used to change the default size of these
+  stacks. The default secondary stack size can be overridden on a per-task
+  basis if individual tasks have different secondary stack requirements. This
+  is achieved through the Secondary_Stack_Size aspect, which takes the size of
+  the secondary stack in bytes.
 
 .. index:: -e  (gnatbind)
 
@@ -6759,6 +6770,23 @@ be presented in subsequent sections.
 
 :switch:`-P`
   Generate binder file suitable for CodePeer.
+
+
+.. index:: -Q  (gnatbind)
+
+:switch:`-Q{nnn}`
+  Generate ``nnn`` additional default-sized secondary stacks.
+
+  Tasks declared at the library level that use default-size secondary stacks
+  have their secondary stacks allocated from a pool of stacks generated by
+  gnatbind. This allows the default secondary stack size to be quickly changed
+  by rebinding the application.
+
+  While the binder sizes this pool to match the number of such tasks defined in
+  the application, the pool size may need to be increased with the :switch:`-Q`
+  switch to accommodate foreign threads registered with the Light run-time. For
+  more information, please see the *The Primary and Secondary Stack* chapter in
+  the *GNAT User’s Guide Supplement for Cross Platforms*.
 
 
   .. index:: -R  (gnatbind)

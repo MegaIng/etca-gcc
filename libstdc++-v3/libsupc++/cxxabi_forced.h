@@ -1,6 +1,6 @@
 // cxxabi.h subset for cancellation -*- C++ -*-
   
-// Copyright (C) 2007-2023 Free Software Foundation, Inc.
+// Copyright (C) 2007-2024 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -31,7 +31,9 @@
 #ifndef _CXXABI_FORCED_H
 #define _CXXABI_FORCED_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #pragma GCC visibility push(default)
 

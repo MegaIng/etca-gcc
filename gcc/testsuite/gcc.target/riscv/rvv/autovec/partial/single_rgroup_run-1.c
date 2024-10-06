@@ -1,5 +1,5 @@
-/* { dg-do run { target { riscv_vector } } } */
-/* { dg-additional-options "-fno-vect-cost-model -fno-tree-loop-distribute-patterns --param riscv-autovec-preference=scalable" } */
+/* { dg-do run { target { riscv_v } } } */
+/* { dg-additional-options "-fno-vect-cost-model -fno-tree-loop-distribute-patterns -mrvv-vector-bits=scalable" } */
 
 #include "single_rgroup-1.c"
 

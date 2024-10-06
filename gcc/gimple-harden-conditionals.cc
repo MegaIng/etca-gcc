@@ -1,5 +1,5 @@
 /* Harden conditionals.
-   Copyright (C) 2021-2023 Free Software Foundation, Inc.
+   Copyright (C) 2021-2024 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva <oliva@adacore.com>.
 
 This file is part of GCC.
@@ -235,6 +235,7 @@ insert_check_and_trap (location_t loc, gimple_stmt_iterator *gsip,
   gsi_insert_before (gsip, cond, GSI_SAME_STMT);
 
   basic_block trp = create_empty_bb (chk);
+  trp->count = profile_count::zero ();
 
   gimple_stmt_iterator gsit = gsi_after_labels (trp);
   gcall *trap = gimple_build_call (builtin_decl_explicit (BUILT_IN_TRAP), 0);
@@ -579,11 +580,21 @@ pass_harden_compares::execute (function *fun)
 	  if (throwing_compare_p)
 	    {
 	      add_stmt_to_eh_lp (asgnck, lookup_stmt_eh_lp (asgn));
-	      make_eh_edges (asgnck);
+	      edge eh = make_eh_edge (asgnck);
+	      /* This compare looks like it could raise an exception,
+		 but it's dominated by the original compare, that
+		 would raise an exception first, so the EH edge from
+		 this one is never really taken.  */
+	      eh->probability = profile_probability::never ();
+	      if (eh->dest->count.initialized_p ())
+		eh->dest->count += eh->count ();
+	      else
+		eh->dest->count = eh->count ();
 
 	      edge ckeh;
 	      basic_block nbb = split_edge (non_eh_succ_edge
 					    (gimple_bb (asgnck), &ckeh));
+	      gcc_checking_assert (eh == ckeh);
 	      gsi_split = gsi_start_bb (nbb);
 
 	      if (dump_file)

@@ -1,5 +1,5 @@
 /* Internals of libgccjit: classes for recording calls made to the JIT API.
-   Copyright (C) 2013-2023 Free Software Foundation, Inc.
+   Copyright (C) 2013-2024 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -23,6 +23,10 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "jit-common.h"
 #include "jit-logging.h"
+#include "libgccjit.h"
+
+#include <string>
+#include <vector>
 
 class timer;
 
@@ -42,6 +46,11 @@ class reproducer;
  **********************************************************************/
 
 namespace recording {
+
+enum type_info_type {
+    TYPE_INFO_ALIGN_OF,
+    TYPE_INFO_SIZE_OF,
+};
 
 playback::location *
 playback_location (replayer *r, location *loc);
@@ -164,6 +173,12 @@ public:
   rvalue *
   new_rvalue_from_const (type *type,
 			 HOST_TYPE value);
+
+  rvalue *
+  new_sizeof (type *type);
+
+  rvalue *
+  new_alignof (type *type);
 
   rvalue *
   new_string_literal (const char *value);
@@ -524,6 +539,7 @@ public:
   type *get_pointer ();
   type *get_const ();
   type *get_volatile ();
+  type *get_restrict ();
   type *get_aligned (size_t alignment_in_bytes);
   type *get_vector (size_t num_units);
 
@@ -544,6 +560,7 @@ public:
   virtual function_type *as_a_function_type() { gcc_unreachable (); return NULL; }
   virtual struct_ *dyn_cast_struct () { return NULL; }
   virtual vector_type *dyn_cast_vector_type () { return NULL; }
+  virtual array_type *dyn_cast_array_type () { return NULL; }
 
   /* Is it typesafe to copy to this type from rtype?  */
   virtual bool accepts_writes_from (type *rtype)
@@ -566,8 +583,10 @@ public:
   virtual bool is_int () const = 0;
   virtual bool is_float () const = 0;
   virtual bool is_bool () const = 0;
+  virtual bool is_numeric_vector () const { return false; }
   virtual type *is_pointer () = 0;
   virtual type *is_volatile () { return NULL; }
+  virtual type *is_restrict () { return NULL; }
   virtual type *is_const () { return NULL; }
   virtual type *is_array () = 0;
   virtual struct_ *is_struct () { return NULL; }
@@ -686,7 +705,7 @@ private:
 };
 
 /* A decorated version of a type, for get_const, get_volatile,
-   get_aligned, and get_vector.  */
+   get_aligned, get_restrict, and get_vector.  */
 
 class decorated_type : public type
 {
@@ -699,9 +718,12 @@ public:
 
   size_t get_size () final override { return m_other_type->get_size (); };
 
-  bool is_int () const final override { return m_other_type->is_int (); }
+  bool is_int () const override { return m_other_type->is_int (); }
   bool is_float () const final override { return m_other_type->is_float (); }
   bool is_bool () const final override { return m_other_type->is_bool (); }
+  bool is_numeric_vector () const override {
+      return m_other_type->is_numeric_vector ();
+  }
   type *is_pointer () final override { return m_other_type->is_pointer (); }
   type *is_array () final override { return m_other_type->is_array (); }
   struct_ *is_struct () final override { return m_other_type->is_struct (); }
@@ -769,6 +791,32 @@ private:
   void write_reproducer (reproducer &r) final override;
 };
 
+/* Result of "gcc_jit_type_get_restrict".  */
+class memento_of_get_restrict : public decorated_type
+{
+public:
+  memento_of_get_restrict (type *other_type)
+  : decorated_type (other_type) {}
+
+  bool is_same_type_as (type *other) final override
+  {
+    if (!other->is_restrict ())
+      return false;
+    return m_other_type->is_same_type_as (other->is_restrict ());
+  }
+
+  /* Strip off the "restrict", giving the underlying type.  */
+  type *unqualified () final override { return m_other_type; }
+
+  type *is_restrict () final override { return m_other_type; }
+
+  void replay_into (replayer *) final override;
+
+private:
+  string * make_debug_string () final override;
+  void write_reproducer (reproducer &r) final override;
+};
+
 /* Result of "gcc_jit_type_get_aligned".  */
 class memento_of_get_aligned : public decorated_type
 {
@@ -781,6 +829,11 @@ public:
   type *unqualified () final override { return m_other_type; }
 
   void replay_into (replayer *) final override;
+
+  array_type *dyn_cast_array_type () final override
+  {
+    return m_other_type->dyn_cast_array_type ();
+  }
 
 private:
   string * make_debug_string () final override;
@@ -797,6 +850,14 @@ public:
   vector_type (type *other_type, size_t num_units)
   : decorated_type (other_type),
     m_num_units (num_units) {}
+
+  bool is_int () const final override {
+    return false;
+  }
+
+  bool is_numeric_vector () const final override {
+    return true;
+  }
 
   size_t get_num_units () const { return m_num_units; }
 
@@ -839,6 +900,17 @@ class array_type : public type
   {}
 
   type *dereference () final override;
+
+  bool is_same_type_as (type *other) final override
+  {
+    array_type *other_array_type = other->dyn_cast_array_type ();
+    if (!other_array_type)
+      return false;
+    return m_num_elements == other_array_type->m_num_elements
+      && m_element_type->is_same_type_as (other_array_type->m_element_type);
+  }
+
+  array_type *dyn_cast_array_type () final override { return this; }
 
   bool is_int () const final override { return false; }
   bool is_float () const final override { return false; }
@@ -1188,7 +1260,8 @@ public:
     m_link_section (NULL),
     m_reg_name (NULL),
     m_tls_model (GCC_JIT_TLS_MODEL_NONE),
-    m_alignment (0)
+    m_alignment (0),
+    m_string_attributes ()
   {}
 
   playback::lvalue *
@@ -1208,8 +1281,12 @@ public:
   as_rvalue () { return this; }
 
   const char *access_as_rvalue (reproducer &r) override;
+
+  void add_string_attribute (gcc_jit_variable_attribute attribute, const char* value);
+
   virtual const char *access_as_lvalue (reproducer &r);
   virtual bool is_global () const { return false; }
+  virtual bool is_local () const { return false; }
   void set_tls_model (enum gcc_jit_tls_model model);
   void set_link_section (const char *name);
   void set_register_name (const char *reg_name);
@@ -1221,6 +1298,8 @@ protected:
   string *m_reg_name;
   enum gcc_jit_tls_model m_tls_model;
   unsigned m_alignment;
+  std::vector<std::pair<gcc_jit_variable_attribute,
+	      std::string>> m_string_attributes;
 };
 
 class param : public lvalue
@@ -1314,6 +1393,10 @@ public:
 
   rvalue *get_address (location *loc);
 
+  void add_attribute (gcc_jit_fn_attribute attribute);
+  void add_string_attribute (gcc_jit_fn_attribute attribute, const char* value);
+  void add_integer_array_attribute (gcc_jit_fn_attribute attribute, const int* value, size_t length);
+
 private:
   string * make_debug_string () final override;
   void write_reproducer (reproducer &r) final override;
@@ -1329,6 +1412,9 @@ private:
   auto_vec<local *> m_locals;
   auto_vec<block *> m_blocks;
   type *m_fn_ptr_type;
+  std::vector<gcc_jit_fn_attribute> m_attributes;
+  std::vector<std::pair<gcc_jit_fn_attribute, std::string>> m_string_attributes;
+  std::vector<std::pair<gcc_jit_fn_attribute, std::vector<int>>> m_int_array_attributes;
 };
 
 class block : public memento
@@ -1545,6 +1631,34 @@ private:
 
 private:
   HOST_TYPE m_value;
+};
+
+class memento_of_typeinfo : public rvalue
+{
+public:
+  memento_of_typeinfo (context *ctxt,
+			 location *loc,
+			 type *type,
+			 type_info_type type_info)
+  : rvalue (ctxt, loc, ctxt->get_type (GCC_JIT_TYPE_INT)),
+    m_type (type),
+    m_info_type (type_info) {}
+
+  void replay_into (replayer *r) final override;
+
+  void visit_children (rvalue_visitor *) final override {}
+
+private:
+  string * make_debug_string () final override;
+  void write_reproducer (reproducer &r) final override;
+  enum precedence get_precedence () const final override
+  {
+    return PRECEDENCE_PRIMARY;
+  }
+
+private:
+  type *m_type;
+  type_info_type m_info_type;
 };
 
 class memento_of_new_string_literal : public rvalue
@@ -2057,6 +2171,8 @@ public:
   void replay_into (replayer *r) final override;
 
   void visit_children (rvalue_visitor *) final override {}
+
+  bool is_local () const final override { return true; }
 
   void write_to_dump (dump &d) final override;
 

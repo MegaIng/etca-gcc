@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2020-2023, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2024, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,7 +32,7 @@
 with Ada.Strings.Text_Buffers.Utils;
 use Ada.Strings.Text_Buffers;
 use Ada.Strings.Text_Buffers.Utils;
-with Ada.Unchecked_Conversion;
+with System.Storage_Elements; use System.Storage_Elements;
 
 package body System.Put_Images is
 
@@ -132,15 +132,13 @@ package body System.Put_Images is
    procedure Put_Image_Pointer
      (S : in out Sink'Class; X : Pointer; Type_Kind : String)
    is
-      function Cast is new Ada.Unchecked_Conversion
-        (System.Address, Unsigned_Address);
    begin
       if X = null then
          Put_UTF_8 (S, "null");
       else
          Put_UTF_8 (S, "(");
          Put_UTF_8 (S, Type_Kind);
-         Hex.Put_Image (S, Cast (X.all'Address));
+         Hex.Put_Image (S, Unsigned_Address (To_Integer (X.all'Address)));
          Put_UTF_8 (S, ")");
       end if;
    end Put_Image_Pointer;

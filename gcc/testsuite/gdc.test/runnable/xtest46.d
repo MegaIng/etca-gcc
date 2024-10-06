@@ -2,14 +2,11 @@
 //
 /* TEST_OUTPUT:
 ---
-runnable/xtest46.d(165): Deprecation: alias this for classes/interfaces is deprecated
 Boo!double
 Boo!int
 true
 int
 !! immutable(int)[]
-runnable/xtest46.d(2932): Deprecation: alias this for classes/interfaces is deprecated
-runnable/xtest46.d(2964): Deprecation: alias this for classes/interfaces is deprecated
 int(int i, long j = 7L)
 long
 C10390(C10390(C10390(<recursion>)))
@@ -22,7 +19,6 @@ string[]
 double[]
 double[]
 {}
-runnable/xtest46.d(4670): Deprecation: alias this for classes/interfaces is deprecated
 AliasSeq!("m")
 true
 TFunction1: extern (C) void function()
@@ -183,7 +179,7 @@ void test7()
 
 void foo8(int n1 = __LINE__ + 0, int n2 = __LINE__, string s = __FILE__)
 {
-    assert(n1 < n2);
+    assert(n1 == n2);
     printf("n1 = %d, n2 = %d, s = %.*s\n", n1, n2, cast(int)s.length, s.ptr);
 }
 
@@ -196,7 +192,7 @@ void test8()
 
 void foo9(int n1 = __LINE__ + 0, int n2 = __LINE__, string s = __FILE__)()
 {
-    assert(n1 < n2);
+    assert(n1 == n2);
     printf("n1 = %d, n2 = %d, s = %.*s\n", n1, n2, cast(int)s.length, s.ptr);
 }
 
@@ -8036,6 +8032,29 @@ void test18232()
 }
 
 /***************************************************/
+// https://issues.dlang.org/show_bug.cgi?id=24332
+
+void test24332()
+{
+    class A {}
+    final class B : A {}
+
+    auto foo(A a) {
+        return cast(B) a;
+    }
+
+    auto a = new A();
+    auto n = cast(B) a;
+    assert(n is null);
+    auto b = cast(A) new B();
+    auto c = cast(B) b;
+    assert(c);
+    B e;
+    auto d = cast(B) cast(A) e;
+    assert(d is null);
+}
+
+/***************************************************/
 
 int main()
 {
@@ -8356,6 +8375,7 @@ int main()
     test17349();
     test17915();
     test18232();
+    test24332();
 
     printf("Success\n");
     return 0;

@@ -1,7 +1,7 @@
 /* Write and read the cgraph to the memory mapped representation of a
    .o file.
 
-   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+   Copyright (C) 2009-2024 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -68,6 +68,7 @@ enum LTO_symtab_tags
   LTO_symtab_edge,
   LTO_symtab_indirect_edge,
   LTO_symtab_variable,
+  LTO_symtab_indirect_function,
   LTO_symtab_last_tag
 };
 
@@ -1111,11 +1112,24 @@ output_offload_tables (void)
 			       (*offload_vars)[i]);
     }
 
+  for (unsigned i = 0; i < vec_safe_length (offload_ind_funcs); i++)
+    {
+      symtab_node *node = symtab_node::get ((*offload_ind_funcs)[i]);
+      if (!node)
+	continue;
+      node->force_output = true;
+      streamer_write_enum (ob->main_stream, LTO_symtab_tags,
+			   LTO_symtab_last_tag, LTO_symtab_indirect_function);
+      lto_output_fn_decl_ref (ob->decl_state, ob->main_stream,
+			      (*offload_ind_funcs)[i]);
+    }
+
   if (output_requires)
     {
       HOST_WIDE_INT val = ((HOST_WIDE_INT) omp_requires_mask
 			   & (OMP_REQUIRES_UNIFIED_ADDRESS
 			      | OMP_REQUIRES_UNIFIED_SHARED_MEMORY
+			      | OMP_REQUIRES_SELF_MAPS
 			      | OMP_REQUIRES_REVERSE_OFFLOAD
 			      | OMP_REQUIRES_TARGET_USED));
       /* (Mis)use LTO_symtab_edge for this variable.  */
@@ -1126,15 +1140,6 @@ output_offload_tables (void)
 
   streamer_write_uhwi_stream (ob->main_stream, 0);
   lto_destroy_simple_output_block (ob);
-
-  /* In WHOPR mode during the WPA stage the joint offload tables need to be
-     streamed to one partition only.  That's why we free offload_funcs and
-     offload_vars after the first call of output_offload_tables.  */
-  if (flag_wpa)
-    {
-      vec_free (offload_funcs);
-      vec_free (offload_vars);
-    }
 }
 
 /* Verify the partitioning of NODE.  */
@@ -1804,6 +1809,9 @@ omp_requires_to_name (char *buf, size_t size, HOST_WIDE_INT requires_mask)
   if (requires_mask & GOMP_REQUIRES_UNIFIED_SHARED_MEMORY)
     p += snprintf (p, end - p, "%sunified_shared_memory",
 		   (p == buf ? "" : ", "));
+  if (requires_mask & GOMP_REQUIRES_SELF_MAPS)
+    p += snprintf (p, end - p, "%sself_maps",
+		   (p == buf ? "" : ", "));
   if (requires_mask & GOMP_REQUIRES_REVERSE_OFFLOAD)
     p += snprintf (p, end - p, "%sreverse_offload",
 		   (p == buf ? "" : ", "));
@@ -1862,6 +1870,19 @@ input_offload_tables (bool do_force_output)
 	      if (do_force_output)
 		varpool_node::get (var_decl)->force_output = 1;
 	      tmp_decl = var_decl;
+	    }
+	  else if (tag == LTO_symtab_indirect_function)
+	    {
+	      tree fn_decl
+		= lto_input_fn_decl_ref (ib, file_data);
+	      vec_safe_push (offload_ind_funcs, fn_decl);
+
+	      /* Prevent IPA from removing fn_decl as unreachable, since there
+		 may be no refs from the parent function to child_fn in offload
+		 LTO mode.  */
+	      if (do_force_output)
+		cgraph_node::get (fn_decl)->mark_force_output ();
+	      tmp_decl = fn_decl;
 	    }
 	  else if (tag == LTO_symtab_edge)
 	    {

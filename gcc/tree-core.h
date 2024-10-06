@@ -1,5 +1,5 @@
 /* Core data structures for the 'tree' type.
-   Copyright (C) 1989-2023 Free Software Foundation, Inc.
+   Copyright (C) 1989-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -94,6 +94,9 @@ struct die_struct;
 
 /* Nonzero if this is a cold function.  */
 #define ECF_COLD		  (1 << 15)
+
+/* Nonzero if this is a function expected to end with an exception.  */
+#define ECF_XTHROW		  (1 << 16)
 
 /* Call argument flags.  */
 
@@ -386,6 +389,9 @@ enum omp_clause_code {
   /* OpenACC/OpenMP clause: if (scalar-expression).  */
   OMP_CLAUSE_IF,
 
+  /* OpenACC clause: self.  */
+  OMP_CLAUSE_SELF,
+
   /* OpenMP clause: num_threads (integer-expression).  */
   OMP_CLAUSE_NUM_THREADS,
 
@@ -488,6 +494,18 @@ enum omp_clause_code {
   /* OpenMP clause: filter (integer-expression).  */
   OMP_CLAUSE_FILTER,
 
+  /* OpenMP clause: indirect [(constant-integer-expression)].  */
+  OMP_CLAUSE_INDIRECT,
+
+  /* OpenMP clause: partial (constant-integer-expression).  */
+  OMP_CLAUSE_PARTIAL,
+
+  /* OpenMP clause: full.  */
+  OMP_CLAUSE_FULL,
+
+  /* OpenMP clause: sizes (constant-integer-expression-list).  */
+  OMP_CLAUSE_SIZES,
+
   /* Internally used only clause, holding SIMD uid.  */
   OMP_CLAUSE__SIMDUID_,
 
@@ -558,6 +576,7 @@ enum omp_clause_default_kind {
 
 enum omp_clause_defaultmap_kind {
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_UNSPECIFIED,
+  OMP_CLAUSE_DEFAULTMAP_CATEGORY_ALL,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_SCALAR,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_AGGREGATE,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_ALLOCATABLE,
@@ -614,7 +633,7 @@ enum cv_qualifier {
 };
 
 /* Standard named or nameless data types of the C compiler.  */
-enum tree_index {
+enum tree_index : unsigned {
   TI_ERROR_MARK,
   TI_INTQI_TYPE,
   TI_INTHI_TYPE,
@@ -643,7 +662,6 @@ enum tree_index {
 
   TI_INTEGER_ZERO,
   TI_INTEGER_ONE,
-  TI_INTEGER_THREE,
   TI_INTEGER_MINUS_ONE,
   TI_NULL_POINTER,
 
@@ -681,17 +699,18 @@ enum tree_index {
   TI_FLOAT64_TYPE,
   TI_FLOAT128_TYPE,
   TI_FLOATN_TYPE_LAST = TI_FLOAT128_TYPE,
-#define NUM_FLOATN_TYPES (TI_FLOATN_TYPE_LAST - TI_FLOATN_TYPE_FIRST + 1)
+#define NUM_FLOATN_TYPES ((int) (TI_FLOATN_TYPE_LAST		\
+				 - TI_FLOATN_TYPE_FIRST + 1))
   TI_FLOAT32X_TYPE,
   TI_FLOATNX_TYPE_FIRST = TI_FLOAT32X_TYPE,
   TI_FLOAT64X_TYPE,
   TI_FLOAT128X_TYPE,
   TI_FLOATNX_TYPE_LAST = TI_FLOAT128X_TYPE,
   TI_FLOATN_NX_TYPE_LAST = TI_FLOAT128X_TYPE,
-#define NUM_FLOATNX_TYPES (TI_FLOATNX_TYPE_LAST - TI_FLOATNX_TYPE_FIRST + 1)
-#define NUM_FLOATN_NX_TYPES (TI_FLOATN_NX_TYPE_LAST		\
-			     - TI_FLOATN_NX_TYPE_FIRST		\
-			     + 1)
+#define NUM_FLOATNX_TYPES ((int) (TI_FLOATNX_TYPE_LAST		\
+				  - TI_FLOATNX_TYPE_FIRST + 1))
+#define NUM_FLOATN_NX_TYPES ((int) (TI_FLOATN_NX_TYPE_LAST	\
+				  - TI_FLOATN_NX_TYPE_FIRST + 1))
 
   /* Type used by certain backends for __float128, which in C++ should be
      distinct type from _Float128 for backwards compatibility reasons.  */
@@ -973,15 +992,25 @@ enum annot_expr_kind {
   annot_expr_no_vector_kind,
   annot_expr_vector_kind,
   annot_expr_parallel_kind,
+  annot_expr_maybe_infinite_kind,
   annot_expr_kind_last
 };
 
-/* The kind of a TREE_CLOBBER_P CONSTRUCTOR node.  */
+/* The kind of a TREE_CLOBBER_P CONSTRUCTOR node.  Other than _UNDEF, these are
+   in roughly sequential order.  */
 enum clobber_kind {
   /* Unspecified, this clobber acts as a store of an undefined value.  */
   CLOBBER_UNDEF,
-  /* This clobber ends the lifetime of the storage.  */
-  CLOBBER_EOL,
+  /* Beginning of storage duration, e.g. malloc.  */
+  CLOBBER_STORAGE_BEGIN,
+  /* Beginning of object data, e.g. start of C++ constructor.  This differs
+     from C++ 'lifetime', which starts when initialization is complete; a
+     clobber there would discard the initialization.  */
+  CLOBBER_OBJECT_BEGIN,
+  /* End of object data, e.g. end of C++ destructor.  */
+  CLOBBER_OBJECT_END,
+  /* End of storage duration, e.g. free.  */
+  CLOBBER_STORAGE_END,
   CLOBBER_LAST
 };
 
@@ -1075,10 +1104,11 @@ struct GTY(()) tree_base {
 
       unsigned spare1 : 8;
 
-      /* This field is only used with TREE_TYPE nodes; the only reason it is
+      /* For _TYPE nodes, this is TYPE_ADDR_SPACE; the reason it is
 	 present in tree_base instead of tree_type is to save space.  The size
 	 of the field must be large enough to hold addr_space_t values.
-	 For CONSTRUCTOR nodes this holds the clobber_kind enum.  */
+	 For CONSTRUCTOR nodes this holds the clobber_kind enum.
+	 The C++ front-end uses this in IDENTIFIER_NODE and NAMESPACE_DECL.  */
       unsigned address_space : 8;
     } bits;
 
@@ -1090,17 +1120,11 @@ struct GTY(()) tree_base {
     struct {
       /* The number of HOST_WIDE_INTs if the INTEGER_CST is accessed in
 	 its native precision.  */
-      unsigned char unextended;
+      unsigned short unextended;
 
       /* The number of HOST_WIDE_INTs if the INTEGER_CST is extended to
 	 wider precisions based on its TYPE_SIGN.  */
-      unsigned char extended;
-
-      /* The number of HOST_WIDE_INTs if the INTEGER_CST is accessed in
-	 offset_int precision, with smaller integers being extended
-	 according to their TYPE_SIGN.  This is equal to one of the two
-	 fields above but is cached for speed.  */
-      unsigned char offset;
+      unsigned short extended;
     } int_length;
 
     /* VEC length.  This field is only used with TREE_VEC.  */
@@ -1189,7 +1213,7 @@ struct GTY(()) tree_base {
        TRY_CATCH_IS_CLEANUP in
            TRY_CATCH_EXPR
 
-       ASM_INPUT_P in
+       ASM_BASIC_P in
            ASM_EXPR
 
        TYPE_REF_CAN_ALIAS_ALL in
@@ -1332,6 +1356,12 @@ struct GTY(()) tree_base {
        TYPE_READONLY in
            all types
 
+       OMP_CLAUSE_MAP_READONLY in
+           OMP_CLAUSE_MAP
+
+       OMP_CLAUSE__CACHE__READONLY in
+           OMP_CLAUSE__CACHE_
+
    constant_flag:
 
        TREE_CONSTANT in
@@ -1381,6 +1411,9 @@ struct GTY(()) tree_base {
 
        DECL_NONALIASED in
 	  VAR_DECL
+
+       CHREC_NOWRAP in
+	  POLYNOMIAL_CHREC
 
    deprecated_flag:
 
@@ -1577,6 +1610,9 @@ enum omp_clause_linear_kind
 struct GTY(()) tree_exp {
   struct tree_typed typed;
   location_t locus;
+  /* Discriminator for basic conditions in a Boolean expressions.  Trees that
+     are operands of the same Boolean expression should have the same uid.  */
+  unsigned condition_uid;
   tree GTY ((length ("TREE_OPERAND_LENGTH ((tree)&%h)"))) operands[1];
 };
 

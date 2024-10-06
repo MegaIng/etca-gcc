@@ -1,5 +1,5 @@
 /* ACLE support for Arm MVE (__ARM_FEATURE_MVE intrinsics)
-   Copyright (C) 2023 Free Software Foundation, Inc.
+   Copyright (C) 2023-2024 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -80,6 +80,62 @@ class vuninitializedq_impl : public quiet<function_base>
     rtx target = e.get_reg_target ();
     emit_clobber (copy_rtx (target));
     return target;
+  }
+};
+
+class vld1_impl : public full_width_access
+{
+public:
+  unsigned int
+  call_properties (const function_instance &) const override
+  {
+    return CP_READ_MEMORY;
+  }
+
+  rtx
+  expand (function_expander &e) const override
+  {
+    insn_code icode;
+    if (e.type_suffix (0).float_p)
+      icode = code_for_mve_vld1q_f(e.vector_mode (0));
+    else
+      {
+	if (e.type_suffix (0).unsigned_p)
+	  icode = code_for_mve_vld1q(VLD1Q_U,
+				     e.vector_mode (0));
+	else
+	  icode = code_for_mve_vld1q(VLD1Q_S,
+				     e.vector_mode (0));
+      }
+    return e.use_contiguous_load_insn (icode);
+  }
+};
+
+class vst1_impl : public full_width_access
+{
+public:
+  unsigned int
+  call_properties (const function_instance &) const override
+  {
+    return CP_WRITE_MEMORY;
+  }
+
+  rtx
+  expand (function_expander &e) const override
+  {
+    insn_code icode;
+    if (e.type_suffix (0).float_p)
+      icode = code_for_mve_vst1q_f(e.vector_mode (0));
+    else
+      {
+	if (e.type_suffix (0).unsigned_p)
+	  icode = code_for_mve_vst1q(VST1Q_U,
+				     e.vector_mode (0));
+	else
+	  icode = code_for_mve_vst1q(VST1Q_S,
+				     e.vector_mode (0));
+      }
+    return e.use_contiguous_store_insn (icode);
   }
 };
 
@@ -260,8 +316,8 @@ FUNCTION_PRED_P_S_U (vaddvq, VADDVQ)
 FUNCTION_PRED_P_S_U (vaddvaq, VADDVAQ)
 FUNCTION_WITH_RTX_M (vandq, AND, VANDQ)
 FUNCTION_ONLY_N (vbrsrq, VBRSRQ)
-FUNCTION (vcaddq_rot90, unspec_mve_function_exact_insn_rot, (UNSPEC_VCADD90, UNSPEC_VCADD90, UNSPEC_VCADD90, VCADDQ_ROT90_M_S, VCADDQ_ROT90_M_U, VCADDQ_ROT90_M_F))
-FUNCTION (vcaddq_rot270, unspec_mve_function_exact_insn_rot, (UNSPEC_VCADD270, UNSPEC_VCADD270, UNSPEC_VCADD270, VCADDQ_ROT270_M_S, VCADDQ_ROT270_M_U, VCADDQ_ROT270_M_F))
+FUNCTION (vcaddq_rot90, unspec_mve_function_exact_insn_rot, (UNSPEC_VCADD90, UNSPEC_VCADD90, UNSPEC_VCADD90, VCADDQ_ROT90_M, VCADDQ_ROT90_M, VCADDQ_ROT90_M_F))
+FUNCTION (vcaddq_rot270, unspec_mve_function_exact_insn_rot, (UNSPEC_VCADD270, UNSPEC_VCADD270, UNSPEC_VCADD270, VCADDQ_ROT270_M, VCADDQ_ROT270_M, VCADDQ_ROT270_M_F))
 FUNCTION (vcmlaq, unspec_mve_function_exact_insn_rot, (-1, -1, UNSPEC_VCMLA, -1, -1, VCMLAQ_M_F))
 FUNCTION (vcmlaq_rot90, unspec_mve_function_exact_insn_rot, (-1, -1, UNSPEC_VCMLA90, -1, -1, VCMLAQ_ROT90_M_F))
 FUNCTION (vcmlaq_rot180, unspec_mve_function_exact_insn_rot, (-1, -1, UNSPEC_VCMLA180, -1, -1, VCMLAQ_ROT180_M_F))
@@ -290,6 +346,7 @@ FUNCTION (vfmasq, unspec_mve_function_exact_insn, (-1, -1, -1, -1, -1, VFMASQ_N_
 FUNCTION (vfmsq, unspec_mve_function_exact_insn, (-1, -1, VFMSQ_F, -1, -1, -1, -1, -1, VFMSQ_M_F, -1, -1, -1))
 FUNCTION_WITH_M_N_NO_F (vhaddq, VHADDQ)
 FUNCTION_WITH_M_N_NO_F (vhsubq, VHSUBQ)
+FUNCTION (vld1q, vld1_impl,)
 FUNCTION_PRED_P_S (vmaxavq, VMAXAVQ)
 FUNCTION_WITHOUT_N_NO_U_F (vmaxaq, VMAXAQ)
 FUNCTION_ONLY_F (vmaxnmaq, VMAXNMAQ)
@@ -329,6 +386,10 @@ FUNCTION_WITHOUT_N_NO_F (vmovltq, VMOVLTQ)
 FUNCTION_WITHOUT_N_NO_F (vmovnbq, VMOVNBQ)
 FUNCTION_WITHOUT_N_NO_F (vmovntq, VMOVNTQ)
 FUNCTION_WITHOUT_N_NO_F (vmulhq, VMULHQ)
+FUNCTION (vmullbq_int, unspec_mve_function_exact_insn_vmull, (VMULLBQ_INT_S, VMULLBQ_INT_U, VMULLBQ_INT_M_S, VMULLBQ_INT_M_U))
+FUNCTION (vmulltq_int, unspec_mve_function_exact_insn_vmull, (VMULLTQ_INT_S, VMULLTQ_INT_U, VMULLTQ_INT_M_S, VMULLTQ_INT_M_U))
+FUNCTION (vmullbq_poly, unspec_mve_function_exact_insn_vmull_poly, (VMULLBQ_POLY_P, VMULLBQ_POLY_M_P))
+FUNCTION (vmulltq_poly, unspec_mve_function_exact_insn_vmull_poly, (VMULLTQ_POLY_P, VMULLTQ_POLY_M_P))
 FUNCTION_WITH_RTX_M_N (vmulq, MULT, VMULQ)
 FUNCTION_WITH_RTX_M_N_NO_F (vmvnq, NOT, VMVNQ)
 FUNCTION (vnegq, unspec_based_mve_function_exact_insn, (NEG, NEG, NEG, -1, -1, -1, VNEGQ_M_S, -1, VNEGQ_M_F, -1, -1, -1))
@@ -401,6 +462,7 @@ FUNCTION_ONLY_N_NO_F (vshrntq, VSHRNTQ)
 FUNCTION_ONLY_N_NO_F (vshrq, VSHRQ)
 FUNCTION_ONLY_N_NO_F (vsliq, VSLIQ)
 FUNCTION_ONLY_N_NO_F (vsriq, VSRIQ)
+FUNCTION (vst1q, vst1_impl,)
 FUNCTION_WITH_RTX_M_N (vsubq, MINUS, VSUBQ)
 FUNCTION (vuninitializedq, vuninitializedq_impl,)
 

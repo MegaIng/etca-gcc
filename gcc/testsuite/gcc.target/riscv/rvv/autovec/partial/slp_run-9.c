@@ -1,5 +1,5 @@
-/* { dg-do run { target { riscv_vector } } } */
-/* { dg-additional-options "--param riscv-autovec-preference=scalable -fno-vect-cost-model" } */
+/* { dg-do run { target { riscv_v } } } */
+/* { dg-additional-options "-mrvv-vector-bits=scalable -fno-vect-cost-model" } */
 
 #include "slp-9.c"
 

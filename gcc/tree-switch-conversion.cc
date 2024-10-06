@@ -1,6 +1,6 @@
 /* Lower GIMPLE_SWITCH expressions to something more efficient than
    a jump table.
-   Copyright (C) 2006-2023 Free Software Foundation, Inc.
+   Copyright (C) 2006-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -52,6 +52,8 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #include "omp-general.h"
 #include "gimple-range.h"
 #include "tree-cfgcleanup.h"
+#include "hwint.h"
+#include "internal-fn.h"
 
 /* ??? For lang_hooks.types.type_for_mode, but is there a word_mode
    type in the GIMPLE type system that is language-independent?  */
@@ -61,12 +63,114 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 
 using namespace tree_switch_conversion;
 
+/* Does the target have optabs needed to efficiently compute exact base two
+   logarithm of a variable with type TYPE?
+
+   If yes, returns TYPE.  If no, returns NULL_TREE.  May also return another
+   type.  This indicates that logarithm of the variable can be computed but
+   only after it is converted to this type.
+
+   Also see gen_log2.  */
+
+static tree
+can_log2 (tree type, optimization_type opt_type)
+{
+  /* Check if target supports FFS for given type.  */
+  if (direct_internal_fn_supported_p (IFN_FFS, type, opt_type))
+    return type;
+
+  /* Check if target supports FFS for some type we could convert to.  */
+  int prec = TYPE_PRECISION (type);
+  int i_prec = TYPE_PRECISION (integer_type_node);
+  int li_prec = TYPE_PRECISION (long_integer_type_node);
+  int lli_prec = TYPE_PRECISION (long_long_integer_type_node);
+  tree new_type;
+  if (prec <= i_prec
+      && direct_internal_fn_supported_p (IFN_FFS, integer_type_node, opt_type))
+    new_type = integer_type_node;
+  else if (prec <= li_prec
+	   && direct_internal_fn_supported_p (IFN_FFS, long_integer_type_node,
+					      opt_type))
+    new_type = long_integer_type_node;
+  else if (prec <= lli_prec
+	   && direct_internal_fn_supported_p (IFN_FFS,
+					      long_long_integer_type_node,
+					      opt_type))
+    new_type = long_long_integer_type_node;
+  else
+    return NULL_TREE;
+  return new_type;
+}
+
+/* Assume that OP is a power of two.  Build a sequence of gimple statements
+   efficiently computing the base two logarithm of OP using special optabs.
+   Return the ssa name represeting the result of the logarithm through RESULT.
+
+   Before computing the logarithm, OP may have to be converted to another type.
+   This should be specified in TYPE.  Use can_log2 to decide what this type
+   should be.
+
+   Should only be used if can_log2 doesn't reject the type of OP.  */
+
+static gimple_seq
+gen_log2 (tree op, location_t loc, tree *result, tree type)
+{
+  gimple_seq stmts = NULL;
+  gimple_stmt_iterator gsi = gsi_last (stmts);
+
+  tree orig_type = TREE_TYPE (op);
+  tree tmp1;
+  if (type != orig_type)
+    tmp1 = gimple_convert (&gsi, false, GSI_NEW_STMT, loc, type, op);
+  else
+    tmp1 = op;
+  /* Build FFS (op) - 1.  */
+  tree tmp2 = gimple_build (&gsi, false, GSI_NEW_STMT, loc, IFN_FFS, orig_type,
+			    tmp1);
+  tree tmp3 = gimple_build (&gsi, false, GSI_NEW_STMT, loc, MINUS_EXPR,
+			    orig_type, tmp2, build_one_cst (orig_type));
+  *result = tmp3;
+  return stmts;
+}
+
+/* Build a sequence of gimple statements checking that OP is a power of 2.
+   Return the result as a boolean_type_node ssa name through RESULT.  Assumes
+   that OP's value will be non-negative.  The generated check may give
+   arbitrary answer for negative values.  */
+
+static gimple_seq
+gen_pow2p (tree op, location_t loc, tree *result)
+{
+  gimple_seq stmts = NULL;
+  gimple_stmt_iterator gsi = gsi_last (stmts);
+
+  tree type = TREE_TYPE (op);
+  tree utype = unsigned_type_for (type);
+
+  /* Build (op ^ (op - 1)) > (op - 1).  */
+  tree tmp1;
+  if (types_compatible_p (type, utype))
+    tmp1 = op;
+  else
+    tmp1 = gimple_convert (&gsi, false, GSI_NEW_STMT, loc, utype, op);
+  tree tmp2 = gimple_build (&gsi, false, GSI_NEW_STMT, loc, MINUS_EXPR, utype,
+			    tmp1, build_one_cst (utype));
+  tree tmp3 = gimple_build (&gsi, false, GSI_NEW_STMT, loc, BIT_XOR_EXPR,
+			    utype, tmp1, tmp2);
+  *result = gimple_build (&gsi, false, GSI_NEW_STMT, loc, GT_EXPR,
+			  boolean_type_node, tmp3, tmp2);
+
+  return stmts;
+}
+
+
 /* Constructor.  */
 
 switch_conversion::switch_conversion (): m_final_bb (NULL),
   m_constructors (NULL), m_default_values (NULL),
   m_arr_ref_first (NULL), m_arr_ref_last (NULL),
-  m_reason (NULL), m_default_case_nonstandard (false), m_cfg_altered (false)
+  m_reason (NULL), m_default_case_nonstandard (false), m_cfg_altered (false),
+  m_exp_index_transform_applied (false)
 {
 }
 
@@ -200,6 +304,245 @@ switch_conversion::collect (gswitch *swtch)
 	  && ! tree_int_cst_equal (CASE_LOW (elt), CASE_HIGH (elt)))
 	m_count++;
     }
+}
+
+/* Check that the "exponential index transform" can be applied to this switch.
+
+   See comment of the exp_index_transform function for details about this
+   transformation.
+
+   We want:
+   - This form of the switch is more efficient
+   - Cases are powers of 2
+
+   Expects that SWTCH has at least one case.  */
+
+bool
+switch_conversion::is_exp_index_transform_viable (gswitch *swtch)
+{
+  tree index = gimple_switch_index (swtch);
+  tree index_type = TREE_TYPE (index);
+  basic_block swtch_bb = gimple_bb (swtch);
+  unsigned num_labels = gimple_switch_num_labels (swtch);
+
+  optimization_type opt_type = bb_optimization_type (swtch_bb);
+  m_exp_index_transform_log2_type = can_log2 (index_type, opt_type);
+  if (!m_exp_index_transform_log2_type)
+    return false;
+
+  /* Check that each case label corresponds only to one value
+     (no case 1..3).  */
+  unsigned i;
+  for (i = 1; i < num_labels; i++)
+    {
+      tree label = gimple_switch_label (swtch, i);
+      if (CASE_HIGH (label))
+	return false;
+    }
+
+  /* Check that each label is nonnegative and a power of 2.  */
+  for (i = 1; i < num_labels; i++)
+    {
+      tree label = gimple_switch_label (swtch, i);
+      wide_int label_wi = wi::to_wide (CASE_LOW (label));
+      if (!wi::ge_p (label_wi, 0, TYPE_SIGN (index_type)))
+	return false;
+      if (wi::exact_log2 (label_wi) == -1)
+	return false;
+    }
+
+  if (dump_file)
+    fprintf (dump_file, "Exponential index transform viable\n");
+
+  return true;
+}
+
+/* Perform the "exponential index transform".
+
+   Assume that cases of SWTCH are powers of 2.  The transformation replaces the
+   cases by their exponents (2^k -> k).  It also inserts a statement that
+   computes the exponent of the original index variable (basically taking the
+   logarithm) and then sets the result as the new index variable.
+
+   The transformation also inserts a conditional statement checking that the
+   incoming original index variable is a power of 2 with the false edge leading
+   to the default case.
+
+   The exponential index transform shrinks the range of case numbers which
+   helps switch conversion convert switches it otherwise could not.
+
+   Consider for example:
+
+   switch (i)
+     {
+       case (1 << 0): return 0;
+       case (1 << 1): return 1;
+       case (1 << 2): return 2;
+       ...
+       case (1 << 30): return 30;
+       default: return 31;
+     }
+
+   First, exponential index transform gets applied.  Since each case becomes
+   case x: return x;, the rest of switch conversion is then able to get rid of
+   the switch statement.
+
+   if (i is power of 2)
+     return log2 (i);
+   else
+     return 31;
+
+   */
+
+void
+switch_conversion::exp_index_transform (gswitch *swtch)
+{
+  if (dump_file)
+    fprintf (dump_file, "Applying exponential index transform\n");
+
+  tree index = gimple_switch_index (swtch);
+  tree index_type = TREE_TYPE (index);
+  basic_block swtch_bb = gimple_bb (swtch);
+  unsigned num_labels = gimple_switch_num_labels (swtch);
+
+  /* Insert a cond stmt that checks if the index variable is a power of 2.  */
+  gimple_stmt_iterator gsi = gsi_for_stmt (swtch);
+  gsi_prev (&gsi);
+  gimple *foo = gsi_stmt (gsi);
+  edge new_edge1 = split_block (swtch_bb, foo);
+
+  swtch_bb = new_edge1->dest;
+  basic_block cond_bb = new_edge1->src;
+  new_edge1->flags |= EDGE_TRUE_VALUE;
+  new_edge1->flags &= ~EDGE_FALLTHRU;
+  new_edge1->probability = profile_probability::even ();
+
+  basic_block default_bb = gimple_switch_default_bb (cfun, swtch);
+  edge new_edge2 = make_edge (cond_bb, default_bb, EDGE_FALSE_VALUE);
+  new_edge2->probability = profile_probability::even ();
+
+  tree tmp;
+  gimple_seq stmts = gen_pow2p (index, UNKNOWN_LOCATION, &tmp);
+  gsi = gsi_last_bb (cond_bb);
+  gsi_insert_seq_after (&gsi, stmts, GSI_LAST_NEW_STMT);
+  gcond *stmt_cond = gimple_build_cond (NE_EXPR, tmp, boolean_false_node,
+					NULL, NULL);
+  gsi_insert_after (&gsi, stmt_cond, GSI_NEW_STMT);
+
+  /* We just added an edge going to default bb so fix PHI nodes in that bb:
+     For each PHI add new PHI arg.  It will be the same arg as when comming to
+     the default bb from the switch bb.  */
+  edge default_edge = find_edge (swtch_bb, default_bb);
+  for (gphi_iterator gsi = gsi_start_phis (default_bb);
+       !gsi_end_p (gsi); gsi_next (&gsi))
+    {
+      gphi *phi = gsi.phi ();
+      tree arg = PHI_ARG_DEF_FROM_EDGE (phi, default_edge);
+      location_t loc = gimple_phi_arg_location_from_edge (phi, default_edge);
+      add_phi_arg (phi, arg, new_edge2, loc);
+    }
+
+  /* Insert a sequence of stmts that takes the log of the index variable.  */
+  stmts = gen_log2 (index, UNKNOWN_LOCATION, &tmp,
+		    m_exp_index_transform_log2_type);
+  gsi = gsi_after_labels (swtch_bb);
+  gsi_insert_seq_before (&gsi, stmts, GSI_SAME_STMT);
+
+  /* Use the result of the logarithm as the new index variable.  */
+  gimple_switch_set_index (swtch, tmp);
+  update_stmt (swtch);
+
+  /* Replace each case number with its logarithm.  */
+  unsigned i;
+  for (i = 1; i < num_labels; i++)
+    {
+      tree label = gimple_switch_label (swtch, i);
+      CASE_LOW (label) = build_int_cst (index_type,
+					tree_log2 (CASE_LOW (label)));
+    }
+
+  /* Fix the dominator tree, if it is available.  */
+  if (dom_info_available_p (CDI_DOMINATORS))
+    {
+      /* Analysis of how dominators should look after we add the edge E going
+	 from the cond block to the default block.
+
+	 1 For the blocks between the switch block and the final block
+	 (excluding the final block itself):  They had the switch block as
+	 their immediate dominator.  That shouldn't change.
+
+	 2 The final block may now have the switch block or the cond block as
+	 its immediate dominator.  There's no easy way of knowing (consider
+	 two cases where in both m_default_case_nonstandard = true, in one a
+	 path through default intersects the final block and in one all paths
+	 through default avoid the final block but intersect a successor of the
+	 final block).
+
+	 3 Other blocks that had the switch block as their immediate dominator
+	 should now have the cond block as their immediate dominator.
+
+	 4 Immediate dominators of the rest of the blocks shouldn't change.
+
+	 Reasoning for 3 and 4:
+
+	 We'll only consider blocks that do not fall into 1 or 2.
+
+	 Consider a block X whose original imm dom was the switch block.  All
+	 paths to X must also intersect the cond block since it's the only
+	 pred of the switch block.  The final block doesn't dominate X so at
+	 least one path P must lead through the default block.  Let P' be P but
+	 instead of going through the switch block, take E.  The switch block
+	 doesn't dominate X so its imm dom must now be the cond block.
+
+	 Consider a block X whose original imm dom was Y != the switch block.
+	 We only added an edge so all original paths to X are still present.
+	 So X gained no new dominators.  Observe that Y still dominates X.
+	 There would have to be a path that avoids Y otherwise.  But any block
+	 we can avoid now except for the switch block we were able to avoid
+	 before adding E.  */
+
+      redirect_immediate_dominators (CDI_DOMINATORS, swtch_bb, cond_bb);
+
+      edge e;
+      edge_iterator ei;
+      FOR_EACH_EDGE (e, ei, swtch_bb->succs)
+	{
+	  basic_block bb = e->dest;
+	  if (bb == m_final_bb || bb == default_bb)
+	    continue;
+	  set_immediate_dominator (CDI_DOMINATORS, bb, swtch_bb);
+	}
+
+      vec<basic_block> v;
+      v.create (1);
+      v.quick_push (m_final_bb);
+      iterate_fix_dominators (CDI_DOMINATORS, v, true);
+    }
+
+  /* Update information about the switch statement.  */
+  tree first_label = gimple_switch_label (swtch, 1);
+  tree last_label = gimple_switch_label (swtch, num_labels - 1);
+
+  m_range_min = CASE_LOW (first_label);
+  m_range_max = CASE_LOW (last_label);
+  m_index_expr = gimple_switch_index (swtch);
+  m_switch_bb = swtch_bb;
+
+  m_range_size = int_const_binop (MINUS_EXPR, m_range_max, m_range_min);
+
+  m_cfg_altered = true;
+
+  m_contiguous_range = true;
+  wide_int last_wi = wi::to_wide (CASE_LOW (first_label));
+  for (i = 2; i < num_labels; i++)
+    {
+      tree label = gimple_switch_label (swtch, i);
+      wide_int label_wi = wi::to_wide (CASE_LOW (label));
+      m_contiguous_range &= wi::eq_p (wi::add (last_wi, 1), label_wi);
+      last_wi = label_wi;
+    }
+
+  m_exp_index_transform_applied = true;
 }
 
 /* Checks whether the range given by individual case statements of the switch
@@ -423,6 +766,9 @@ switch_conversion::build_constructors ()
 	      constructor_elt elt;
 
 	      elt.index = int_const_binop (MINUS_EXPR, pos, m_range_min);
+	      if (TYPE_PRECISION (TREE_TYPE (elt.index))
+		  > TYPE_PRECISION (sizetype))
+		elt.index = fold_convert (sizetype, elt.index);
 	      elt.value
 		= unshare_expr_without_location (m_default_values[k]);
 	      m_constructors[k]->quick_push (elt);
@@ -452,6 +798,9 @@ switch_conversion::build_constructors ()
 	      constructor_elt elt;
 
 	      elt.index = int_const_binop (MINUS_EXPR, pos, m_range_min);
+	      if (TYPE_PRECISION (TREE_TYPE (elt.index))
+		  > TYPE_PRECISION (sizetype))
+		elt.index = fold_convert (sizetype, elt.index);
 	      elt.value = unshare_expr_without_location (val);
 	      m_constructors[j]->quick_push (elt);
 
@@ -543,7 +892,10 @@ switch_conversion::array_value_type (tree type, int num)
 
   type = TYPE_MAIN_VARIANT (type);
 
-  if (!INTEGRAL_TYPE_P (type))
+  if (!INTEGRAL_TYPE_P (type)
+      || (TREE_CODE (type) == BITINT_TYPE
+	  && (TYPE_PRECISION (type) > MAX_FIXED_MODE_SIZE
+	      || TYPE_MODE (type) == BLKmode)))
     return type;
 
   scalar_int_mode type_mode = SCALAR_INT_TYPE_MODE (type);
@@ -707,7 +1059,7 @@ void
 switch_conversion::build_arrays ()
 {
   tree arr_index_type;
-  tree tidx, sub, utype;
+  tree tidx, sub, utype, tidxtype;
   gimple *stmt;
   gimple_stmt_iterator gsi;
   gphi_iterator gpi;
@@ -720,14 +1072,23 @@ switch_conversion::build_arrays ()
   utype = TREE_TYPE (m_index_expr);
   if (TREE_TYPE (utype))
     utype = lang_hooks.types.type_for_mode (TYPE_MODE (TREE_TYPE (utype)), 1);
+  else if (TREE_CODE (utype) == BITINT_TYPE
+	   && (TYPE_PRECISION (utype) > MAX_FIXED_MODE_SIZE
+	       || TYPE_MODE (utype) == BLKmode))
+    utype = unsigned_type_for (utype);
   else
     utype = lang_hooks.types.type_for_mode (TYPE_MODE (utype), 1);
+  if (TYPE_PRECISION (utype) > TYPE_PRECISION (sizetype))
+    tidxtype = sizetype;
+  else
+    tidxtype = utype;
 
   arr_index_type = build_index_type (m_range_size);
-  tidx = make_ssa_name (utype);
+  tidx = make_ssa_name (tidxtype);
   sub = fold_build2_loc (loc, MINUS_EXPR, utype,
 			 fold_convert_loc (loc, utype, m_index_expr),
 			 fold_convert_loc (loc, utype, m_range_min));
+  sub = fold_convert (tidxtype, sub);
   sub = force_gimple_operand_gsi (&gsi, sub,
 				  false, NULL, true, GSI_SAME_STMT);
   stmt = gimple_build_assign (tidx, sub);
@@ -955,8 +1316,9 @@ switch_conversion::gen_inbound_check ()
     bbf->count = e1f->count () + e2f->count ();
 
   /* Tidy blocks that have become unreachable.  */
-  prune_bbs (bbd, m_final_bb,
-	     m_default_case_nonstandard ? m_default_bb : NULL);
+  bool prune_default_bb = !m_default_case_nonstandard
+    && !m_exp_index_transform_applied;
+  prune_bbs (bbd, m_final_bb, prune_default_bb ? NULL : m_default_bb);
 
   /* Fixup the PHI nodes in bbF.  */
   fix_phi_nodes (e1f, e2f, bbf);
@@ -1035,8 +1397,19 @@ switch_conversion::expand (gswitch *swtch)
       return;
     }
 
-  /* Check the case label values are within reasonable range:  */
-  if (!check_range ())
+  /* Sometimes it is possible to use the "exponential index transform" to help
+     switch conversion convert switches which it otherwise could not convert.
+     However, we want to do this transform only when we know that switch
+     conversion will then really be able to convert the switch.  So we first
+     check if the transformation is applicable and then maybe later do the
+     transformation.  */
+  bool exp_transform_viable = is_exp_index_transform_viable (swtch);
+
+  /* Check the case label values are within reasonable range.
+
+     If we will be doing exponential index transform, the range will be always
+     reasonable.  */
+  if (!exp_transform_viable && !check_range ())
     {
       gcc_assert (m_reason);
       return;
@@ -1057,6 +1430,9 @@ switch_conversion::expand (gswitch *swtch)
 
   /* At this point all checks have passed and we can proceed with the
      transformation.  */
+
+  if (exp_transform_viable)
+    exp_index_transform (swtch);
 
   create_temp_arrays ();
   gather_default_values (m_default_case_nonstandard
@@ -1143,32 +1519,89 @@ jump_table_cluster::emit (tree index_expr, tree,
 			  tree default_label_expr, basic_block default_bb,
 			  location_t loc)
 {
-  unsigned HOST_WIDE_INT range = get_range (get_low (), get_high ());
+  tree low = get_low ();
+  unsigned HOST_WIDE_INT range = get_range (low, get_high ());
   unsigned HOST_WIDE_INT nondefault_range = 0;
+  bool bitint = false;
+  gimple_stmt_iterator gsi = gsi_start_bb (m_case_bb);
+
+  /* For large/huge _BitInt, subtract low from index_expr, cast to unsigned
+     DImode type (get_range doesn't support ranges larger than 64-bits)
+     and subtract low from all case values as well.  */
+  if (TREE_CODE (TREE_TYPE (index_expr)) == BITINT_TYPE
+      && TYPE_PRECISION (TREE_TYPE (index_expr)) > GET_MODE_PRECISION (DImode))
+    {
+      bitint = true;
+      tree this_low = low, type;
+      gimple *g;
+      gimple_seq seq = NULL;
+      if (!TYPE_OVERFLOW_WRAPS (TREE_TYPE (index_expr)))
+	{
+	  type = unsigned_type_for (TREE_TYPE (index_expr));
+	  index_expr = gimple_convert (&seq, type, index_expr);
+	  this_low = fold_convert (type, this_low);
+	}
+      this_low = const_unop (NEGATE_EXPR, TREE_TYPE (this_low), this_low);
+      index_expr = gimple_build (&seq, PLUS_EXPR, TREE_TYPE (index_expr),
+				 index_expr, this_low);
+      type = build_nonstandard_integer_type (GET_MODE_PRECISION (DImode), 1);
+      g = gimple_build_cond (GT_EXPR, index_expr,
+			     fold_convert (TREE_TYPE (index_expr),
+					   TYPE_MAX_VALUE (type)),
+			     NULL_TREE, NULL_TREE);
+      gimple_seq_add_stmt (&seq, g);
+      gimple_seq_set_location (seq, loc);
+      gsi_insert_seq_after (&gsi, seq, GSI_NEW_STMT);
+      edge e1 = split_block (m_case_bb, g);
+      e1->flags = EDGE_FALSE_VALUE;
+      e1->probability = profile_probability::likely ();
+      edge e2 = make_edge (e1->src, default_bb, EDGE_TRUE_VALUE);
+      e2->probability = e1->probability.invert ();
+      gsi = gsi_start_bb (e1->dest);
+      seq = NULL;
+      index_expr = gimple_convert (&seq, type, index_expr);
+      gimple_seq_set_location (seq, loc);
+      gsi_insert_seq_after (&gsi, seq, GSI_NEW_STMT);
+    }
 
   /* For jump table we just emit a new gswitch statement that will
      be latter lowered to jump table.  */
   auto_vec <tree> labels;
   labels.create (m_cases.length ());
 
-  make_edge (m_case_bb, default_bb, 0);
+  basic_block case_bb = gsi_bb (gsi);
+  make_edge (case_bb, default_bb, 0);
   for (unsigned i = 0; i < m_cases.length (); i++)
     {
-      labels.quick_push (unshare_expr (m_cases[i]->m_case_label_expr));
-      make_edge (m_case_bb, m_cases[i]->m_case_bb, 0);
+      tree lab = unshare_expr (m_cases[i]->m_case_label_expr);
+      if (bitint)
+	{
+	  CASE_LOW (lab)
+	    = fold_convert (TREE_TYPE (index_expr),
+			    const_binop (MINUS_EXPR,
+					 TREE_TYPE (CASE_LOW (lab)),
+					 CASE_LOW (lab), low));
+	  if (CASE_HIGH (lab))
+	    CASE_HIGH (lab)
+	      = fold_convert (TREE_TYPE (index_expr),
+			      const_binop (MINUS_EXPR,
+					   TREE_TYPE (CASE_HIGH (lab)),
+					   CASE_HIGH (lab), low));
+	}
+      labels.quick_push (lab);
+      make_edge (case_bb, m_cases[i]->m_case_bb, 0);
     }
 
   gswitch *s = gimple_build_switch (index_expr,
 				    unshare_expr (default_label_expr), labels);
   gimple_set_location (s, loc);
-  gimple_stmt_iterator gsi = gsi_start_bb (m_case_bb);
   gsi_insert_after (&gsi, s, GSI_NEW_STMT);
 
   /* Set up even probabilities for all cases.  */
   for (unsigned i = 0; i < m_cases.length (); i++)
     {
       simple_cluster *sc = static_cast<simple_cluster *> (m_cases[i]);
-      edge case_edge = find_edge (m_case_bb, sc->m_case_bb);
+      edge case_edge = find_edge (case_bb, sc->m_case_bb);
       unsigned HOST_WIDE_INT case_range
 	= sc->get_range (sc->get_low (), sc->get_high ());
       nondefault_range += case_range;
@@ -1184,7 +1617,7 @@ jump_table_cluster::emit (tree index_expr, tree,
   for (unsigned i = 0; i < m_cases.length (); i++)
     {
       simple_cluster *sc = static_cast<simple_cluster *> (m_cases[i]);
-      edge case_edge = find_edge (m_case_bb, sc->m_case_bb);
+      edge case_edge = find_edge (case_bb, sc->m_case_bb);
       case_edge->probability
 	= profile_probability::always ().apply_scale ((intptr_t)case_edge->aux,
 						      range);
@@ -1587,7 +2020,7 @@ bit_test_cluster::emit (tree index_expr, tree index_type,
   /* If every possible relative value of the index expression is a valid shift
      amount, then we can merge the entry test in the bit test.  */
   bool entry_test_needed;
-  value_range r;
+  int_range_max r;
   if (TREE_CODE (index_expr) == SSA_NAME
       && get_range_query (cfun)->range_of_expr (r, index_expr)
       && !r.undefined_p ()

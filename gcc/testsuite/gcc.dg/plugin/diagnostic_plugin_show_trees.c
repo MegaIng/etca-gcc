@@ -41,7 +41,7 @@ show_tree (tree node)
     return;
 
   gcc_rich_location richloc (EXPR_LOCATION (node));
-  richloc.add_expr (node, NULL);
+  richloc.add_expr (node, nullptr, nullptr);
 
   if (richloc.get_num_locations () < 2)
     {
@@ -115,7 +115,7 @@ plugin_init (struct plugin_name_args *plugin_info,
   if (!plugin_default_version_check (version, &gcc_version))
     return 1;
 
-  global_dc->caret_max_width = 80;
+  global_dc->m_source_printing.max_width = 80;
 
   register_callback (plugin_name,
 		     PLUGIN_PRE_GENERICIZE,

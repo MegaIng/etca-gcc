@@ -1,5 +1,5 @@
 /* Subroutines common to both C and C++ pretty-printers.
-   Copyright (C) 2002-2023 Free Software Foundation, Inc.
+   Copyright (C) 2002-2024 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -33,6 +33,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "langhooks.h"
 #include "options.h"
 #include "internal-fn.h"
+#include "function.h"
+#include "basic-block.h"
+#include "gimple.h"
 
 /* The pretty-printer code is primarily designed to closely follow
    (GNU) C and C++ grammars.  That is to be contrasted with spaghetti
@@ -44,7 +47,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #define pp_c_maybe_whitespace(PP)            \
    do {                                      \
-     if ((PP)->padding == pp_before) \
+     if ((PP)->get_padding () == pp_before)  \
        pp_c_whitespace (PP);                 \
    } while (0)
 
@@ -73,98 +76,98 @@ void
 pp_c_whitespace (c_pretty_printer *pp)
 {
   pp_space (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_left_paren (c_pretty_printer *pp)
 {
   pp_left_paren (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_right_paren (c_pretty_printer *pp)
 {
   pp_right_paren (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_left_brace (c_pretty_printer *pp)
 {
   pp_left_brace (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_right_brace (c_pretty_printer *pp)
 {
   pp_right_brace (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_left_bracket (c_pretty_printer *pp)
 {
   pp_left_bracket (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_right_bracket (c_pretty_printer *pp)
 {
   pp_right_bracket (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_dot (c_pretty_printer *pp)
 {
   pp_dot (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_ampersand (c_pretty_printer *pp)
 {
   pp_ampersand (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_star (c_pretty_printer *pp)
 {
   pp_star (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_arrow (c_pretty_printer *pp)
 {
   pp_arrow (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_semicolon (c_pretty_printer *pp)
 {
   pp_semicolon (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_complement (c_pretty_printer *pp)
 {
   pp_complement (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
 pp_c_exclamation (c_pretty_printer *pp)
 {
   pp_exclamation (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 /* Print out the external representation of QUALIFIERS.  */
@@ -396,6 +399,23 @@ c_pretty_printer::simple_type_specifier (tree t)
 	      pp_decimal_int (this, prec);
 	      pp_greater (this);
 	    }
+	}
+      break;
+
+    case BITINT_TYPE:
+      if (TYPE_NAME (t))
+	{
+	  t = TYPE_NAME (t);
+	  simple_type_specifier (t);
+	}
+      else
+	{
+	  int prec = TYPE_PRECISION (t);
+	  if (TYPE_UNSIGNED (t))
+	    pp_c_ws_string (this, "unsigned");
+	  pp_c_ws_string (this, "_BitInt(");;
+	  pp_decimal_int (this, prec);
+	  pp_right_paren (this);
 	}
       break;
 
@@ -688,6 +708,7 @@ c_pretty_printer::direct_abstract_declarator (tree t)
     case REAL_TYPE:
     case FIXED_POINT_TYPE:
     case ENUMERAL_TYPE:
+    case BITINT_TYPE:
     case RECORD_TYPE:
     case UNION_TYPE:
     case VECTOR_TYPE:
@@ -808,6 +829,7 @@ c_pretty_printer::direct_declarator (tree t)
     case REAL_TYPE:
     case FIXED_POINT_TYPE:
     case ENUMERAL_TYPE:
+    case BITINT_TYPE:
     case UNION_TYPE:
     case RECORD_TYPE:
       break;
@@ -831,6 +853,7 @@ c_pretty_printer::declarator (tree t)
     case REAL_TYPE:
     case FIXED_POINT_TYPE:
     case ENUMERAL_TYPE:
+    case BITINT_TYPE:
     case UNION_TYPE:
     case RECORD_TYPE:
       break;
@@ -1019,8 +1042,18 @@ pp_c_integer_constant (c_pretty_printer *pp, tree i)
 	  pp_minus (pp);
 	  wi = -wi;
 	}
-      print_hex (wi, pp_buffer (pp)->digit_buffer);
-      pp_string (pp, pp_buffer (pp)->digit_buffer);
+      unsigned int prec = wi.get_precision ();
+      if ((prec + 3) / 4 > sizeof (pp_buffer (pp)->m_digit_buffer) - 3)
+	{
+	  char *buf = XALLOCAVEC (char, (prec + 3) / 4 + 3);
+	  print_hex (wi, buf);
+	  pp_string (pp, buf);
+	}
+      else
+	{
+	  print_hex (wi, pp_buffer (pp)->m_digit_buffer);
+	  pp_string (pp, pp_buffer (pp)->m_digit_buffer);
+	}
     }
 }
 
@@ -1105,11 +1138,11 @@ pp_c_floating_constant (c_pretty_printer *pp, tree r)
      log10(2) to 7 significant digits.  */
   int max_digits10 = 2 + (is_decimal ? fmt->p : fmt->p * 643L / 2136);
 
-  real_to_decimal (pp_buffer (pp)->digit_buffer, &TREE_REAL_CST (r),
-		   sizeof (pp_buffer (pp)->digit_buffer),
+  real_to_decimal (pp_buffer (pp)->m_digit_buffer, &TREE_REAL_CST (r),
+		   sizeof (pp_buffer (pp)->m_digit_buffer),
 		   max_digits10, 1);
 
-  pp_string (pp, pp_buffer(pp)->digit_buffer);
+  pp_string (pp, pp_buffer(pp)->m_digit_buffer);
   if (TREE_TYPE (r) == float_type_node)
     pp_character (pp, 'f');
   else if (TREE_TYPE (r) == long_double_type_node)
@@ -1137,9 +1170,9 @@ pp_c_floating_constant (c_pretty_printer *pp, tree r)
 static void
 pp_c_fixed_constant (c_pretty_printer *pp, tree r)
 {
-  fixed_to_decimal (pp_buffer (pp)->digit_buffer, &TREE_FIXED_CST (r),
-		   sizeof (pp_buffer (pp)->digit_buffer));
-  pp_string (pp, pp_buffer(pp)->digit_buffer);
+  fixed_to_decimal (pp_buffer (pp)->m_digit_buffer, &TREE_FIXED_CST (r),
+		   sizeof (pp_buffer (pp)->m_digit_buffer));
+  pp_string (pp, pp_buffer(pp)->m_digit_buffer);
 }
 
 /* Pretty-print a compound literal expression.  GNU extensions include
@@ -1274,7 +1307,7 @@ pp_c_ws_string (c_pretty_printer *pp, const char *str)
 {
   pp_c_maybe_whitespace (pp);
   pp_string (pp, str);
-  pp->padding = pp_before;
+  pp->set_padding (pp_before);
 }
 
 void
@@ -1295,7 +1328,7 @@ pp_c_identifier (c_pretty_printer *pp, const char *id)
 {
   pp_c_maybe_whitespace (pp);
   pp_identifier (pp, id);
-  pp->padding = pp_before;
+  pp->set_padding (pp_before);
 }
 
 /* Pretty-print a C primary-expression.
@@ -1343,14 +1376,14 @@ c_pretty_printer::primary_expression (tree e)
       pp_c_ws_string (this, "__builtin_memcpy");
       pp_c_left_paren (this);
       pp_ampersand (this);
-      primary_expression (TREE_OPERAND (e, 0));
+      primary_expression (TARGET_EXPR_SLOT (e));
       pp_separate_with (this, ',');
       pp_ampersand (this);
-      initializer (TREE_OPERAND (e, 1));
-      if (TREE_OPERAND (e, 2))
+      initializer (TARGET_EXPR_INITIAL (e));
+      if (TARGET_EXPR_CLEANUP (e))
 	{
 	  pp_separate_with (this, ',');
-	  expression (TREE_OPERAND (e, 2));
+	  expression (TARGET_EXPR_CLEANUP (e));
 	}
       pp_c_right_paren (this);
       break;
@@ -1380,12 +1413,14 @@ c_pretty_printer::primary_expression (tree e)
 	  else
 	    primary_expression (var);
 	}
-      else
+      else if (gimple_assign_single_p (SSA_NAME_DEF_STMT (e)))
 	{
 	  /* Print only the right side of the GIMPLE assignment.  */
 	  gimple *def_stmt = SSA_NAME_DEF_STMT (e);
 	  pp_gimple_stmt_1 (this, def_stmt, 0, TDF_RHS_ONLY);
 	}
+      else
+	expression (e);
       break;
 
     default:
@@ -1612,6 +1647,17 @@ c_pretty_printer::postfix_expression (tree e)
       postfix_expression (TREE_OPERAND (e, 0));
       pp_c_left_bracket (this);
       expression (TREE_OPERAND (e, 1));
+      pp_c_right_bracket (this);
+      break;
+
+    case OMP_ARRAY_SECTION:
+      postfix_expression (TREE_OPERAND (e, 0));
+      pp_c_left_bracket (this);
+      if (TREE_OPERAND (e, 1))
+	expression (TREE_OPERAND (e, 1));
+      pp_colon (this);
+      if (TREE_OPERAND (e, 2))
+	expression (TREE_OPERAND (e, 2));
       pp_c_right_bracket (this);
       break;
 
@@ -2281,6 +2327,7 @@ pp_c_cast_expression (c_pretty_printer *pp, tree e)
     case FIX_TRUNC_EXPR:
     CASE_CONVERT:
     case VIEW_CONVERT_EXPR:
+    case EXCESS_PRECISION_EXPR:
       if (!location_wrapper_p (e))
 	pp_c_type_cast (pp, TREE_TYPE (e));
       pp_c_cast_expression (pp, TREE_OPERAND (e, 0));
@@ -2664,6 +2711,7 @@ c_pretty_printer::expression (tree e)
     case POSTINCREMENT_EXPR:
     case POSTDECREMENT_EXPR:
     case ARRAY_REF:
+    case OMP_ARRAY_SECTION:
     case CALL_EXPR:
     case COMPONENT_REF:
     case BIT_FIELD_REF:
@@ -2706,6 +2754,7 @@ c_pretty_printer::expression (tree e)
     case FIX_TRUNC_EXPR:
     CASE_CONVERT:
     case VIEW_CONVERT_EXPR:
+    case EXCESS_PRECISION_EXPR:
       pp_c_cast_expression (this, e);
       break;
 
@@ -2789,7 +2838,7 @@ c_pretty_printer::expression (tree e)
       break;
 
     case TARGET_EXPR:
-      postfix_expression (TREE_OPERAND (e, 1));
+      postfix_expression (TARGET_EXPR_INITIAL (e));
       break;
 
     case BIND_EXPR:
@@ -2936,7 +2985,7 @@ print_c_tree (FILE *file, tree t)
   c_pretty_printer pp;
 
   pp_needs_newline (&pp) = true;
-  pp.buffer->stream = file;
+  pp.set_output_stream (file);
   pp.statement (t);
   pp_newline_and_flush (&pp);
 }

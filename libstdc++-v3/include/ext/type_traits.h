@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005-2023 Free Software Foundation, Inc.
+// Copyright (C) 2005-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -29,10 +29,15 @@
 #ifndef _EXT_TYPE_TRAITS
 #define _EXT_TYPE_TRAITS 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 #include <bits/cpp_type_traits.h>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlong-long"
 
 extern "C++" {
 
@@ -269,5 +274,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 } // extern "C++"
+
+#pragma GCC diagnostic pop
 
 #endif 

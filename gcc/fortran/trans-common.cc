@@ -1,5 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -98,6 +98,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
+#include "cgraph.h"
+#include "context.h"
+#include "omp-offload.h"
 #include "gfortran.h"
 #include "trans.h"
 #include "stringpool.h"
@@ -409,10 +412,10 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
       if (!tree_int_cst_equal (DECL_SIZE_UNIT (decl), size)
 	  && strcmp (com->name, BLANK_COMMON_NAME))
 	gfc_warning (0, "Named COMMON block %qs at %L shall be of the "
-		     "same size as elsewhere (%lu vs %lu bytes)", com->name,
+		     "same size as elsewhere (%wu vs %wu bytes)", com->name,
 		     &com->where,
-		     (unsigned long) TREE_INT_CST_LOW (size),
-		     (unsigned long) TREE_INT_CST_LOW (DECL_SIZE_UNIT (decl)));
+		     TREE_INT_CST_LOW (size),
+		     TREE_INT_CST_LOW (DECL_SIZE_UNIT (decl)));
 
       if (tree_int_cst_lt (DECL_SIZE_UNIT (decl), size))
 	{
@@ -496,6 +499,24 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	DECL_ATTRIBUTES (decl)
 	  = tree_cons (get_identifier ("omp declare target"),
 		       omp_clauses, DECL_ATTRIBUTES (decl));
+
+      if (com->omp_declare_target_link || com->omp_declare_target)
+	{
+	  /* Add to offload_vars; get_create does so for omp_declare_target,
+	     omp_declare_target_link requires manual work.  */
+	  gcc_assert (symtab_node::get (decl) == 0);
+	  symtab_node *node = symtab_node::get_create (decl);
+	  if (node != NULL && com->omp_declare_target_link)
+	    {
+	      node->offloadable = 1;
+	      if (ENABLE_OFFLOADING)
+		{
+		  g->have_offload = true;
+		  if (is_a <varpool_node *> (node))
+		    vec_safe_push (offload_vars, decl);
+		}
+	    }
+	}
 
       /* Place the back end declaration for this common block in
          GLOBAL_BINDING_LEVEL.  */
@@ -1048,7 +1069,7 @@ find_equivalence (segment_info *n)
   gfc_equiv *e1, *e2, *eq;
   bool found;
 
-  found = FALSE;
+  found = false;
 
   for (e1 = n->sym->ns->equiv; e1; e1 = e1->next)
     {
@@ -1083,7 +1104,7 @@ find_equivalence (segment_info *n)
 	    {
 	      add_condition (n, eq, e2);
 	      e2->used = 1;
-	      found = TRUE;
+	      found = true;
 	    }
 	}
     }
@@ -1102,11 +1123,11 @@ static void
 add_equivalences (bool *saw_equiv)
 {
   segment_info *f;
-  bool more = TRUE;
+  bool more = true;
 
   while (more)
     {
-      more = FALSE;
+      more = false;
       for (f = current_segment; f; f = f->next)
 	{
 	  if (!f->sym->equiv_built)

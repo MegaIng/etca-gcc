@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2022-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 2022-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,7 +32,6 @@ with Elists;         use Elists;
 with Errout;         use Errout;
 with Einfo.Utils;    use Einfo.Utils;
 with Exp_Atag;       use Exp_Atag;
-with Exp_Ch3;        use Exp_Ch3;
 with Exp_Ch7;        use Exp_Ch7;
 with Exp_Tss;        use Exp_Tss;
 with Exp_Util;       use Exp_Util;
@@ -119,8 +118,9 @@ package body Accessibility is
    is
       Loc : constant Source_Ptr := Sloc (Expr);
 
-      function Accessibility_Level (Expr : Node_Id) return Node_Id
-        is (Accessibility_Level (Expr, Level, In_Return_Context));
+      function Accessibility_Level (Expr : Node_Id) return Node_Id is
+        (Accessibility_Level
+          (Expr, Level, In_Return_Context, Allow_Alt_Model));
       --  Renaming of the enclosing function to facilitate recursive calls
 
       function Make_Level_Literal (Level : Uint) return Node_Id;
@@ -164,7 +164,19 @@ package body Accessibility is
             Ent := Defining_Entity_Or_Empty (Node_Par);
 
             if Present (Ent) then
-               Encl_Scop := Find_Enclosing_Scope (Ent);
+               --  X'Old is nested within the current subprogram, so we do not
+               --  want Find_Enclosing_Scope of that subprogram. If this is an
+               --  allocator, then we're looking for the innermost master of
+               --  the call, so again we do not want Find_Enclosing_Scope.
+
+               if (Nkind (N) = N_Attribute_Reference
+                    and then Attribute_Name (N) = Name_Old)
+                 or else Nkind (N) = N_Allocator
+               then
+                  Encl_Scop := Ent;
+               else
+                  Encl_Scop := Find_Enclosing_Scope (Ent);
+               end if;
 
                --  Ignore transient scopes made during expansion while also
                --  taking into account certain expansions - like iterators
@@ -177,17 +189,13 @@ package body Accessibility is
                then
                   --  Note that in some rare cases the scope depth may not be
                   --  set, for example, when we are in the middle of analyzing
-                  --  a type and the enclosing scope is said type. So, instead,
-                  --  continue to move up the parent chain since the scope
-                  --  depth of the type's parent is the same as that of the
-                  --  type.
+                  --  a type and the enclosing scope is said type. In that case
+                  --  simply return zero for the outermost scope.
 
-                  if not Scope_Depth_Set (Encl_Scop) then
-                     pragma Assert (Nkind (Parent (Encl_Scop))
-                                     = N_Full_Type_Declaration);
+                  if Scope_Depth_Set (Encl_Scop) then
+                     return Scope_Depth (Encl_Scop) + Master_Lvl_Modifier;
                   else
-                     return
-                       Scope_Depth (Encl_Scop) + Master_Lvl_Modifier;
+                     return Uint_0;
                   end if;
                end if;
 
@@ -390,7 +398,7 @@ package body Accessibility is
 
       --  Local variables
 
-      E   : Node_Id := Original_Node (Expr);
+      E   : Node_Id;
       Pre : Node_Id;
 
    --  Start of processing for Accessibility_Level
@@ -401,6 +409,17 @@ package body Accessibility is
 
       if Present (Param_Entity (Expr)) then
          E := Param_Entity (Expr);
+
+      --  Use the original node unless it is an unanalyzed identifier, as we
+      --  don't want to reason on unanalyzed expressions from predicates.
+
+      elsif Nkind (Original_Node (Expr)) /= N_Identifier
+        or else Analyzed (Original_Node (Expr))
+      then
+         E := Original_Node (Expr);
+
+      else
+         E := Expr;
       end if;
 
       --  Extract the entity
@@ -424,7 +443,7 @@ package body Accessibility is
          when N_Aggregate =>
             return Make_Level_Literal (Innermost_Master_Scope_Depth (Expr));
 
-         --  The accessibility level is that of the access type, except for an
+         --  The accessibility level is that of the access type, except for
          --  anonymous allocators which have special rules defined in RM 3.10.2
          --  (14/3).
 
@@ -457,7 +476,15 @@ package body Accessibility is
             --  so handle these cases explicitly.
 
             elsif Attribute_Name (E)
-                    in Name_Old | Name_Loop_Entry | Name_Result
+                    in Name_Old        |
+                       Name_Loop_Entry |
+                       Name_Result     |
+                       Name_Super      |
+                       Name_Tag        |
+                       Name_Safe_First |
+                       Name_Safe_Last  |
+                       Name_First      |
+                       Name_Last
             then
                --  Named access types
 
@@ -472,6 +499,7 @@ package body Accessibility is
                  and then Present (Get_Dynamic_Accessibility (Entity (Pre)))
                  and then Level = Dynamic_Level
                then
+                  pragma Assert (Is_Anonymous_Access_Type (Etype (Pre)));
                   return New_Occurrence_Of
                            (Get_Dynamic_Accessibility (Entity (Pre)), Loc);
 
@@ -2210,7 +2238,11 @@ package body Accessibility is
                   --  that of the type.
 
                   elsif Ekind (Def_Ent) = E_Discriminant then
-                     return Scope_Depth (Scope (Def_Ent));
+                     return Scope_Depth
+                       (if Present (Full_View (Scope (Def_Ent))) then
+                           Full_View (Scope (Def_Ent))
+                        else
+                           Scope (Def_Ent));
                   end if;
                end if;
 

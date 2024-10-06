@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,16 +24,13 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Aspects;        use Aspects;
 with Checks;         use Checks;
 with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
-with Errout;         use Errout;
 with Expander;       use Expander;
 with Exp_Atag;       use Exp_Atag;
-with Exp_Ch6;        use Exp_Ch6;
 with Exp_Ch7;        use Exp_Ch7;
 with Exp_Ch11;       use Exp_Ch11;
 with Exp_Code;       use Exp_Code;
@@ -111,12 +108,6 @@ package body Exp_Intr is
    procedure Expand_To_Pointer (N : Node_Id);
    --  Expand a call to corresponding function, declared in an instance of
    --  System.Address_To_Access_Conversions.
-
-   procedure Expand_Source_Info (N : Node_Id; Nam : Name_Id);
-   --  Rewrite the node as the appropriate string literal or positive
-   --  constant. Nam is the name of one of the intrinsics declared in
-   --  GNAT.Source_Info; see g-souinf.ads for documentation of these
-   --  intrinsics.
 
    ---------------------
    -- Add_Source_Info --
@@ -287,48 +278,6 @@ package body Exp_Intr is
 
    begin
       pragma Assert (Is_Class_Wide_Type (Etype (Entity (Name (N)))));
-
-      --  Report case where we know that the generated code is wrong; that
-      --  is a dispatching constructor call whose controlling type has tasks
-      --  but its root type does not have tasks. In such case the constructor
-      --  subprogram of the root type does not have extra formals but the
-      --  constructor of the derivation must have extra formals.
-
-      if not Global_No_Tasking
-        and then not No_Run_Time_Mode
-        and then Is_Build_In_Place_Function (Entity (Name (N)))
-        and then not Has_Task (Root_Type (Etype (Entity (Name (N)))))
-        and then not Has_Aspect (Root_Type (Etype (Entity (Name (N)))),
-                       Aspect_No_Task_Parts)
-      then
-         --  Case 1: Explicit tag reference (which allows static check)
-
-         if Nkind (Tag_Arg) = N_Identifier
-           and then Present (Entity (Tag_Arg))
-           and then Is_Tag (Entity (Tag_Arg))
-         then
-            if Has_Task (Related_Type (Entity (Tag_Arg))) then
-               Error_Msg_N ("unsupported dispatching constructor call", N);
-               Error_Msg_NE
-                 ("\work around this problem by defining task component "
-                  & "type& using access-to-task-type",
-                  N, Related_Type (Entity (Tag_Arg)));
-            end if;
-
-         --  Case 2: Dynamic tag which may fail at run time
-
-         else
-            Error_Msg_N
-              ("unsupported dispatching constructor call if the type "
-               & "of the built object has task components??", N);
-
-            Error_Msg_Sloc := Sloc (Root_Type (Etype (Entity (Name (N)))));
-            Error_Msg_NE
-              ("\work around this by adding ''with no_task_parts'' to "
-               & "the declaration of the root type& defined#???",
-               N, Root_Type (Etype (Entity (Name (N)))));
-         end if;
-      end if;
 
       --  Remove side effects from tag argument early, before rewriting
       --  the dispatching constructor call, as Remove_Side_Effects relies
@@ -799,14 +748,9 @@ package body Exp_Intr is
          Rewrite (N, Snode);
          Set_Analyzed (N);
 
-         --  However, we do call the expander, so that the expansion for
-         --  rotates and shift_right_arithmetic happens if Modify_Tree_For_C
-         --  is set.
-
          if Expander_Active then
             Expand (N);
          end if;
-
       else
          --  If the context type is not the type of the operator, it is an
          --  inherited operator for a derived type. Wrap the node in a

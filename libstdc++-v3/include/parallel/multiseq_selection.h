@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2007-2023 Free Software Foundation, Inc.
+// Copyright (C) 2007-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -48,6 +48,10 @@
 
 namespace __gnu_parallel
 {
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations" // *nary_function
+
   /** @brief Compare __a pair of types lexicographically, ascending. */
   template<typename _T1, typename _T2, typename _Compare>
     class _Lexicographic
@@ -99,6 +103,8 @@ namespace __gnu_parallel
         return __p2.second < __p1.second;
       }
     };
+
+#pragma GCC diagnostic pop // -Wdeprecated-declarations
 
   /** 
    *  @brief Splits several sorted sequences at a certain global __rank,
@@ -183,9 +189,12 @@ namespace __gnu_parallel
 
       __r = __rd_log2(__nmax) + 1;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlong-long" // LL literal
       // Pad all lists to this length, at least as long as any ns[__i],
       // equality iff __nmax = 2^__k - 1.
       __l = (1ULL << __r) - 1;
+#pragma GCC diagnostic pop
 
       for (_SeqNumber __i = 0; __i < __m; __i++)
         {

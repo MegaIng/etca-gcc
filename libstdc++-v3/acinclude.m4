@@ -49,7 +49,7 @@ AC_DEFUN([GLIBCXX_CONFIGURE], [
   # Keep these sync'd with the list in Makefile.am.  The first provides an
   # expandable list at autoconf time; the second provides an expandable list
   # (i.e., shell variable) at configure time.
-  m4_define([glibcxx_SUBDIRS],[include libsupc++ src src/c++98 src/c++11 src/c++17 src/c++20 src/filesystem src/libbacktrace src/experimental doc po testsuite python])
+  m4_define([glibcxx_SUBDIRS],[include libsupc++ src src/c++98 src/c++11 src/c++17 src/c++20 src/c++23 src/c++26 src/filesystem src/libbacktrace src/experimental doc po testsuite python])
   SUBDIRS='glibcxx_SUBDIRS'
 
   # These need to be absolute paths, yet at the same time need to
@@ -604,7 +604,7 @@ dnl  XSL_STYLE_DIR
 dnl
 AC_DEFUN([GLIBCXX_CONFIGURE_DOCBOOK], [
 
-glibcxx_docbook_url=http://docbook.sourceforge.net/release/xsl-ns/current/
+glibcxx_docbook_url=http://cdn.docbook.org/release/xsl/current/
 
 AC_MSG_CHECKING([for local stylesheet directory])
 glibcxx_local_stylesheets=no
@@ -707,7 +707,7 @@ AC_DEFUN([GLIBCXX_EXPORT_FLAGS], [
   # OPTIMIZE_CXXFLAGS = -O3 -fstrict-aliasing -fvtable-gc
   AC_SUBST(OPTIMIZE_CXXFLAGS)
 
-  WARN_FLAGS="-Wall -Wextra -Wwrite-strings -Wcast-qual -Wabi=2"
+  WARN_FLAGS="-Wall -Wextra -Wwrite-strings -Wcast-qual -Wabi=19"
   AC_SUBST(WARN_FLAGS)
 ])
 
@@ -997,7 +997,7 @@ AC_DEFUN([GLIBCXX_ENABLE_C99], [
            vscanf("%i", args);
            vsnprintf(fmt, 0, "%i", args);
            vsscanf(fmt, "%i", args);
-           snprintf(fmt, 0, "%i");
+           snprintf(fmt, 0, "%i", 1);
          }], [],
         [glibcxx_cv_c99_stdio_cxx98=yes], [glibcxx_cv_c99_stdio_cxx98=no])
     ])
@@ -1578,7 +1578,7 @@ AC_DEFUN([GLIBCXX_ENABLE_C99], [
            vscanf("%i", args);
            vsnprintf(fmt, 0, "%i", args);
            vsscanf(fmt, "%i", args);
-           snprintf(fmt, 0, "%i");
+           snprintf(fmt, 0, "%i", 1);
          }], [],
         [glibcxx_cv_c99_stdio_cxx11=yes], [glibcxx_cv_c99_stdio_cxx11=no])
     ])
@@ -4230,7 +4230,7 @@ changequote([,])dnl
 fi
 
 # For libtool versioning info, format is CURRENT:REVISION:AGE
-libtool_VERSION=6:33:0
+libtool_VERSION=6:34:0
 
 # Everything parsed; figure out what files and settings to use.
 case $enable_symvers in
@@ -4493,7 +4493,7 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
 # Check whether LC_MESSAGES is available in <locale.h>.
 # Ulrich Drepper <drepper@cygnus.com>, 1995.
 #
-# This file file be copied and used freely without restrictions.  It can
+# This file can be copied and used freely without restrictions.  It can
 # be used in projects which are not available under the GNU Public License
 # but which still want to provide support for the GNU gettext functionality.
 # Please note that the actual code is *not* freely available.
@@ -4998,6 +4998,66 @@ dnl
     AC_DEFINE(HAVE_STRUCT_DIRENT_D_TYPE, 1, [Define to 1 if `d_type' is a member of `struct dirent'.])
   fi
 dnl
+  AC_CACHE_CHECK([for chmod], glibcxx_cv_chmod, [dnl
+    GCC_TRY_COMPILE_OR_LINK(
+      [
+       #include <sys/stat.h>
+      ],
+      [
+       int i = chmod("", S_IRUSR);
+      ],
+      [glibcxx_cv_chmod=yes],
+      [glibcxx_cv_chmod=no])
+  ])
+  if test $glibcxx_cv_chmod = yes; then
+    AC_DEFINE(_GLIBCXX_USE_CHMOD, 1, [Define if usable chmod is available in <sys/stat.h>.])
+  fi
+dnl
+  AC_CACHE_CHECK([for mkdir], glibcxx_cv_mkdir, [dnl
+    GCC_TRY_COMPILE_OR_LINK(
+      [
+       #include <sys/stat.h>
+      ],
+      [
+       int i = mkdir("", S_IRUSR);
+      ],
+      [glibcxx_cv_mkdir=yes],
+      [glibcxx_cv_mkdir=no])
+  ])
+  if test $glibcxx_cv_mkdir = yes; then
+    AC_DEFINE(_GLIBCXX_USE_MKDIR, 1, [Define if usable mkdir is available in <sys/stat.h>.])
+  fi
+dnl
+  AC_CACHE_CHECK([for chdir], glibcxx_cv_chdir, [dnl
+    GCC_TRY_COMPILE_OR_LINK(
+      [
+       #include <unistd.h>
+      ],
+      [
+       int i = chdir("");
+      ],
+      [glibcxx_cv_chdir=yes],
+      [glibcxx_cv_chdir=no])
+  ])
+  if test $glibcxx_cv_chdir = yes; then
+    AC_DEFINE(_GLIBCXX_USE_CHDIR, 1, [Define if usable chdir is available in <unistd.h>.])
+  fi
+dnl
+  AC_CACHE_CHECK([for getcwd], glibcxx_cv_getcwd, [dnl
+    GCC_TRY_COMPILE_OR_LINK(
+      [
+       #include <unistd.h>
+      ],
+      [
+       char* s = getcwd((char*)0, 1);
+      ],
+      [glibcxx_cv_getcwd=yes],
+      [glibcxx_cv_getcwd=no])
+  ])
+  if test $glibcxx_cv_getcwd = yes; then
+    AC_DEFINE(_GLIBCXX_USE_GETCWD, 1, [Define if usable getcwd is available in <unistd.h>.])
+  fi
+dnl
   AC_CACHE_CHECK([for realpath], glibcxx_cv_realpath, [dnl
     GCC_TRY_COMPILE_OR_LINK(
       [
@@ -5383,7 +5443,7 @@ AC_DEFUN([GLIBCXX_ENABLE_BACKTRACE], [
 
   # Most of this is adapted from libsanitizer/configure.ac
 
-  BACKTRACE_CPPFLAGS=
+  BACKTRACE_CPPFLAGS="-D_GNU_SOURCE"
 
   # libbacktrace only needs atomics for int, which we've already tested
   if test "$glibcxx_cv_atomic_int" = "yes"; then
@@ -5411,13 +5471,21 @@ AC_DEFUN([GLIBCXX_ENABLE_BACKTRACE], [
     have_dl_iterate_phdr=no
   else
     # When built as a GCC target library, we can't do a link test.
+    ac_save_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
     AC_EGREP_HEADER([dl_iterate_phdr], [link.h], [have_dl_iterate_phdr=yes],
 		    [have_dl_iterate_phdr=no])
+    CPPFLAGS="$ac_save_CPPFLAGS"
   fi
   if test "$have_dl_iterate_phdr" = "yes"; then
     BACKTRACE_CPPFLAGS="$BACKTRACE_CPPFLAGS -DHAVE_DL_ITERATE_PHDR=1"
   fi
   AC_CHECK_HEADERS(windows.h)
+  AC_CHECK_HEADERS(tlhelp32.h, [], [],
+  [#ifdef HAVE_WINDOWS_H
+  #  include <windows.h>
+  #endif
+  ])
 
   # Check for the fcntl function.
   if test -n "${with_target_subdir}"; then
@@ -5481,7 +5549,10 @@ BACKTRACE_CPPFLAGS="$BACKTRACE_CPPFLAGS -DBACKTRACE_ELF_SIZE=$elfsize"
 
   AC_MSG_CHECKING([whether to build libbacktrace support])
   if test "$enable_libstdcxx_backtrace" = "auto"; then
-    enable_libstdcxx_backtrace=no
+    case "$host" in
+      avr-*-*) enable_libstdcxx_backtrace=no ;;
+      *) enable_libstdcxx_backtrace="$is_hosted" ;;
+    esac
   fi
   AC_MSG_RESULT($enable_libstdcxx_backtrace)
   if test "$enable_libstdcxx_backtrace" = "yes"; then
@@ -5719,6 +5790,69 @@ AC_LANG_SAVE
       [Define if init_priority should be used for iostream initialization.])
   fi
   AC_MSG_RESULT($ac_init_priority)
+
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether the Windows CRT function _get_osfhandle is available.
+dnl
+dnl Defines:
+dnl   _GLIBCXX_USE__GET_OSFHANDLE if _get_osfhandle is in <io.h> for Windows.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_FILEBUF_NATIVE_HANDLES], [
+AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
+  AC_MSG_CHECKING([whether _get_osfhandle is defined in <io.h>])
+  AC_TRY_COMPILE([
+  #if defined(_WIN32) && !defined(__CYGWIN__)
+  # include <stdint.h>
+  # include <stdio.h>
+  # include <io.h>
+  #endif
+  ],[
+    FILE* file = 0;
+    int fd = fileno(file);
+    intptr_t crt_handle = _get_osfhandle(fd);
+    void* win32_handle = reinterpret_cast<void*>(crt_handle);
+  ], [ac_get_osfhandle=yes], [ac_get_osfhandle=no])
+  if test "$ac_get_osfhandle" = yes; then
+    AC_DEFINE_UNQUOTED(_GLIBCXX_USE__GET_OSFHANDLE, 1,
+      [Define if _get_osfhandle should be used for filebuf::native_handle().])
+  fi
+  AC_MSG_RESULT($ac_get_osfhandle)
+
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether the dependencies for std::text_encoding are available.
+dnl
+dnl Defines:
+dnl   _GLIBCXX_USE_NL_LANGINFO_L if nl_langinfo_l is in <langinfo.h>.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_TEXT_ENCODING], [
+AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
+  AC_MSG_CHECKING([whether nl_langinfo_l is defined in <langinfo.h>])
+  AC_TRY_COMPILE([
+  #include <locale.h>
+  #if __has_include(<xlocale.h>)
+  # include <xlocale.h>
+  #endif
+  #include <langinfo.h>
+  ],[
+    locale_t loc = newlocale(LC_ALL_MASK, "", (locale_t)0);
+    const char* enc = nl_langinfo_l(CODESET, loc);
+    freelocale(loc);
+  ], [ac_nl_langinfo_l=yes], [ac_nl_langinfo_l=no])
+  AC_MSG_RESULT($ac_nl_langinfo_l)
+  if test "$ac_nl_langinfo_l" = yes; then
+    AC_DEFINE_UNQUOTED(_GLIBCXX_USE_NL_LANGINFO_L, 1,
+      [Define if nl_langinfo_l should be used for std::text_encoding.])
+  fi
 
   AC_LANG_RESTORE
 ])

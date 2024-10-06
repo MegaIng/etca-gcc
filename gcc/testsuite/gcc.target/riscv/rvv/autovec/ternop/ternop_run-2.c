@@ -1,5 +1,5 @@
-/* { dg-do run { target { riscv_vector } } } */
-/* { dg-additional-options "--param=riscv-autovec-preference=scalable -ffast-math" } */
+/* { dg-do run { target { riscv_v } } } */
+/* { dg-additional-options "-mrvv-vector-bits=scalable -ffast-math" } */
 
 #include "ternop-2.c"
 

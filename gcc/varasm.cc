@@ -1,5 +1,5 @@
 /* Output variables, constants and external declarations, for GNU compiler.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -61,6 +61,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "alloc-pool.h"
 #include "toplev.h"
 #include "opts.h"
+#include "asan.h"
 
 /* The (assembler) name of the first globally-visible object output.  */
 extern GTY(()) const char *first_global_object_name;
@@ -885,9 +886,6 @@ mergeable_string_section (tree decl ATTRIBUTE_UNUSED,
 	  if (align < modesize)
 	    align = modesize;
 
-	  if (!HAVE_LD_ALIGNED_SHF_MERGE && align > 8)
-	    return readonly_data_section;
-
 	  str = TREE_STRING_POINTER (decl);
 	  unit = GET_MODE_SIZE (mode);
 
@@ -926,8 +924,7 @@ mergeable_constant_section (machine_mode mode ATTRIBUTE_UNUSED,
       && known_le (GET_MODE_BITSIZE (mode), align)
       && align >= 8
       && align <= 256
-      && (align & (align - 1)) == 0
-      && (HAVE_LD_ALIGNED_SHF_MERGE ? 1 : align == 8))
+      && (align & (align - 1)) == 0)
     {
       const char *prefix = function_mergeable_rodata_prefix ();
       char *name = (char *) alloca (strlen (prefix) + 30);
@@ -1835,6 +1832,30 @@ get_fnname_from_decl (tree decl)
   return XSTR (x, 0);
 }
 
+/* Output function label, possibly with accompanying metadata.  No additional
+   code or data is output after the label.  */
+
+void
+assemble_function_label_raw (FILE *file, const char *name)
+{
+  ASM_OUTPUT_LABEL (file, name);
+  assemble_function_label_final ();
+}
+
+/* Finish outputting function label.  Needs to be called when outputting
+   function label without using assemble_function_label_raw ().  */
+
+void
+assemble_function_label_final (void)
+{
+  if ((flag_sanitize & SANITIZE_ADDRESS)
+      /* Notify ASAN only about the first function label.  */
+      && (in_cold_section_p == first_function_block_is_cold)
+      /* Do not notify ASAN when called from, e.g., code_end ().  */
+      && cfun)
+    asan_function_start ();
+}
+
 /* Output assembler code for the constant pool of a function and associated
    with defining the name of the function.  DECL describes the function.
    NAME is the function's name.  For the constant pool, we use the current
@@ -1914,6 +1935,11 @@ assemble_start_function (tree decl, const char *fnname)
 
   /* Tell assembler to move to target machine's alignment for functions.  */
   align = floor_log2 (align / BITS_PER_UNIT);
+  /* Handle forced alignment.  This really ought to apply to all functions,
+     since it is used by patchable entries.  */
+  if (flag_min_function_alignment)
+    align = MAX (align, floor_log2 (flag_min_function_alignment));
+
   if (align > 0)
     {
       ASM_OUTPUT_ALIGN (asm_out_file, align);
@@ -2075,7 +2101,19 @@ void
 assemble_string (const char *p, int size)
 {
   int pos = 0;
+#if defined(BASE64_ASM_OP) \
+    && BITS_PER_UNIT == 8 \
+    && CHAR_BIT == 8 \
+    && 'A' == 65 \
+    && 'a' == 97 \
+    && '0' == 48 \
+    && '+' == 43 \
+    && '/' == 47 \
+    && '=' == 61
+  int maximum = 16384;
+#else
   int maximum = 2000;
+#endif
 
   /* If the string is very long, split it up.  */
 
@@ -2461,6 +2499,10 @@ contains_pointers_p (tree type)
    it all the way to final.  See PR 17982 for further discussion.  */
 static GTY(()) tree pending_assemble_externals;
 
+/* A similar list of pending libcall symbols.  We only want to declare
+   symbols that are actually used in the final assembly.  */
+static GTY(()) rtx pending_libcall_symbols;
+
 #ifdef ASM_OUTPUT_EXTERNAL
 /* Some targets delay some output to final using TARGET_ASM_FILE_END.
    As a result, assemble_external can be called after the list of externals
@@ -2520,8 +2562,18 @@ process_pending_assemble_externals (void)
   for (list = pending_assemble_externals; list; list = TREE_CHAIN (list))
     assemble_external_real (TREE_VALUE (list));
 
+  for (rtx list = pending_libcall_symbols; list; list = XEXP (list, 1))
+    {
+      rtx symbol = XEXP (list, 0);
+      const char *name = targetm.strip_name_encoding (XSTR (symbol, 0));
+      tree id = get_identifier (name);
+      if (TREE_SYMBOL_REFERENCED (id))
+	targetm.asm_out.external_libcall (symbol);
+    }
+
   pending_assemble_externals = 0;
   pending_assemble_externals_processed = true;
+  pending_libcall_symbols = NULL_RTX;
   delete pending_assemble_externals_set;
 #endif
 }
@@ -2594,8 +2646,18 @@ assemble_external_libcall (rtx fun)
   /* Declare library function name external when first used, if nec.  */
   if (! SYMBOL_REF_USED (fun))
     {
+#ifdef ASM_OUTPUT_EXTERNAL
+      gcc_assert (!pending_assemble_externals_processed);
+#endif
       SYMBOL_REF_USED (fun) = 1;
-      targetm.asm_out.external_libcall (fun);
+      /* Make sure the libcall symbol is in the symtab so any
+         reference to it will mark its tree node as referenced, via
+         assemble_name_resolve.  These are eventually emitted, if
+         used, in process_pending_assemble_externals. */
+      const char *name = targetm.strip_name_encoding (XSTR (fun, 0));
+      get_identifier (name);
+      pending_libcall_symbols = gen_rtx_EXPR_LIST (VOIDmode, fun,
+						   pending_libcall_symbols);
     }
 }
 
@@ -4300,6 +4362,8 @@ output_constant_pool_contents (struct rtx_constant_pool *pool)
     if (desc->mark < 0)
       {
 #ifdef ASM_OUTPUT_DEF
+	gcc_checking_assert (TARGET_SUPPORTS_ALIASES);
+
 	const char *name = XSTR (desc->sym, 0);
 	char label[256];
 	char buffer[256 + 32];
@@ -4309,7 +4373,7 @@ output_constant_pool_contents (struct rtx_constant_pool *pool)
 	p = label;
 	if (desc->offset)
 	  {
-	    sprintf (buffer, "%s+%ld", p, (long) (desc->offset));
+	    sprintf (buffer, "%s+" HOST_WIDE_INT_PRINT_DEC, p, desc->offset);
 	    p = buffer;
 	  }
 	ASM_OUTPUT_DEF (asm_out_file, name, p);
@@ -5281,6 +5345,62 @@ output_constant (tree exp, unsigned HOST_WIDE_INT size, unsigned int align,
 		       reverse, false);
       break;
 
+    case BITINT_TYPE:
+      if (TREE_CODE (exp) != INTEGER_CST)
+	error ("initializer for %<_BitInt(%d)%> value is not an integer "
+	       "constant", TYPE_PRECISION (TREE_TYPE (exp)));
+      else
+	{
+	  struct bitint_info info;
+	  tree type = TREE_TYPE (exp);
+	  bool ok = targetm.c.bitint_type_info (TYPE_PRECISION (type), &info);
+	  gcc_assert (ok);
+	  scalar_int_mode limb_mode
+	    = as_a <scalar_int_mode> (info.abi_limb_mode);
+	  if (TYPE_PRECISION (type) <= GET_MODE_PRECISION (limb_mode))
+	    {
+	      cst = expand_expr (exp, NULL_RTX, VOIDmode, EXPAND_INITIALIZER);
+	      if (reverse)
+		cst = flip_storage_order (TYPE_MODE (TREE_TYPE (exp)), cst);
+	      if (!assemble_integer (cst, MIN (size, thissize), align, 0))
+		error ("initializer for integer/fixed-point value is too "
+		       "complicated");
+	      break;
+	    }
+	  int prec = GET_MODE_PRECISION (limb_mode);
+	  int cnt = CEIL (TYPE_PRECISION (type), prec);
+	  tree limb_type = build_nonstandard_integer_type (prec, 1);
+	  int elt_size = GET_MODE_SIZE (limb_mode);
+	  unsigned int nalign = MIN (align, GET_MODE_ALIGNMENT (limb_mode));
+	  thissize = 0;
+	  if (prec == HOST_BITS_PER_WIDE_INT)
+	    for (int i = 0; i < cnt; i++)
+	      {
+		int idx = (info.big_endian ^ reverse) ? cnt - 1 - i : i;
+		tree c;
+		if (idx >= TREE_INT_CST_EXT_NUNITS (exp))
+		  c = build_int_cst (limb_type,
+				     tree_int_cst_sgn (exp) < 0 ? -1 : 0);
+		else
+		  c = build_int_cst (limb_type,
+				     TREE_INT_CST_ELT (exp, idx));
+		output_constant (c, elt_size, nalign, reverse, false);
+		thissize += elt_size;
+	      }
+	  else
+	    for (int i = 0; i < cnt; i++)
+	      {
+		int idx = (info.big_endian ^ reverse) ? cnt - 1 - i : i;
+		wide_int w = wi::rshift (wi::to_wide (exp), idx * prec,
+					 TYPE_SIGN (TREE_TYPE (exp)));
+		tree c = wide_int_to_tree (limb_type,
+					   wide_int::from (w, prec, UNSIGNED));
+		output_constant (c, elt_size, nalign, reverse, false);
+		thissize += elt_size;
+	      }
+	}
+      break;
+
     case ARRAY_TYPE:
     case VECTOR_TYPE:
       switch (TREE_CODE (exp))
@@ -6225,6 +6345,10 @@ do_assemble_alias (tree decl, tree target)
 		  IDENTIFIER_POINTER (id),
 		  IDENTIFIER_POINTER (target));
 # endif
+  /* If symbol aliases aren't actually supported...  */
+  if (!TARGET_SUPPORTS_ALIASES)
+    /* ..., 'ASM_OUTPUT_DEF{,_FROM_DECLS}' better have raised an error.  */
+    gcc_checking_assert (seen_error ());
 #elif defined (ASM_OUTPUT_WEAK_ALIAS) || defined (ASM_WEAKEN_DECL)
   {
     const char *name;
@@ -6294,9 +6418,8 @@ assemble_alias (tree decl, tree target)
       if (TREE_PUBLIC (decl))
 	error ("%qs symbol %q+D must have static linkage", "weakref", decl);
     }
-  else
+  else if (!TARGET_SUPPORTS_ALIASES)
     {
-#if !defined (ASM_OUTPUT_DEF)
 # if !defined(ASM_OUTPUT_WEAK_ALIAS) && !defined (ASM_WEAKEN_DECL)
       error_at (DECL_SOURCE_LOCATION (decl),
 		"alias definitions not supported in this configuration");
@@ -6317,7 +6440,7 @@ assemble_alias (tree decl, tree target)
 	  return;
 	}
 # endif
-#endif
+      gcc_unreachable ();
     }
   TREE_USED (decl) = 1;
 
@@ -7343,15 +7466,61 @@ default_elf_select_rtx_section (machine_mode mode, rtx x,
 				unsigned HOST_WIDE_INT align)
 {
   int reloc = compute_reloc_for_rtx (x);
+  tree decl = nullptr;
+  const char *prefix = nullptr;
+  int flags = 0;
+
+  /* If it is a private COMDAT function symbol reference, call
+     function_rodata_section for the read-only or relocated read-only
+     data section associated with function DECL so that the COMDAT
+     section will be used for the private COMDAT function symbol.  */
+  if (HAVE_COMDAT_GROUP)
+    {
+      if (GET_CODE (x) == CONST
+	 && GET_CODE (XEXP (x, 0)) == PLUS
+	 && CONST_INT_P (XEXP (XEXP (x, 0), 1)))
+       x = XEXP (XEXP (x, 0), 0);
+
+      if (GET_CODE (x) == SYMBOL_REF)
+       {
+	 decl = SYMBOL_REF_DECL (x);
+	 if (decl
+	     && (TREE_CODE (decl) != FUNCTION_DECL
+		 || !DECL_COMDAT_GROUP (decl)
+		 || TREE_PUBLIC (decl)))
+	   decl = nullptr;
+       }
+    }
 
   /* ??? Handle small data here somehow.  */
 
   if (reloc & targetm.asm_out.reloc_rw_mask ())
     {
-      if (reloc == 1)
+      if (decl)
+	{
+	  prefix = reloc == 1 ? ".data.rel.ro.local" : ".data.rel.ro";
+	  flags = SECTION_WRITE | SECTION_RELRO;
+	}
+      else if (reloc == 1)
 	return get_named_section (NULL, ".data.rel.ro.local", 1);
       else
 	return get_named_section (NULL, ".data.rel.ro", 3);
+    }
+
+  if (decl)
+    {
+      const char *comdat = IDENTIFIER_POINTER (DECL_COMDAT_GROUP (decl));
+      if (!prefix)
+	prefix = ".rodata";
+      size_t prefix_len = strlen (prefix);
+      size_t comdat_len = strlen (comdat);
+      size_t len = prefix_len + sizeof (".pool.") + comdat_len;
+      char *name = XALLOCAVEC (char, len);
+      memcpy (name, prefix, prefix_len);
+      memcpy (name + prefix_len, ".pool.", sizeof (".pool.") - 1);
+      memcpy (name + prefix_len + sizeof (".pool.") - 1, comdat,
+	      comdat_len + 1);
+      return get_section (name, flags | SECTION_LINKONCE, decl);
     }
 
   return mergeable_constant_section (mode, align, 0);
@@ -7406,6 +7575,8 @@ default_strip_name_encoding (const char *str)
 void
 default_asm_output_anchor (rtx symbol)
 {
+  gcc_checking_assert (TARGET_SUPPORTS_ALIASES);
+
   char buffer[100];
 
   sprintf (buffer, "*. + " HOST_WIDE_INT_PRINT_DEC,
@@ -7641,6 +7812,8 @@ decl_binds_to_current_def_p (const_tree decl)
      This rely on fact that binds_local_p behave as decl_replaceable_p
      for all other declaration types.  */
   if (DECL_WEAK (decl))
+    return false;
+  if (DECL_COMDAT_GROUP (decl))
     return false;
   if (DECL_COMMON (decl)
       && (DECL_INITIAL (decl) == NULL
@@ -8295,8 +8468,7 @@ default_elf_asm_output_limited_string (FILE *f, const char *s)
   int escape;
   unsigned char c;
 
-  fputs (STRING_ASM_OP, f);
-  putc ('"', f);
+  fputs (STRING_ASM_OP "\"", f);
   while (*s != '\0')
     {
       c = *s;
@@ -8330,9 +8502,11 @@ default_elf_asm_output_ascii (FILE *f, const char *s, unsigned int len)
 {
   const char *limit = s + len;
   const char *last_null = NULL;
+  const char *last_base64 = s;
   unsigned bytes_in_chunk = 0;
   unsigned char c;
   int escape;
+  bool prev_base64 = false;
 
   for (; s < limit; s++)
     {
@@ -8345,7 +8519,7 @@ default_elf_asm_output_ascii (FILE *f, const char *s, unsigned int len)
 	  bytes_in_chunk = 0;
 	}
 
-      if (s > last_null)
+      if ((uintptr_t) s > (uintptr_t) last_null)
 	{
 	  for (p = s; p < limit && *p != '\0'; p++)
 	    continue;
@@ -8353,6 +8527,112 @@ default_elf_asm_output_ascii (FILE *f, const char *s, unsigned int len)
 	}
       else
 	p = last_null;
+
+#if defined(BASE64_ASM_OP) \
+    && BITS_PER_UNIT == 8 \
+    && CHAR_BIT == 8 \
+    && 'A' == 65 \
+    && 'a' == 97 \
+    && '0' == 48 \
+    && '+' == 43 \
+    && '/' == 47 \
+    && '=' == 61
+      if (s >= last_base64)
+	{
+	  unsigned cnt = 0;
+	  unsigned char prev_c = ' ';
+	  const char *t;
+	  for (t = s; t < limit && (t - s) < (long) ELF_STRING_LIMIT - 1; t++)
+	    {
+	      if (t == p && t != s)
+		{
+		  if (cnt <= ((unsigned) (t - s) + 1 + 2) / 3 * 4
+		      && (!prev_base64 || (t - s) >= 16)
+		      && ((t - s) > 1 || cnt <= 2))
+		    {
+		      last_base64 = p;
+		      goto no_base64;
+		    }
+		}
+	      c = *t;
+	      escape = ELF_ASCII_ESCAPES[c];
+	      switch (escape)
+		{
+		case 0:
+		  ++cnt;
+		  break;
+		case 1:
+		  if (c == 0)
+		    {
+		      if (prev_c == 0
+			  && t + 1 < limit
+			  && (t + 1 - s) < (long) ELF_STRING_LIMIT - 1)
+			break;
+		      cnt += 2 + strlen (STRING_ASM_OP) + 1;
+		    }
+		  else
+		    cnt += 4;
+		  break;
+		default:
+		  cnt += 2;
+		  break;
+		}
+	      prev_c = c;
+	    }
+	  if (cnt > ((unsigned) (t - s) + 2) / 3 * 4 && (t - s) >= 3)
+	    {
+	      if (bytes_in_chunk > 0)
+		{
+		  putc ('\"', f);
+		  putc ('\n', f);
+		  bytes_in_chunk = 0;
+		}
+
+	      unsigned char buf[(ELF_STRING_LIMIT + 2) / 3 * 4 + 3];
+	      unsigned j = 0;
+	      static const char base64_enc[] =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
+
+	      fputs (BASE64_ASM_OP "\"", f);
+	      while (s < t)
+		{
+		  unsigned char a = *s;
+		  unsigned char b = 0, c = 0;
+		  if (s < t - 1)
+		    b = s[1];
+		  if (s < t - 2)
+		    c = s[2];
+		  unsigned long v = ((((unsigned long) a) << 16)
+				     | (((unsigned long) b) << 8)
+				     | c);
+		  buf[j++] = base64_enc[(v >> 18) & 63];
+		  buf[j++] = base64_enc[(v >> 12) & 63];
+		  buf[j++] = base64_enc[(v >> 6) & 63];
+		  buf[j++] = base64_enc[v & 63];
+		  if (s >= t - 2)
+		    {
+		      buf[j - 1] = '=';
+		      if (s >= t - 1)
+			buf[j - 2] = '=';
+		      break;
+		    }
+		  s += 3;
+		}
+	      memcpy (buf + j, "\"\n", 3);
+	      fputs ((const char *) buf, f);
+	      s = t - 1;
+	      prev_base64 = true;
+	      continue;
+	    }
+	  last_base64 = t;
+	no_base64:
+	  prev_base64 = false;
+	}
+#else
+      (void) last_base64;
+      (void) prev_base64;
+#endif
 
       if (p < limit && (p - s) <= (long) ELF_STRING_LIMIT)
 	{
@@ -8363,8 +8643,18 @@ default_elf_asm_output_ascii (FILE *f, const char *s, unsigned int len)
 	      bytes_in_chunk = 0;
 	    }
 
-	  default_elf_asm_output_limited_string (f, s);
-	  s = p;
+	  if (p == s && p + 1 < limit && p[1] == '\0')
+	    {
+	      for (p = s + 2; p < limit && *p == '\0'; p++)
+		continue;
+	      ASM_OUTPUT_SKIP (f, (unsigned HOST_WIDE_INT) (p - s));
+	      s = p - 1;
+	    }
+	  else
+	    {
+	      default_elf_asm_output_limited_string (f, s);
+	      s = p;
+	    }
 	}
       else
 	{
@@ -8509,7 +8799,7 @@ switch_to_comdat_section (section *sect, tree decl)
      everything in .vtable_map_vars at the end.
 
      A fix could be made in
-     gcc/config/i386/winnt.cc: i386_pe_unique_section.  */
+     gcc/config/i386/winnt.cc: mingw_pe_unique_section.  */
   if (TARGET_PECOFF)
     {
       char *name;

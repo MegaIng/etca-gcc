@@ -1,5 +1,5 @@
 /* Header file for SSA iterators.
-   Copyright (C) 2013-2023 Free Software Foundation, Inc.
+   Copyright (C) 2013-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -768,7 +768,7 @@ num_ssa_operands (gimple *stmt, int flags)
 inline tree
 single_phi_def (gphi *stmt, int flags)
 {
-  tree def = PHI_RESULT (stmt);
+  tree def = gimple_phi_result (stmt);
   if ((flags & SSA_OP_DEF) && is_gimple_reg (def))
     return def;
   if ((flags & SSA_OP_VIRTUAL_DEFS) && !is_gimple_reg (def))
@@ -811,7 +811,7 @@ op_iter_init_phiuse (ssa_op_iter *ptr, gphi *phi, int flags)
 inline def_operand_p
 op_iter_init_phidef (ssa_op_iter *ptr, gphi *phi, int flags)
 {
-  tree phi_def = PHI_RESULT (phi);
+  tree phi_def = gimple_phi_result (phi);
   int comp;
 
   clear_and_done_ssa_iter (ptr);
@@ -833,7 +833,7 @@ op_iter_init_phidef (ssa_op_iter *ptr, gphi *phi, int flags)
   /* The first call to op_iter_next_def will terminate the iterator since
      all the fields are NULL.  Simply return the result here as the first and
      therefore only result.  */
-  return PHI_RESULT_PTR (phi);
+  return gimple_phi_result_ptr (phi);
 }
 
 /* Return true is IMM has reached the end of the immediate use stmt list.  */

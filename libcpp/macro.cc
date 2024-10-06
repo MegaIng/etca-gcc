@@ -1,5 +1,5 @@
 /* Part of CPP library.  (Macro and #define handling.)
-   Copyright (C) 1986-2023 Free Software Foundation, Inc.
+   Copyright (C) 1986-2024 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -371,8 +371,8 @@ unsigned num_macro_tokens_counter = 0;
 
 /* Wrapper around cpp_get_token to skip CPP_PADDING tokens
    and not consume CPP_EOF.  */
-static const cpp_token *
-cpp_get_token_no_padding (cpp_reader *pfile)
+const cpp_token *
+_cpp_get_token_no_padding (cpp_reader *pfile)
 {
   for (;;)
     {
@@ -385,29 +385,32 @@ cpp_get_token_no_padding (cpp_reader *pfile)
     }
 }
 
-/* Handle meeting "__has_include" builtin macro.  */
+/* Helper function for builtin_has_include and builtin_has_embed.  */
 
-static int
-builtin_has_include (cpp_reader *pfile, cpp_hashnode *op, bool has_next)
+static char *
+builtin_has_include_1 (cpp_reader *pfile, const char *name, bool *paren,
+		       bool *bracket, location_t *loc)
 {
-  int result = 0;
-
   if (!pfile->state.in_directive)
     cpp_error (pfile, CPP_DL_ERROR,
-	       "\"%s\" used outside of preprocessing directive",
-	       NODE_NAME (op));
+	       "\"%s\" used outside of preprocessing directive", name);
 
   pfile->state.angled_headers = true;
-  const cpp_token *token = cpp_get_token_no_padding (pfile);
-  bool paren = token->type == CPP_OPEN_PAREN;
-  if (paren)
-    token = cpp_get_token_no_padding (pfile);
+  const auto sav_padding = pfile->state.directive_wants_padding;
+  pfile->state.directive_wants_padding = true;
+  const cpp_token *token = _cpp_get_token_no_padding (pfile);
+  *paren = token->type == CPP_OPEN_PAREN;
+  if (*paren)
+    token = _cpp_get_token_no_padding (pfile);
   else
     cpp_error (pfile, CPP_DL_ERROR,
-	       "missing '(' before \"%s\" operand", NODE_NAME (op));
+	       "missing '(' before \"%s\" operand", name);
   pfile->state.angled_headers = false;
+  pfile->state.directive_wants_padding = sav_padding;
 
-  bool bracket = token->type != CPP_STRING;
+  if (loc)
+    *loc = token->src_loc;
+  *bracket = token->type != CPP_STRING;
   char *fname = NULL;
   if (token->type == CPP_STRING || token->type == CPP_HEADER_NAME)
     {
@@ -419,7 +422,19 @@ builtin_has_include (cpp_reader *pfile, cpp_hashnode *op, bool has_next)
     fname = _cpp_bracket_include (pfile);
   else
     cpp_error (pfile, CPP_DL_ERROR,
-	       "operator \"%s\" requires a header-name", NODE_NAME (op));
+	       "operator \"%s\" requires a header-name", name);
+  return fname;
+}
+
+/* Handle meeting "__has_include" builtin macro.  */
+
+static int
+builtin_has_include (cpp_reader *pfile, cpp_hashnode *op, bool has_next)
+{
+  int result = 0;
+  bool paren, bracket;
+  char *fname = builtin_has_include_1 (pfile, (const char *) NODE_NAME (op),
+				       &paren, &bracket, NULL);
 
   if (fname)
     {
@@ -434,9 +449,68 @@ builtin_has_include (cpp_reader *pfile, cpp_hashnode *op, bool has_next)
     }
 
   if (paren
-      && cpp_get_token_no_padding (pfile)->type != CPP_CLOSE_PAREN)
+      && _cpp_get_token_no_padding (pfile)->type != CPP_CLOSE_PAREN)
     cpp_error (pfile, CPP_DL_ERROR,
 	       "missing ')' after \"%s\" operand", NODE_NAME (op));
+
+  return result;
+}
+
+/* Handle the "__has_embed" expression.  */
+
+static int
+builtin_has_embed (cpp_reader *pfile)
+{
+  int result = 0;
+  bool paren, bracket;
+  struct cpp_embed_params params = {};
+  char *fname = builtin_has_include_1 (pfile, "__has_embed", &paren,
+				       &bracket, &params.loc);
+
+  if (fname)
+    {
+      params.has_embed = true;
+      auto save_in_directive = pfile->state.in_directive;
+      auto save_angled_headers = pfile->state.angled_headers;
+      auto save_directive_wants_padding = pfile->state.directive_wants_padding;
+      auto save_op_stack = pfile->op_stack;
+      auto save_op_limit = pfile->op_limit;
+      auto save_skip_eval = pfile->state.skip_eval;
+      auto save_mi_ind_cmacro = pfile->mi_ind_cmacro;
+      /* Tell the lexer this is an embed directive.  */
+      pfile->state.in_directive = 3;
+      pfile->state.angled_headers = false;
+      pfile->state.directive_wants_padding = false;
+      pfile->op_stack = NULL;
+      pfile->op_limit = NULL;
+      bool ok = _cpp_parse_embed_params (pfile, &params);
+      free (pfile->op_stack);
+      pfile->state.in_directive = save_in_directive;
+      pfile->state.angled_headers = save_angled_headers;
+      pfile->state.directive_wants_padding = save_directive_wants_padding;
+      pfile->op_stack = save_op_stack;
+      pfile->op_limit = save_op_limit;
+      pfile->state.skip_eval = save_skip_eval;
+      pfile->mi_ind_cmacro = save_mi_ind_cmacro;
+
+      if (!*fname)
+	{
+	  cpp_error_with_line (pfile, CPP_DL_ERROR, params.loc, 0,
+			       "empty filename in '%s'", "__has_embed");
+	  ok = false;
+	}
+
+      /* Do not do the lookup if we're skipping, that's unnecessary
+	 IO.  */
+      if (ok && !pfile->state.skip_eval)
+	result = _cpp_stack_embed (pfile, fname, bracket, &params);
+
+      _cpp_free_embed_params_tokens (&params.base64);
+
+      XDELETEVEC (fname);
+    }
+  else if (paren)
+    _cpp_get_token_no_padding (pfile);
 
   return result;
 }
@@ -676,6 +750,22 @@ _cpp_builtin_macro_text (cpp_reader *pfile, cpp_hashnode *node,
     case BT_HAS_INCLUDE_NEXT:
       number = builtin_has_include (pfile, node,
 				    node->value.builtin == BT_HAS_INCLUDE_NEXT);
+      break;
+
+    case BT_HAS_EMBED:
+      if (CPP_OPTION (pfile, traditional))
+	{
+	  cpp_error (pfile, CPP_DL_ERROR, /* FIXME should be DL_SORRY */
+		     "'__has_embed' not supported in traditional C");
+	  break;
+	}
+      number = builtin_has_embed (pfile);
+      break;
+
+    case BT_HAS_FEATURE:
+    case BT_HAS_EXTENSION:
+      number = pfile->cb.has_feature (pfile,
+				      node->value.builtin == BT_HAS_FEATURE);
       break;
     }
 
@@ -1093,7 +1183,7 @@ _cpp_arguments_ok (cpp_reader *pfile, cpp_macro *macro, const cpp_hashnode *node
 
   if (argc < macro->paramc)
     {
-      /* In C++20 and C2X (here the va_opt flag is used), and also as a GNU
+      /* In C++20 and C23 (here the va_opt flag is used), and also as a GNU
 	 extension, variadic arguments are allowed to not appear in
 	 the invocation at all.
 	 e.g. #define debug(format, args...) something
@@ -1108,13 +1198,13 @@ _cpp_arguments_ok (cpp_reader *pfile, cpp_macro *macro, const cpp_hashnode *node
 	      && ! CPP_OPTION (pfile, va_opt))
 	    {
 	      if (CPP_OPTION (pfile, cplusplus))
-		cpp_error (pfile, CPP_DL_PEDWARN,
-			   "ISO C++11 requires at least one argument "
-			   "for the \"...\" in a variadic macro");
+		cpp_pedwarning (pfile, CPP_W_CXX20_EXTENSIONS,
+				"ISO C++11 requires at least one argument "
+				"for the \"...\" in a variadic macro");
 	      else
-		cpp_error (pfile, CPP_DL_PEDWARN,
-			   "ISO C99 requires at least one argument "
-			   "for the \"...\" in a variadic macro");
+		cpp_pedwarning (pfile, CPP_W_PEDANTIC,
+				"ISO C99 requires at least one argument "
+				"for the \"...\" in a variadic macro");
 	    }
 	  return true;
 	}
@@ -2303,7 +2393,7 @@ replace_args (cpp_reader *pfile, cpp_hashnode *node, cpp_macro *macro,
 	       && ! macro->syshdr && ! _cpp_in_system_header (pfile))
 	{
 	  if (CPP_OPTION (pfile, cplusplus))
-	    cpp_pedwarning (pfile, CPP_W_PEDANTIC,
+	    cpp_pedwarning (pfile, CPP_W_VARIADIC_MACROS,
 			    "invoking macro %s argument %d: "
 			    "empty macro arguments are undefined"
 			    " in ISO C++98",
@@ -3431,7 +3521,7 @@ _cpp_unsave_parameters (cpp_reader *pfile, unsigned n)
 */
 
 static bool
-parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *varadic_ptr)
+parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *variadic_ptr)
 {
   unsigned nparms = 0;
   bool ok = false;
@@ -3462,7 +3552,7 @@ parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *varadic_ptr)
 	      };
 	    unsigned ix = prev_ident;
 	    const unsigned char *as_text = NULL;
-	    if (*varadic_ptr)
+	    if (*variadic_ptr)
 	      ix = 4;
 	    else if (token->type == CPP_EOF)
 	      ix += 2;
@@ -3473,7 +3563,7 @@ parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *varadic_ptr)
 	  goto out;
 
 	case CPP_NAME:
-	  if (prev_ident || *varadic_ptr)
+	  if (prev_ident || *variadic_ptr)
 	    goto bad;
 	  prev_ident = true;
 
@@ -3484,7 +3574,7 @@ parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *varadic_ptr)
 	  break;
 
 	case CPP_CLOSE_PAREN:
-	  if (prev_ident || !nparms || *varadic_ptr)
+	  if (prev_ident || !nparms || *variadic_ptr)
 	    {
 	      ok = true;
 	      goto out;
@@ -3492,15 +3582,15 @@ parse_params (cpp_reader *pfile, unsigned *n_ptr, bool *varadic_ptr)
 
 	  /* FALLTHRU */
 	case CPP_COMMA:
-	  if (!prev_ident || *varadic_ptr)
+	  if (!prev_ident || *variadic_ptr)
 	    goto bad;
 	  prev_ident = false;
 	  break;
 
 	case CPP_ELLIPSIS:
-	  if (*varadic_ptr)
+	  if (*variadic_ptr)
 	    goto bad;
-	  *varadic_ptr = true;
+	  *variadic_ptr = true;
 	  if (!prev_ident)
 	    {
 	      /* An ISO bare ellipsis.  */
@@ -3577,7 +3667,7 @@ create_iso_definition (cpp_reader *pfile)
   unsigned int num_extra_tokens = 0;
   unsigned nparms = 0;
   cpp_hashnode **params = NULL;
-  bool varadic = false;
+  bool variadic = false;
   bool ok = false;
   cpp_macro *macro = NULL;
 
@@ -3594,7 +3684,7 @@ create_iso_definition (cpp_reader *pfile)
   else if (token->type == CPP_OPEN_PAREN)
     {
       /* An open-paren, get a parameter list.  */
-      if (!parse_params (pfile, &nparms, &varadic))
+      if (!parse_params (pfile, &nparms, &variadic))
 	goto out;
 
       params = (cpp_hashnode **)_cpp_commit_buff
@@ -3645,7 +3735,7 @@ create_iso_definition (cpp_reader *pfile)
 
   if (!token)
     {
-      macro->variadic = varadic;
+      macro->variadic = variadic;
       macro->paramc = nparms;
       macro->parm.params = params;
       macro->fun_like = true;

@@ -1,5 +1,5 @@
 /* Output routines for Motorola MCore processor
-   Copyright (C) 1993-2023 Free Software Foundation, Inc.
+   Copyright (C) 1993-2024 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -144,22 +144,22 @@ static bool       mcore_warn_func_return        (tree);
 static void       mcore_option_override		(void);
 static bool       mcore_legitimate_constant_p   (machine_mode, rtx);
 static bool	  mcore_legitimate_address_p	(machine_mode, rtx, bool,
-						 addr_space_t);
+						 addr_space_t,
+						 code_helper = ERROR_MARK);
 static bool	  mcore_hard_regno_mode_ok	(unsigned int, machine_mode);
 static bool	  mcore_modes_tieable_p		(machine_mode, machine_mode);
 
 /* MCore specific attributes.  */
 
-static const struct attribute_spec mcore_attribute_table[] =
+TARGET_GNU_ATTRIBUTES (mcore_attribute_table,
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
        affects_type_identity, handler, exclude } */
   { "dllexport", 0, 0, true,  false, false, false, NULL, NULL },
   { "dllimport", 0, 0, true,  false, false, false, NULL, NULL },
   { "naked",     0, 0, true,  false, false, false,
-    mcore_handle_naked_attribute, NULL },
-  { NULL,        0, 0, false, false, false, false, NULL, NULL }
-};
+    mcore_handle_naked_attribute, NULL }
+});
 
 /* Initialize the GCC target structure.  */
 #undef  TARGET_ASM_EXTERNAL_LIBCALL
@@ -3249,7 +3249,7 @@ mcore_legitimate_index_p (machine_mode mode, const_rtx op)
 
 static bool
 mcore_legitimate_address_p (machine_mode mode, rtx x, bool strict_p,
-			    addr_space_t as)
+			    addr_space_t as, code_helper)
 {
   gcc_assert (ADDR_SPACE_GENERIC_P (as));
 

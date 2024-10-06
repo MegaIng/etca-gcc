@@ -1,6 +1,6 @@
 /* Gimple IR definitions.
 
-   Copyright (C) 2007-2023 Free Software Foundation, Inc.
+   Copyright (C) 2007-2024 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>
 
 This file is part of GCC.
@@ -37,10 +37,6 @@ enum gimple_code {
 extern const char *const gimple_code_name[];
 extern const unsigned char gimple_rhs_class_table[];
 
-/* Strip the outermost pointer, from tr1/type_traits.  */
-template<typename T> struct remove_pointer { typedef T type; };
-template<typename T> struct remove_pointer<T *> { typedef T type; };
-
 /* Error out if a gimple tuple is addressed incorrectly.  */
 #if defined ENABLE_GIMPLE_CHECKING
 #define gcc_gimple_checking_assert(EXPR) gcc_assert (EXPR)
@@ -72,7 +68,7 @@ GIMPLE_CHECK2(const gimple *gs,
   T ret = dyn_cast <T> (gs);
   if (!ret)
     gimple_check_failed (gs, file, line, fun,
-			 remove_pointer<T>::type::code_, ERROR_MARK);
+			 std::remove_pointer<T>::type::code_, ERROR_MARK);
   return ret;
 }
 template <typename T>
@@ -91,7 +87,7 @@ GIMPLE_CHECK2(gimple *gs,
   T ret = dyn_cast <T> (gs);
   if (!ret)
     gimple_check_failed (gs, file, line, fun,
-			 remove_pointer<T>::type::code_, ERROR_MARK);
+			 std::remove_pointer<T>::type::code_, ERROR_MARK);
   return ret;
 }
 #else  /* not ENABLE_GIMPLE_CHECKING  */
@@ -135,7 +131,7 @@ enum gimple_rhs_class
 
    Keep this list sorted.  */
 enum gf_mask {
-    GF_ASM_INPUT		= 1 << 0,
+    GF_ASM_BASIC		= 1 << 0,
     GF_ASM_VOLATILE		= 1 << 1,
     GF_ASM_INLINE		= 1 << 2,
     GF_CALL_FROM_THUNK		= 1 << 0,
@@ -150,6 +146,7 @@ enum gf_mask {
     GF_CALL_BY_DESCRIPTOR	= 1 << 10,
     GF_CALL_NOCF_CHECK		= 1 << 11,
     GF_CALL_FROM_NEW_OR_DELETE	= 1 << 12,
+    GF_CALL_XTHROW		= 1 << 13,
     GF_OMP_PARALLEL_COMBINED	= 1 << 0,
     GF_OMP_TASK_TASKLOOP	= 1 << 0,
     GF_OMP_TASK_TASKWAIT	= 1 << 1,
@@ -235,7 +232,8 @@ struct GTY((desc ("gimple_statement_structure (&%h)"), tag ("GSS_BASE"),
      for clearing this bit before using it.  */
   unsigned int visited		: 1;
 
-  /* Nonzero if this tuple represents a non-temporal move.  */
+  /* Nonzero if this tuple represents a non-temporal move; currently
+     only stores are supported.  */
   unsigned int nontemporal_move	: 1;
 
   /* Pass local flags.  These flags are free for any pass to use as
@@ -1591,6 +1589,7 @@ gomp_parallel *gimple_build_omp_parallel (gimple_seq, tree, tree, tree);
 gomp_task *gimple_build_omp_task (gimple_seq, tree, tree, tree, tree,
 				       tree, tree);
 gimple *gimple_build_omp_section (gimple_seq);
+gimple *gimple_build_omp_structured_block (gimple_seq);
 gimple *gimple_build_omp_scope (gimple_seq, tree);
 gimple *gimple_build_omp_master (gimple_seq);
 gimple *gimple_build_omp_masked (gimple_seq, tree);
@@ -1879,6 +1878,7 @@ gimple_has_substatements (gimple *g)
     case GIMPLE_OMP_TASKGROUP:
     case GIMPLE_OMP_ORDERED:
     case GIMPLE_OMP_SECTION:
+    case GIMPLE_OMP_STRUCTURED_BLOCK:
     case GIMPLE_OMP_PARALLEL:
     case GIMPLE_OMP_TASK:
     case GIMPLE_OMP_SCOPE:
@@ -3559,6 +3559,28 @@ gimple_call_nothrow_p (gcall *s)
   return (gimple_call_flags (s) & ECF_NOTHROW) != 0;
 }
 
+/* If EXPECTED_THROW_P is true, GIMPLE_CALL S is a call that is known
+   to be more likely to throw than to run forever, terminate the
+   program or return by other means.  */
+
+static inline void
+gimple_call_set_expected_throw (gcall *s, bool expected_throw_p)
+{
+  if (expected_throw_p)
+    s->subcode |= GF_CALL_XTHROW;
+  else
+    s->subcode &= ~GF_CALL_XTHROW;
+}
+
+/* Return true if S is a call that is more likely to end by
+   propagating an exception than by other means.  */
+
+static inline bool
+gimple_call_expected_throw_p (gcall *s)
+{
+  return (gimple_call_flags (s) & ECF_XTHROW) != 0;
+}
+
 /* If FOR_VAR is true, GIMPLE_CALL S is a call to builtin_alloca that
    is known to be emitted for VLA objects.  Those are wrapped by
    stack_save/stack_restore calls and hence can't lead to unbounded
@@ -4201,24 +4223,25 @@ gimple_asm_set_inline (gasm *asm_stmt, bool inline_p)
 }
 
 
-/* If INPUT_P is true, mark asm ASM_STMT as an ASM_INPUT.  */
+/* Mark whether asm ASM_STMT is a basic asm or an extended asm, based on
+   BASIC_P.  */
 
 inline void
-gimple_asm_set_input (gasm *asm_stmt, bool input_p)
+gimple_asm_set_basic (gasm *asm_stmt, bool basic_p)
 {
-  if (input_p)
-    asm_stmt->subcode |= GF_ASM_INPUT;
+  if (basic_p)
+    asm_stmt->subcode |= GF_ASM_BASIC;
   else
-    asm_stmt->subcode &= ~GF_ASM_INPUT;
+    asm_stmt->subcode &= ~GF_ASM_BASIC;
 }
 
 
-/* Return true if asm ASM_STMT is an ASM_INPUT.  */
+/* Return true if asm ASM_STMT is a basic asm rather than an extended asm.  */
 
 inline bool
-gimple_asm_input_p (const gasm *asm_stmt)
+gimple_asm_basic_p (const gasm *asm_stmt)
 {
-  return (asm_stmt->subcode & GF_ASM_INPUT) != 0;
+  return (asm_stmt->subcode & GF_ASM_BASIC) != 0;
 }
 
 
@@ -6746,6 +6769,7 @@ gimple_return_set_retval (greturn *gs, tree retval)
     case GIMPLE_OMP_TEAMS:			\
     case GIMPLE_OMP_SCOPE:			\
     case GIMPLE_OMP_SECTION:			\
+    case GIMPLE_OMP_STRUCTURED_BLOCK:		\
     case GIMPLE_OMP_MASTER:			\
     case GIMPLE_OMP_MASKED:			\
     case GIMPLE_OMP_TASKGROUP:			\

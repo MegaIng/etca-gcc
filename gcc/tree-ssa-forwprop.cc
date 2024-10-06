@@ -1,5 +1,5 @@
 /* Forward propagation of expressions for single use variables.
-   Copyright (C) 2004-2023 Free Software Foundation, Inc.
+   Copyright (C) 2004-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -47,12 +47,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-cfgcleanup.h"
 #include "cfganal.h"
 #include "optabs-tree.h"
+#include "insn-config.h"
+#include "recog.h"
 #include "tree-vector-builder.h"
 #include "vec-perm-indices.h"
 #include "internal-fn.h"
 #include "cgraph.h"
 #include "tree-ssa.h"
 #include "gimple-range.h"
+#include "tree-ssa-dce.h"
 
 /* This pass propagates the RHS of assignment statements into use
    sites of the LHS of the assignment.  It's basically a specialized
@@ -204,6 +207,10 @@ fwprop_set_lattice_val (tree name, tree val)
 	  lattice.quick_grow_cleared (num_ssa_names);
 	}
       lattice[SSA_NAME_VERSION (name)] = val;
+      /* As this now constitutes a copy duplicate points-to
+	 and range info appropriately.  */
+      if (TREE_CODE (val) == SSA_NAME)
+	maybe_duplicate_ssa_info_at_copy (name, val);
     }
 }
 
@@ -965,7 +972,8 @@ forward_propagate_addr_expr (tree name, tree rhs, bool parent_single_use_p)
    have values outside the range of the new type.  */
 
 static void
-simplify_gimple_switch_label_vec (gswitch *stmt, tree index_type)
+simplify_gimple_switch_label_vec (gswitch *stmt, tree index_type,
+				  vec<std::pair<int, int> > &edges_to_remove)
 {
   unsigned int branch_num = gimple_switch_num_labels (stmt);
   auto_vec<tree> labels (branch_num);
@@ -1019,11 +1027,8 @@ simplify_gimple_switch_label_vec (gswitch *stmt, tree index_type)
       for (ei = ei_start (gimple_bb (stmt)->succs); (e = ei_safe_edge (ei)); )
 	{
 	  if (! bitmap_bit_p (target_blocks, e->dest->index))
-	    {
-	      remove_edge (e);
-	      cfg_changed = true;
-	      free_dominance_info (CDI_DOMINATORS);
-	    }
+	    edges_to_remove.safe_push (std::make_pair (e->src->index,
+						       e->dest->index));
 	  else
 	    ei_next (&ei);
 	} 
@@ -1035,7 +1040,8 @@ simplify_gimple_switch_label_vec (gswitch *stmt, tree index_type)
    the condition which we may be able to optimize better.  */
 
 static bool
-simplify_gimple_switch (gswitch *stmt)
+simplify_gimple_switch (gswitch *stmt,
+			vec<std::pair<int, int> > &edges_to_remove)
 {
   /* The optimization that we really care about is removing unnecessary
      casts.  That will let us do much better in propagating the inferred
@@ -1071,7 +1077,8 @@ simplify_gimple_switch (gswitch *stmt)
 		  && (!max || int_fits_type_p (max, ti)))
 		{
 		  gimple_switch_set_index (stmt, def);
-		  simplify_gimple_switch_label_vec (stmt, ti);
+		  simplify_gimple_switch_label_vec (stmt, ti,
+						    edges_to_remove);
 		  update_stmt (stmt);
 		  return true;
 		}
@@ -2380,6 +2387,7 @@ simplify_count_trailing_zeroes (gimple_stmt_iterator *gsi)
       HOST_WIDE_INT type_size = tree_to_shwi (TYPE_SIZE (type));
       bool zero_ok
 	= CTZ_DEFINED_VALUE_AT_ZERO (SCALAR_INT_TYPE_MODE (type), ctz_val) == 2;
+      int nargs = 2;
 
       /* If the input value can't be zero, don't special case ctz (0).  */
       if (tree_expr_nonzero_p (res_ops[0]))
@@ -2387,6 +2395,7 @@ simplify_count_trailing_zeroes (gimple_stmt_iterator *gsi)
 	  zero_ok = true;
 	  zero_val = 0;
 	  ctz_val = 0;
+	  nargs = 1;
 	}
 
       /* Skip if there is no value defined at zero, or if we can't easily
@@ -2398,7 +2407,11 @@ simplify_count_trailing_zeroes (gimple_stmt_iterator *gsi)
 
       gimple_seq seq = NULL;
       gimple *g;
-      gcall *call = gimple_build_call_internal (IFN_CTZ, 1, res_ops[0]);
+      gcall *call
+	= gimple_build_call_internal (IFN_CTZ, nargs, res_ops[0],
+				      nargs == 1 ? NULL_TREE
+				      : build_int_cst (integer_type_node,
+						       ctz_val));
       gimple_set_location (call, gimple_location (stmt));
       gimple_set_lhs (call, make_ssa_name (integer_type_node));
       gimple_seq_add_stmt (&seq, call);
@@ -2971,6 +2984,7 @@ simplify_vector_constructor (gimple_stmt_iterator *gsi)
 	  /* Only few targets implement direct conversion patterns so try
 	     some simple special cases via VEC_[UN]PACK[_FLOAT]_LO_EXPR.  */
 	  optab optab;
+	  insn_code icode;
 	  tree halfvectype, dblvectype;
 	  enum tree_code unpack_op;
 
@@ -3008,8 +3022,9 @@ simplify_vector_constructor (gimple_stmt_iterator *gsi)
 	      && (optab = optab_for_tree_code (unpack_op,
 					       dblvectype,
 					       optab_default))
-	      && (optab_handler (optab, TYPE_MODE (dblvectype))
-		  != CODE_FOR_nothing))
+	      && ((icode = optab_handler (optab, TYPE_MODE (dblvectype)))
+		  != CODE_FOR_nothing)
+	      && (insn_data[icode].operand[0].mode == TYPE_MODE (type)))
 	    {
 	      gimple_seq stmts = NULL;
 	      tree dbl;
@@ -3047,8 +3062,9 @@ simplify_vector_constructor (gimple_stmt_iterator *gsi)
 		   && (optab = optab_for_tree_code (VEC_PACK_TRUNC_EXPR,
 						    halfvectype,
 						    optab_default))
-		   && (optab_handler (optab, TYPE_MODE (halfvectype))
-		       != CODE_FOR_nothing))
+		   && ((icode = optab_handler (optab, TYPE_MODE (halfvectype)))
+		       != CODE_FOR_nothing)
+		   && (insn_data[icode].operand[0].mode == TYPE_MODE (type)))
 	    {
 	      gimple_seq stmts = NULL;
 	      tree low = gimple_build (&stmts, BIT_FIELD_REF, halfvectype,
@@ -3482,6 +3498,8 @@ pass_forwprop::execute (function *fun)
 
   cfg_changed = false;
 
+  calculate_dominance_info (CDI_DOMINATORS);
+
   /* Combine stmts with the stmts defining their operands.  Do that
      in an order that guarantees visiting SSA defs before SSA uses.  */
   lattice.create (num_ssa_names);
@@ -3502,8 +3520,11 @@ pass_forwprop::execute (function *fun)
     |= EDGE_EXECUTABLE;
   auto_vec<gimple *, 4> to_fixup;
   auto_vec<gimple *, 32> to_remove;
+  auto_vec<unsigned, 32> to_remove_defs;
+  auto_vec<std::pair<int, int>, 10> edges_to_remove;
+  auto_bitmap simple_dce_worklist;
+  auto_bitmap need_ab_cleanup;
   to_purge = BITMAP_ALLOC (NULL);
-  bitmap need_ab_cleanup = BITMAP_ALLOC (NULL);
   for (int i = 0; i < postorder_num; ++i)
     {
       gimple_stmt_iterator gsi;
@@ -3519,12 +3540,11 @@ pass_forwprop::execute (function *fun)
       FOR_EACH_EDGE (e, ei, bb->preds)
 	{
 	  if ((e->flags & EDGE_EXECUTABLE)
-	      /* With dominators we could improve backedge handling
-		 when e->src is dominated by bb.  But for irreducible
-		 regions we have to take all backedges conservatively.
-		 We can handle single-block cycles as we know the
-		 dominator relationship here.  */
-	      || bb_to_rpo[e->src->index] > i)
+	      /* We can handle backedges in natural loops correctly but
+		 for irreducible regions we have to take all backedges
+		 conservatively when we did not visit the source yet.  */
+	      || (bb_to_rpo[e->src->index] > i
+		  && !dominated_by_p (CDI_DOMINATORS, e->src, e->dest)))
 	    {
 	      any = true;
 	      break;
@@ -3577,7 +3597,7 @@ pass_forwprop::execute (function *fun)
 	  if (all_same)
 	    {
 	      if (may_propagate_copy (res, first))
-		to_remove.safe_push (phi);
+		to_remove_defs.safe_push (SSA_NAME_VERSION (res));
 	      fwprop_set_lattice_val (res, first);
 	    }
 	}
@@ -3749,6 +3769,8 @@ pass_forwprop::execute (function *fun)
 		  && gimple_store_p (use_stmt)
 		  && !gimple_has_volatile_ops (use_stmt)
 		  && is_gimple_assign (use_stmt)
+		  && (TREE_CODE (TREE_TYPE (gimple_assign_lhs (use_stmt)))
+		      == COMPLEX_TYPE)
 		  && (TREE_CODE (gimple_assign_lhs (use_stmt))
 		      != TARGET_MEM_REF))
 		{
@@ -3902,10 +3924,15 @@ pass_forwprop::execute (function *fun)
 	    {
 	      tree use = USE_FROM_PTR (usep);
 	      tree val = fwprop_ssa_val (use);
-	      if (val && val != use && may_propagate_copy (use, val))
+	      if (val && val != use)
 		{
-		  propagate_value (usep, val);
-		  substituted_p = true;
+		  if (!is_gimple_debug (stmt))
+		    bitmap_set_bit (simple_dce_worklist, SSA_NAME_VERSION (use));
+		  if (may_propagate_copy (use, val))
+		    {
+		      propagate_value (usep, val);
+		      substituted_p = true;
+		    }
 		}
 	    }
 	  if (substituted_p
@@ -3925,7 +3952,12 @@ pass_forwprop::execute (function *fun)
 				   && gimple_call_noreturn_p (stmt));
 	      changed = false;
 
-	      if (fold_stmt (&gsi, fwprop_ssa_val))
+	      auto_vec<tree, 8> uses;
+	      FOR_EACH_SSA_USE_OPERAND (usep, stmt, iter, SSA_OP_USE)
+		if (uses.space (1))
+		  uses.quick_push (USE_FROM_PTR (usep));
+
+	      if (fold_stmt (&gsi, fwprop_ssa_val, simple_dce_worklist))
 		{
 		  changed = true;
 		  stmt = gsi_stmt (gsi);
@@ -3935,6 +3967,13 @@ pass_forwprop::execute (function *fun)
 		    if (gimple_cond_true_p (cond)
 			|| gimple_cond_false_p (cond))
 		      cfg_changed = true;
+		  /* Queue old uses for simple DCE if not debug statement.  */
+		  if (!is_gimple_debug (stmt))
+		    for (tree use : uses)
+		      if (TREE_CODE (use) == SSA_NAME
+			  && !SSA_NAME_IS_DEFAULT_DEF (use))
+			bitmap_set_bit (simple_dce_worklist,
+					SSA_NAME_VERSION (use));
 		}
 
 	      if (changed || substituted_p)
@@ -3988,7 +4027,8 @@ pass_forwprop::execute (function *fun)
 		  }
 
 		case GIMPLE_SWITCH:
-		  changed = simplify_gimple_switch (as_a <gswitch *> (stmt));
+		  changed = simplify_gimple_switch (as_a <gswitch *> (stmt),
+						    edges_to_remove);
 		  break;
 
 		case GIMPLE_COND:
@@ -4049,7 +4089,7 @@ pass_forwprop::execute (function *fun)
 		     stmt for removal.  */
 		  if (val != lhs
 		      && may_propagate_copy (lhs, val))
-		    to_remove.safe_push (stmt);
+		    to_remove_defs.safe_push (SSA_NAME_VERSION (lhs));
 		  fwprop_set_lattice_val (lhs, val);
 		}
 	    }
@@ -4070,7 +4110,7 @@ pass_forwprop::execute (function *fun)
 	      continue;
 	    tree val = fwprop_ssa_val (arg);
 	    if (val != arg
-		&& may_propagate_copy (arg, val))
+		&& may_propagate_copy (arg, val, !(e->flags & EDGE_ABNORMAL)))
 	      propagate_value (use_p, val);
 	  }
 
@@ -4091,14 +4131,11 @@ pass_forwprop::execute (function *fun)
   free (bb_to_rpo);
   lattice.release ();
 
-  /* Remove stmts in reverse order to make debug stmt creation possible.  */
-  while (!to_remove.is_empty())
+  /* First remove chains of stmts where we check no uses remain.  */
+  simple_dce_from_worklist (simple_dce_worklist, to_purge);
+
+  auto remove = [](gimple *stmt)
     {
-      gimple *stmt = to_remove.pop ();
-      /* For example remove_prop_source_from_use can remove stmts queued
-	 for removal.  Deal with this gracefully.  */
-      if (!gimple_bb (stmt))
-	continue;
       if (dump_file && (dump_flags & TDF_DETAILS))
 	{
 	  fprintf (dump_file, "Removing dead stmt ");
@@ -4114,6 +4151,27 @@ pass_forwprop::execute (function *fun)
 	  gsi_remove (&gsi, true);
 	  release_defs (stmt);
 	}
+    };
+
+  /* Then remove stmts we know we can remove even though we did not
+     substitute in dead code regions, so uses can remain.  Do so in reverse
+     order to make debug stmt creation possible.  */
+  while (!to_remove_defs.is_empty())
+    {
+      tree def = ssa_name (to_remove_defs.pop ());
+      /* For example remove_prop_source_from_use can remove stmts queued
+	 for removal.  Deal with this gracefully.  */
+      if (!def)
+	continue;
+      gimple *stmt = SSA_NAME_DEF_STMT (def);
+      remove (stmt);
+    }
+
+  /* Wipe other queued stmts that do not have SSA defs.  */
+  while (!to_remove.is_empty())
+    {
+      gimple *stmt = to_remove.pop ();
+      remove (stmt);
     }
 
   /* Fixup stmts that became noreturn calls.  This may require splitting
@@ -4135,7 +4193,20 @@ pass_forwprop::execute (function *fun)
   cfg_changed |= gimple_purge_all_dead_eh_edges (to_purge);
   cfg_changed |= gimple_purge_all_dead_abnormal_call_edges (need_ab_cleanup);
   BITMAP_FREE (to_purge);
-  BITMAP_FREE (need_ab_cleanup);
+
+  /* Remove edges queued from switch stmt simplification.  */
+  for (auto ep : edges_to_remove)
+    {
+      basic_block src = BASIC_BLOCK_FOR_FN (fun, ep.first);
+      basic_block dest = BASIC_BLOCK_FOR_FN (fun, ep.second);
+      edge e;
+      if (src && dest && (e = find_edge (src, dest)))
+	{
+	  free_dominance_info (CDI_DOMINATORS);
+	  remove_edge (e);
+	  cfg_changed = true;
+	}
+    }
 
   if (get_range_query (fun) != get_global_range_query ())
     disable_ranger (fun);

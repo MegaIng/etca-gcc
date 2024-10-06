@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-additional-options "-march=rv32gcv -mabi=ilp32d --param=riscv-autovec-preference=scalable" } */
+/* { dg-additional-options "-march=rv32gcv -mabi=ilp32d -mrvv-vector-bits=scalable -fno-vect-cost-model" } */
 
 #include <stdint-gcc.h>
 
@@ -27,5 +27,5 @@
 
 TEST_ALL ()
 
-/* { dg-final { scan-assembler-times {\tvnsra\.wv} 6 } } */
-/* { dg-final { scan-assembler-times {\tvnsrl\.wv} 5 } } */
+/* { dg-final { scan-assembler-times {\tvnsra\.wv} 4 } } */
+/* { dg-final { scan-assembler-times {\tvnsrl\.wv} 4 } } */

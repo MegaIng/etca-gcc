@@ -1,5 +1,5 @@
 /* Assign reload pseudos.
-   Copyright (C) 2010-2023 Free Software Foundation, Inc.
+   Copyright (C) 2010-2024 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -522,14 +522,15 @@ find_hard_regno_for_1 (int regno, int *cost, int try_only_hard_regno,
 	       r2 != NULL;
 	       r2 = r2->start_next)
 	    {
-	      if (r2->regno >= lra_constraint_new_regno_start
+	      if (live_pseudos_reg_renumber[r2->regno] < 0
+		  && r2->regno >= lra_constraint_new_regno_start
 		  && lra_reg_info[r2->regno].preferred_hard_regno1 >= 0
-		  && live_pseudos_reg_renumber[r2->regno] < 0
 		  && rclass_intersect_p[regno_allocno_class_array[r2->regno]])
 		sparseset_set_bit (conflict_reload_and_inheritance_pseudos,
 				   r2->regno);
-	      if (live_pseudos_reg_renumber[r2->regno] >= 0
-		  && rclass_intersect_p[regno_allocno_class_array[r2->regno]])
+	      else if (live_pseudos_reg_renumber[r2->regno] >= 0
+		       && rclass_intersect_p
+			    [regno_allocno_class_array[r2->regno]])
 		sparseset_set_bit (live_range_hard_reg_pseudos, r2->regno);
 	    }
 	}
@@ -1429,13 +1430,19 @@ assign_by_spills (void)
 	    hard_regno = spill_for (regno, &all_spilled_pseudos, iter == 1);
 	  if (hard_regno < 0)
 	    {
-	      if (reload_p) {
-		/* Put unassigned reload pseudo first in the
-		   array.  */
-		regno2 = sorted_pseudos[nfails];
-		sorted_pseudos[nfails++] = regno;
-		sorted_pseudos[i] = regno2;
-	      }
+	      if (reload_p)
+		{
+		  /* Put unassigned reload pseudo first in the array.  */
+		  regno2 = sorted_pseudos[nfails];
+		  sorted_pseudos[nfails++] = regno;
+		  sorted_pseudos[i] = regno2;
+		}
+	      else
+		{
+		  /* Consider all alternatives on the next constraint
+		     subpass.  */
+		  bitmap_set_bit (&all_spilled_pseudos, regno);
+		}
 	    }
 	  else
 	    {
@@ -1834,6 +1841,7 @@ lra_split_hard_reg_for (void)
   if (spill_p)
     {
       bitmap_clear (&failed_reload_pseudos);
+      lra_dump_insns_if_possible ("changed func after splitting hard regs");
       return true;
     }
   bitmap_clear (&non_reload_pseudos);

@@ -1,6 +1,6 @@
 // Internal policy header for unordered_set and unordered_map -*- C++ -*-
 
-// Copyright (C) 2010-2023 Free Software Foundation, Inc.
+// Copyright (C) 2010-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -155,7 +155,7 @@ namespace __detail
     {
       template<typename _Kt, typename _Arg, typename _NodeGenerator>
 	static auto
-	_S_build(_Kt&& __k, _Arg&& __arg, const _NodeGenerator& __node_gen)
+	_S_build(_Kt&& __k, _Arg&& __arg, _NodeGenerator& __node_gen)
 	-> typename _NodeGenerator::__node_ptr
 	{
 	  return __node_gen(std::forward<_Kt>(__k),
@@ -168,9 +168,22 @@ namespace __detail
     {
       template<typename _Kt, typename _Arg, typename _NodeGenerator>
 	static auto
-	_S_build(_Kt&& __k, _Arg&&, const _NodeGenerator& __node_gen)
+	_S_build(_Kt&& __k, _Arg&&, _NodeGenerator& __node_gen)
 	-> typename _NodeGenerator::__node_ptr
 	{ return __node_gen(std::forward<_Kt>(__k)); }
+    };
+
+  template<typename _HashtableAlloc, typename _NodePtr>
+    struct _NodePtrGuard
+    {
+      _HashtableAlloc& _M_h;
+      _NodePtr _M_ptr;
+
+      ~_NodePtrGuard()
+      {
+	if (_M_ptr)
+	  _M_h._M_deallocate_node_ptr(_M_ptr);
+      }
     };
 
   template<typename _NodeAlloc>
@@ -199,32 +212,25 @@ namespace __detail
 
       template<typename... _Args>
 	__node_ptr
-	operator()(_Args&&... __args) const
+	operator()(_Args&&... __args)
 	{
-	  if (_M_nodes)
-	    {
-	      __node_ptr __node = _M_nodes;
-	      _M_nodes = _M_nodes->_M_next();
-	      __node->_M_nxt = nullptr;
-	      auto& __a = _M_h._M_node_allocator();
-	      __node_alloc_traits::destroy(__a, __node->_M_valptr());
-	      __try
-		{
-		  __node_alloc_traits::construct(__a, __node->_M_valptr(),
-						 std::forward<_Args>(__args)...);
-		}
-	      __catch(...)
-		{
-		  _M_h._M_deallocate_node_ptr(__node);
-		  __throw_exception_again;
-		}
-	      return __node;
-	    }
-	  return _M_h._M_allocate_node(std::forward<_Args>(__args)...);
+	  if (!_M_nodes)
+	    return _M_h._M_allocate_node(std::forward<_Args>(__args)...);
+
+	  __node_ptr __node = _M_nodes;
+	  _M_nodes = _M_nodes->_M_next();
+	  __node->_M_nxt = nullptr;
+	  auto& __a = _M_h._M_node_allocator();
+	  __node_alloc_traits::destroy(__a, __node->_M_valptr());
+	  _NodePtrGuard<__hashtable_alloc, __node_ptr> __guard { _M_h, __node };
+	  __node_alloc_traits::construct(__a, __node->_M_valptr(),
+					 std::forward<_Args>(__args)...);
+	  __guard._M_ptr = nullptr;
+	  return __node;
 	}
 
     private:
-      mutable __node_ptr _M_nodes;
+      __node_ptr _M_nodes;
       __hashtable_alloc& _M_h;
     };
 
@@ -327,18 +333,22 @@ namespace __detail
 
       __gnu_cxx::__aligned_buffer<_Value> _M_storage;
 
+      [[__gnu__::__always_inline__]]
       _Value*
       _M_valptr() noexcept
       { return _M_storage._M_ptr(); }
 
+      [[__gnu__::__always_inline__]]
       const _Value*
       _M_valptr() const noexcept
       { return _M_storage._M_ptr(); }
 
+      [[__gnu__::__always_inline__]]
       _Value&
       _M_v() noexcept
       { return *_M_valptr(); }
 
+      [[__gnu__::__always_inline__]]
       const _Value&
       _M_v() const noexcept
       { return *_M_valptr(); }
@@ -454,6 +464,23 @@ namespace __detail
 	this->_M_incr();
 	return __tmp;
       }
+
+#if __cpp_impl_three_way_comparison >= 201907L
+      friend bool
+      operator==(const _Node_iterator&, const _Node_iterator&) = default;
+#else
+      friend bool
+      operator==(const _Node_iterator& __x, const _Node_iterator& __y) noexcept
+      {
+	const __base_type& __bx = __x;
+	const __base_type& __by = __y;
+	return __bx == __by;
+      }
+
+      friend bool
+      operator!=(const _Node_iterator& __x, const _Node_iterator& __y) noexcept
+      { return !(__x == __y); }
+#endif
     };
 
   /// Node const_iterators, used to iterate through all the hashtable.
@@ -464,6 +491,10 @@ namespace __detail
     private:
       using __base_type = _Node_iterator_base<_Value, __cache>;
       using __node_type = typename __base_type::__node_type;
+
+      // The corresponding non-const iterator.
+      using __iterator
+	= _Node_iterator<_Value, __constant_iterators, __cache>;
 
     public:
       typedef _Value					value_type;
@@ -479,8 +510,7 @@ namespace __detail
       _Node_const_iterator(__node_type* __p) noexcept
       : __base_type(__p) { }
 
-      _Node_const_iterator(const _Node_iterator<_Value, __constant_iterators,
-			   __cache>& __x) noexcept
+      _Node_const_iterator(const __iterator& __x) noexcept
       : __base_type(__x._M_cur) { }
 
       reference
@@ -505,6 +535,62 @@ namespace __detail
 	this->_M_incr();
 	return __tmp;
       }
+
+#if __cpp_impl_three_way_comparison >= 201907L
+      friend bool
+      operator==(const _Node_const_iterator&,
+		 const _Node_const_iterator&) = default;
+
+      friend bool
+      operator==(const _Node_const_iterator& __x, const __iterator& __y)
+      {
+	const __base_type& __bx = __x;
+	const __base_type& __by = __y;
+	return __bx == __by;
+      }
+#else
+      friend bool
+      operator==(const _Node_const_iterator& __x,
+		 const _Node_const_iterator& __y) noexcept
+      {
+	const __base_type& __bx = __x;
+	const __base_type& __by = __y;
+	return __bx == __by;
+      }
+
+      friend bool
+      operator!=(const _Node_const_iterator& __x,
+		 const _Node_const_iterator& __y) noexcept
+      { return !(__x == __y); }
+
+      friend bool
+      operator==(const _Node_const_iterator& __x,
+		 const __iterator& __y) noexcept
+      {
+	const __base_type& __bx = __x;
+	const __base_type& __by = __y;
+	return __bx == __by;
+      }
+
+      friend bool
+      operator!=(const _Node_const_iterator& __x,
+		 const __iterator& __y) noexcept
+      { return !(__x == __y); }
+
+      friend bool
+      operator==(const __iterator& __x,
+		 const _Node_const_iterator& __y) noexcept
+      {
+	const __base_type& __bx = __x;
+	const __base_type& __by = __y;
+	return __bx == __by;
+      }
+
+      friend bool
+      operator!=(const __iterator& __x,
+		 const _Node_const_iterator& __y) noexcept
+      { return !(__x == __y); }
+#endif
     };
 
   // Many of class template _Hashtable's template parameters are policy
@@ -545,6 +631,7 @@ namespace __detail
     { return _M_max_load_factor; }
 
     // Return a bucket size no smaller than n.
+    // TODO: 'const' qualifier is kept for abi compatibility reason.
     std::size_t
     _M_next_bkt(std::size_t __n) const;
 
@@ -557,6 +644,7 @@ namespace __detail
     // and __n_ins is number of elements to be inserted.  Do we need to
     // increase bucket count?  If so, return make_pair(true, n), where n
     // is the new bucket count.  If not, return make_pair(false, 0).
+    // TODO: 'const' qualifier is kept for abi compatibility reason.
     std::pair<bool, std::size_t>
     _M_need_rehash(std::size_t __n_bkt, std::size_t __n_elt,
 		   std::size_t __n_ins) const;
@@ -578,6 +666,8 @@ namespace __detail
     static const std::size_t _S_growth_factor = 2;
 
     float		_M_max_load_factor;
+
+    // TODO: 'mutable' kept for abi compatibility reason.
     mutable std::size_t	_M_next_resize;
   };
 
@@ -710,6 +800,25 @@ namespace __detail
     float	_M_max_load_factor;
     std::size_t	_M_next_resize;
   };
+
+  template<typename _RehashPolicy>
+    struct _RehashStateGuard
+    {
+      _RehashPolicy* _M_guarded_obj;
+      typename _RehashPolicy::_State _M_prev_state;
+
+      _RehashStateGuard(_RehashPolicy& __policy)
+      : _M_guarded_obj(std::__addressof(__policy))
+      , _M_prev_state(__policy._M_state())
+      { }
+      _RehashStateGuard(const _RehashStateGuard&) = delete;
+
+      ~_RehashStateGuard()
+      {
+	if (_M_guarded_obj)
+	  _M_guarded_obj->_M_reset(_M_prev_state);
+      }
+    };
 
   // Base classes for std::_Hashtable.  We define these base classes
   // because in some cases we want to do different things depending on
@@ -902,12 +1011,12 @@ namespace __detail
       template<typename _InputIterator, typename _NodeGetter>
 	void
 	_M_insert_range(_InputIterator __first, _InputIterator __last,
-			const _NodeGetter&, true_type __uks);
+			_NodeGetter&, true_type __uks);
 
       template<typename _InputIterator, typename _NodeGetter>
 	void
 	_M_insert_range(_InputIterator __first, _InputIterator __last,
-			const _NodeGetter&, false_type __uks);
+			_NodeGetter&, false_type __uks);
 
     public:
       using iterator = _Node_iterator<_Value, __constant_iterators::value,
@@ -983,7 +1092,7 @@ namespace __detail
 		   _Hash, _RangeHash, _Unused,
 		   _RehashPolicy, _Traits>::
       _M_insert_range(_InputIterator __first, _InputIterator __last,
-		      const _NodeGetter& __node_gen, true_type __uks)
+		      _NodeGetter& __node_gen, true_type __uks)
       {
 	__hashtable& __h = _M_conjure_hashtable();
 	for (; __first != __last; ++__first)
@@ -1000,26 +1109,26 @@ namespace __detail
 		   _Hash, _RangeHash, _Unused,
 		   _RehashPolicy, _Traits>::
       _M_insert_range(_InputIterator __first, _InputIterator __last,
-		      const _NodeGetter& __node_gen, false_type __uks)
+		      _NodeGetter& __node_gen, false_type __uks)
       {
-	using __rehash_type = typename __hashtable::__rehash_type;
-	using __rehash_state = typename __hashtable::__rehash_state;
-	using pair_type = std::pair<bool, std::size_t>;
+	using __rehash_guard_t = typename __hashtable::__rehash_guard_t;
+	using __pair_type = std::pair<bool, std::size_t>;
 
 	size_type __n_elt = __detail::__distance_fw(__first, __last);
 	if (__n_elt == 0)
 	  return;
 
 	__hashtable& __h = _M_conjure_hashtable();
-	__rehash_type& __rehash = __h._M_rehash_policy;
-	const __rehash_state& __saved_state = __rehash._M_state();
-	pair_type __do_rehash = __rehash._M_need_rehash(__h._M_bucket_count,
-							__h._M_element_count,
-							__n_elt);
+	__rehash_guard_t __rehash_guard(__h._M_rehash_policy);
+	__pair_type __do_rehash
+	  = __h._M_rehash_policy._M_need_rehash(__h._M_bucket_count,
+						__h._M_element_count,
+						__n_elt);
 
 	if (__do_rehash.first)
-	  __h._M_rehash(__do_rehash.second, __saved_state);
+	  __h._M_rehash(__do_rehash.second, __uks);
 
+	__rehash_guard._M_guarded_obj = nullptr;
 	for (; __first != __last; ++__first)
 	  __h._M_insert(*__first, __node_gen, __uks);
       }
@@ -1316,19 +1425,6 @@ namespace __detail
 	}
 
       __hash_code
-      _M_hash_code(const _Hash&,
-		   const _Hash_node_value<_Value, true>& __n) const
-      { return __n._M_hash_code; }
-
-      // Compute hash code using _Hash as __n _M_hash_code, if present, was
-      // computed using _H2.
-      template<typename _H2>
-	__hash_code
-	_M_hash_code(const _H2&,
-		const _Hash_node_value<_Value, __cache_hash_code>& __n) const
-	{ return _M_hash_code(_ExtractKey{}(__n._M_v())); }
-
-      __hash_code
       _M_hash_code(const _Hash_node_value<_Value, false>& __n) const
       { return _M_hash_code(_ExtractKey{}(__n._M_v())); }
 
@@ -1343,9 +1439,7 @@ namespace __detail
       std::size_t
       _M_bucket_index(const _Hash_node_value<_Value, false>& __n,
 		      std::size_t __bkt_count) const
-	noexcept( noexcept(declval<const _Hash&>()(declval<const _Key&>()))
-		  && noexcept(declval<const _RangeHash&>()((__hash_code)0,
-							   (std::size_t)0)) )
+      noexcept( noexcept(declval<const _Hash&>()(declval<const _Key&>())) )
       {
 	return _RangeHash{}(_M_hash_code(_ExtractKey{}(__n._M_v())),
 			    __bkt_count);
@@ -1353,9 +1447,7 @@ namespace __detail
 
       std::size_t
       _M_bucket_index(const _Hash_node_value<_Value, true>& __n,
-		      std::size_t __bkt_count) const
-	noexcept( noexcept(declval<const _RangeHash&>()((__hash_code)0,
-							(std::size_t)0)) )
+		      std::size_t __bkt_count) const noexcept
       { return _RangeHash{}(__n._M_hash_code, __bkt_count); }
 
       void
@@ -1999,19 +2091,20 @@ namespace __detail
       _Hashtable_alloc<_NodeAlloc>::_M_allocate_node(_Args&&... __args)
       -> __node_ptr
       {
-	auto __nptr = __node_alloc_traits::allocate(_M_node_allocator(), 1);
+	auto& __alloc = _M_node_allocator();
+	auto __nptr = __node_alloc_traits::allocate(__alloc, 1);
 	__node_ptr __n = std::__to_address(__nptr);
 	__try
 	  {
 	    ::new ((void*)__n) __node_type;
-	    __node_alloc_traits::construct(_M_node_allocator(),
-					   __n->_M_valptr(),
+	    __node_alloc_traits::construct(__alloc, __n->_M_valptr(),
 					   std::forward<_Args>(__args)...);
 	    return __n;
 	  }
 	__catch(...)
 	  {
-	    __node_alloc_traits::deallocate(_M_node_allocator(), __nptr, 1);
+	    __n->~__node_type();
+	    __node_alloc_traits::deallocate(__alloc, __nptr, 1);
 	    __throw_exception_again;
 	  }
       }

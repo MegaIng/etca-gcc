@@ -1,5 +1,5 @@
 /* Declaration statement matcher
-   Copyright (C) 2002-2023 Free Software Foundation, Inc.
+   Copyright (C) 2002-2024 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -912,6 +912,7 @@ match_clist_expr (gfc_expr **result, gfc_typespec *ts, gfc_array_spec *as)
 
       /* Set the rank/shape to match the LHS as auto-reshape is implied. */
       expr->rank = as->rank;
+      expr->corank = as->corank;
       expr->shape = gfc_get_shape (as->rank);
       for (int i = 0; i < as->rank; ++i)
 	spec_dimen_size (as, i, &expr->shape[i]);
@@ -1404,7 +1405,9 @@ get_proc_name (const char *name, gfc_symbol **result, bool module_fcn_entry)
       /* Trap declarations of attributes in encompassing scope.  The
 	 signature for this is that ts.kind is nonzero for no-CLASS
 	 entity.  For a CLASS entity, ts.kind is zero.  */
-      if ((sym->ts.kind != 0 || sym->ts.type == BT_CLASS)
+      if ((sym->ts.kind != 0
+	   || sym->ts.type == BT_CLASS
+	   || sym->ts.type == BT_DERIVED)
 	  && !sym->attr.implicit_type
 	  && sym->attr.proc == 0
 	  && gfc_current_ns->parent != NULL
@@ -1711,7 +1714,7 @@ gfc_verify_c_interop_param (gfc_symbol *sym)
 /* Function called by variable_decl() that adds a name to the symbol table.  */
 
 static bool
-build_sym (const char *name, gfc_charlen *cl, bool cl_deferred,
+build_sym (const char *name, int elem, gfc_charlen *cl, bool cl_deferred,
 	   gfc_array_spec **as, locus *var_locus)
 {
   symbol_attribute attr;
@@ -1776,7 +1779,10 @@ build_sym (const char *name, gfc_charlen *cl, bool cl_deferred,
 
   if (sym->ts.type == BT_CHARACTER)
     {
-      sym->ts.u.cl = cl;
+      if (elem > 1)
+	sym->ts.u.cl = gfc_new_charlen (sym->ns, cl);
+      else
+	sym->ts.u.cl = cl;
       sym->ts.deferred = cl_deferred;
     }
 
@@ -1960,6 +1966,45 @@ gfc_free_enum_history (void)
 }
 
 
+/* Function to fix initializer character length if the length of the
+   symbol or component is constant.  */
+
+static bool
+fix_initializer_charlen (gfc_typespec *ts, gfc_expr *init)
+{
+  if (!gfc_specification_expr (ts->u.cl->length))
+    return false;
+
+  int k = gfc_validate_kind (BT_INTEGER, gfc_charlen_int_kind, false);
+
+  /* resolve_charlen will complain later on if the length
+     is too large.  Just skip the initialization in that case.  */
+  if (mpz_cmp (ts->u.cl->length->value.integer,
+	       gfc_integer_kinds[k].huge) <= 0)
+    {
+      HOST_WIDE_INT len
+		= gfc_mpz_get_hwi (ts->u.cl->length->value.integer);
+
+      if (init->expr_type == EXPR_CONSTANT)
+	gfc_set_constant_character_len (len, init, -1);
+      else if (init->expr_type == EXPR_ARRAY)
+	{
+	  gfc_constructor *cons;
+
+	  /* Build a new charlen to prevent simplification from
+	     deleting the length before it is resolved.  */
+	  init->ts.u.cl = gfc_new_charlen (gfc_current_ns, NULL);
+	  init->ts.u.cl->length = gfc_copy_expr (ts->u.cl->length);
+	  cons = gfc_constructor_first (init->value.constructor);
+	  for (; cons; cons = gfc_constructor_next (cons))
+	    gfc_set_constant_character_len (len, cons->expr, -1);
+	}
+    }
+
+  return true;
+}
+
+
 /* Function called by variable_decl() that adds an initialization
    expression to a symbol.  */
 
@@ -2073,40 +2118,10 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
 				gfc_copy_expr (init->ts.u.cl->length);
 		}
 	    }
-	  /* Update initializer character length according symbol.  */
-	  else if (sym->ts.u.cl->length->expr_type == EXPR_CONSTANT)
-	    {
-	      if (!gfc_specification_expr (sym->ts.u.cl->length))
-		return false;
-
-	      int k = gfc_validate_kind (BT_INTEGER, gfc_charlen_int_kind,
-					 false);
-	      /* resolve_charlen will complain later on if the length
-		 is too large.  Just skeep the initialization in that case.  */
-	      if (mpz_cmp (sym->ts.u.cl->length->value.integer,
-			   gfc_integer_kinds[k].huge) <= 0)
-		{
-		  HOST_WIDE_INT len
-		    = gfc_mpz_get_hwi (sym->ts.u.cl->length->value.integer);
-
-		  if (init->expr_type == EXPR_CONSTANT)
-		    gfc_set_constant_character_len (len, init, -1);
-		  else if (init->expr_type == EXPR_ARRAY)
-		    {
-		      gfc_constructor *c;
-
-		      /* Build a new charlen to prevent simplification from
-			 deleting the length before it is resolved.  */
-		      init->ts.u.cl = gfc_new_charlen (gfc_current_ns, NULL);
-		      init->ts.u.cl->length
-			= gfc_copy_expr (sym->ts.u.cl->length);
-
-		      for (c = gfc_constructor_first (init->value.constructor);
-			   c; c = gfc_constructor_next (c))
-			gfc_set_constant_character_len (len, c->expr, -1);
-		    }
-		}
-	    }
+	  /* Update initializer character length according to symbol.  */
+	  else if (sym->ts.u.cl->length->expr_type == EXPR_CONSTANT
+		   && !fix_initializer_charlen (&sym->ts, init))
+	    return false;
 	}
 
       if (sym->attr.flavor == FL_PARAMETER && sym->attr.dimension && sym->as
@@ -2263,6 +2278,7 @@ add_init_expr_to_sym (const char *name, gfc_expr **initp, locus *var_locus)
 	      mpz_clear (size);
 	    }
 	  init->rank = sym->as->rank;
+	  init->corank = sym->as->corank;
 	}
 
       sym->value = init;
@@ -2368,6 +2384,13 @@ build_struct (const char *name, gfc_charlen *cl, gfc_expr **init,
 
   c->initializer = *init;
   *init = NULL;
+
+  /* Update initializer character length according to component.  */
+  if (c->ts.type == BT_CHARACTER && c->ts.u.cl->length
+      && c->ts.u.cl->length->expr_type == EXPR_CONSTANT
+      && c->initializer && c->initializer->ts.type == BT_CHARACTER
+      && !fix_initializer_charlen (&c->ts, c->initializer))
+    return false;
 
   c->as = *as;
   if (c->as != NULL)
@@ -2942,7 +2965,7 @@ variable_decl (int elem)
      create a symbol for those yet.  If we fail to create the symbol,
      bail out.  */
   if (!gfc_comp_struct (gfc_current_state ())
-      && !build_sym (name, cl, cl_deferred, &as, &var_locus))
+      && !build_sym (name, elem, cl, cl_deferred, &as, &var_locus))
     {
       m = MATCH_ERROR;
       goto cleanup;
@@ -4065,6 +4088,21 @@ gfc_get_pdt_instance (gfc_actual_arglist *param_list, gfc_symbol **sym,
 	  continue;
 	}
 
+      /* Addressing PR82943, this will fix the issue where a function or
+	 subroutine is declared as not a member of the PDT instance.
+	 The reason for this is because the PDT instance did not have access
+	 to its template's f2k_derived namespace in order to find the
+	 typebound procedures.
+
+	 The number of references to the PDT template's f2k_derived will
+	 ensure that f2k_derived is properly freed later on.  */
+
+      if (!instance->f2k_derived && pdt->f2k_derived)
+	{
+	  instance->f2k_derived = pdt->f2k_derived;
+	  instance->f2k_derived->refs++;
+	}
+
       /* Set the component kind using the parameterized expression.  */
       if ((c1->ts.kind == 0 || c1->ts.type == BT_CHARACTER)
 	   && c1->kind_expr != NULL)
@@ -4304,6 +4342,17 @@ gfc_match_decl_type_spec (gfc_typespec *ts, int implicit_flag)
       ts->type = BT_INTEGER;
       ts->kind = gfc_default_integer_kind;
       goto get_kind;
+    }
+
+  if (flag_unsigned)
+    {
+      if ((matched_type && strcmp ("unsigned", name) == 0)
+	  || (!matched_type && gfc_match (" unsigned") == MATCH_YES))
+	{
+	  ts->type = BT_UNSIGNED;
+	  ts->kind = gfc_default_integer_kind;
+	  goto get_kind;
+	}
     }
 
   if ((matched_type && strcmp ("character", name) == 0)
@@ -6064,9 +6113,7 @@ verify_bind_c_sym (gfc_symbol *tmp_sym, gfc_typespec *ts,
 
       /* BIND(C) functions cannot return a character string.  */
       if (bind_c_function && tmp_sym->ts.type == BT_CHARACTER)
-	if (tmp_sym->ts.u.cl == NULL || tmp_sym->ts.u.cl->length == NULL
-	    || tmp_sym->ts.u.cl->length->expr_type != EXPR_CONSTANT
-	    || mpz_cmp_si (tmp_sym->ts.u.cl->length->value.integer, 1) != 0)
+	if (!gfc_length_one_character_type_p (&tmp_sym->ts))
 	  gfc_error ("Return type of BIND(C) function %qs of character "
 		     "type at %L must have length 1", tmp_sym->name,
 			 &(tmp_sym->declared_at));
@@ -6780,12 +6827,25 @@ ok:
 	      || (p->next == NULL && q->next != NULL))
 	    arg_count_mismatch = true;
 	  else if ((p->sym == NULL && q->sym == NULL)
-		    || strcmp (p->sym->name, q->sym->name) == 0)
+		    || (p->sym && q->sym
+			&& strcmp (p->sym->name, q->sym->name) == 0))
 	    continue;
 	  else
-	    gfc_error_now ("Mismatch in MODULE PROCEDURE formal "
-			   "argument names (%s/%s) at %C",
-			   p->sym->name, q->sym->name);
+	    {
+	      if (q->sym == NULL)
+		gfc_error_now ("MODULE PROCEDURE formal argument %qs "
+			       "conflicts with alternate return at %C",
+			       p->sym->name);
+	      else if (p->sym == NULL)
+		gfc_error_now ("MODULE PROCEDURE formal argument is "
+			       "alternate return and conflicts with "
+			       "%qs in the separate declaration at %C",
+			       q->sym->name);
+	      else
+		gfc_error_now ("Mismatch in MODULE PROCEDURE formal "
+			       "argument names (%s/%s) at %C",
+			       p->sym->name, q->sym->name);
+	    }
 	}
 
       if (arg_count_mismatch)
@@ -10894,7 +10954,7 @@ enumerator_decl (void)
   /* OK, we've successfully matched the declaration.  Now put the
      symbol in the current namespace. If we fail to create the symbol,
      bail out.  */
-  if (!build_sym (name, NULL, false, &as, &var_locus))
+  if (!build_sym (name, 1, NULL, false, &as, &var_locus))
     {
       m = MATCH_ERROR;
       goto cleanup;

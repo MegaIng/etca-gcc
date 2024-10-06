@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2023-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 2023-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -67,6 +67,9 @@ is
 
    function Last_Number_Ghost (Str : String) return Positive is
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "occurs in ghost code, not executable");
+
       for J in Str'Range loop
          if Str (J) not in '0' .. '9' | '_' then
             return J - 1;
@@ -77,6 +80,8 @@ is
       end loop;
 
       return Str'Last;
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end Last_Number_Ghost;
 
 end System.Val_Spec;

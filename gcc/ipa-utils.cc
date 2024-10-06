@@ -1,5 +1,5 @@
 /* Utilities for ipa analysis.
-   Copyright (C) 2005-2023 Free Software Foundation, Inc.
+   Copyright (C) 2005-2024 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -33,6 +33,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-utils.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "ipa-fnsummary.h"
 #include "tree-eh.h"
@@ -651,13 +653,14 @@ ipa_merge_profiles (struct cgraph_node *dst,
 		{
 		  edge srce = EDGE_SUCC (srcbb, i);
 		  edge dste = EDGE_SUCC (dstbb, i);
-		  dste->probability = 
-		    dste->probability * dstbb->count.ipa ().probability_in
-						 (dstbb->count.ipa ()
-						  + srccount.ipa ())
-		    + srce->probability * srcbb->count.ipa ().probability_in
-						 (dstbb->count.ipa ()
-						  + srccount.ipa ());
+		  profile_count sum =
+		    dstbb->count.ipa () + srccount.ipa ();
+		  if (sum.nonzero_p ())
+		    dste->probability =
+		      dste->probability * dstbb->count.ipa ().probability_in
+						   (sum)
+		      + srce->probability * srcbb->count.ipa ().probability_in
+						   (sum);
 		}
 	      dstbb->count = dstbb->count.ipa () + srccount.ipa ();
 	    }
@@ -904,6 +907,7 @@ find_always_executed_bbs (function *fun, bool assume_return_or_eh)
      exit block.  */
 
   bitmap ret = BITMAP_ALLOC (NULL);
+  bitmap_tree_view (ret);
   /* A degenerated case when there is no path to exit.  */
   if (!visited.contains (EXIT_BLOCK_PTR_FOR_FN (fun)))
     {

@@ -1,7 +1,7 @@
 /* A state machine for use in DejaGnu tests, to check that
    pattern-matching works as expected.
 
-   Copyright (C) 2019-2023 Free Software Foundation, Inc.
+   Copyright (C) 2019-2024 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -22,6 +22,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "make-unique.h"
@@ -31,7 +32,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple.h"
 #include "tree-pretty-print.h"
 #include "diagnostic-path.h"
-#include "diagnostic-metadata.h"
 #include "analyzer/analyzer.h"
 #include "diagnostic-event-id.h"
 #include "analyzer/analyzer-logging.h"
@@ -58,11 +58,11 @@ public:
 
   bool inherited_state_p () const final override { return false; }
 
-  bool on_stmt (sm_context *sm_ctxt,
+  bool on_stmt (sm_context &sm_ctxt,
 		const supernode *node,
 		const gimple *stmt) const final override;
 
-  void on_condition (sm_context *sm_ctxt,
+  void on_condition (sm_context &sm_ctxt,
 		     const supernode *node,
 		     const gimple *stmt,
 		     const svalue *lhs,
@@ -92,11 +92,10 @@ public:
     return 0;
   }
 
-  bool emit (rich_location *rich_loc, logger *) final override
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    return warning_at (rich_loc, get_controlling_option (),
-		       "pattern match on %<%E %s %E%>",
-		       m_lhs, op_symbol_code (m_op), m_rhs);
+    return ctxt.warn ("pattern match on %<%E %s %E%>",
+		      m_lhs, op_symbol_code (m_op), m_rhs);
   }
 
 private:
@@ -111,7 +110,7 @@ pattern_test_state_machine::pattern_test_state_machine (logger *logger)
 }
 
 bool
-pattern_test_state_machine::on_stmt (sm_context *sm_ctxt ATTRIBUTE_UNUSED,
+pattern_test_state_machine::on_stmt (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
 				     const supernode *node ATTRIBUTE_UNUSED,
 				     const gimple *stmt ATTRIBUTE_UNUSED) const
 {
@@ -125,7 +124,7 @@ pattern_test_state_machine::on_stmt (sm_context *sm_ctxt ATTRIBUTE_UNUSED,
    constant.  */
 
 void
-pattern_test_state_machine::on_condition (sm_context *sm_ctxt,
+pattern_test_state_machine::on_condition (sm_context &sm_ctxt,
 					  const supernode *node,
 					  const gimple *stmt,
 					  const svalue *lhs,
@@ -139,10 +138,10 @@ pattern_test_state_machine::on_condition (sm_context *sm_ctxt,
   if (!rhs_cst)
     return;
 
-  if (tree lhs_expr = sm_ctxt->get_diagnostic_tree (lhs))
+  if (tree lhs_expr = sm_ctxt.get_diagnostic_tree (lhs))
     {
-      sm_ctxt->warn (node, stmt, lhs_expr,
-		     make_unique<pattern_match> (lhs_expr, op, rhs_cst));
+      sm_ctxt.warn (node, stmt, lhs_expr,
+		    make_unique<pattern_match> (lhs_expr, op, rhs_cst));
     }
 }
 

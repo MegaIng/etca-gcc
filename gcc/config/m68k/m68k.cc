@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.cc for Motorola 68000 family.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -158,7 +158,8 @@ static int m68k_sched_first_cycle_multipass_dfa_lookahead (void);
 
 static bool m68k_can_eliminate (const int, const int);
 static void m68k_conditional_register_usage (void);
-static bool m68k_legitimate_address_p (machine_mode, rtx, bool);
+static bool m68k_legitimate_address_p (machine_mode, rtx, bool,
+				       code_helper = ERROR_MARK);
 static void m68k_option_override (void);
 static void m68k_override_options_after_change (void);
 static rtx find_addr_reg (rtx);
@@ -196,6 +197,9 @@ static bool m68k_modes_tieable_p (machine_mode, machine_mode);
 static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 						int *, const_tree, int);
 static void m68k_asm_final_postscan_insn (FILE *, rtx_insn *insn, rtx [], int);
+static HARD_REG_SET m68k_zero_call_used_regs (HARD_REG_SET);
+static machine_mode m68k_c_mode_for_floating_type (enum tree_index);
+static bool m68k_use_lra_p (void);
 
 /* Initialize the GCC target structure.  */
 
@@ -304,7 +308,7 @@ static void m68k_asm_final_postscan_insn (FILE *, rtx_insn *insn, rtx [], int);
 #endif
 
 #undef TARGET_LRA_P
-#define TARGET_LRA_P hook_bool_void_false
+#define TARGET_LRA_P m68k_use_lra_p
 
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P	m68k_legitimate_address_p
@@ -360,7 +364,13 @@ static void m68k_asm_final_postscan_insn (FILE *, rtx_insn *insn, rtx [], int);
 #undef TARGET_ASM_FINAL_POSTSCAN_INSN
 #define TARGET_ASM_FINAL_POSTSCAN_INSN m68k_asm_final_postscan_insn
 
-static const struct attribute_spec m68k_attribute_table[] =
+#undef TARGET_ZERO_CALL_USED_REGS
+#define TARGET_ZERO_CALL_USED_REGS m68k_zero_call_used_regs
+
+#undef TARGET_C_MODE_FOR_FLOATING_TYPE
+#define TARGET_C_MODE_FOR_FLOATING_TYPE m68k_c_mode_for_floating_type
+
+TARGET_GNU_ATTRIBUTES (m68k_attribute_table,
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
        affects_type_identity, handler, exclude } */
@@ -369,9 +379,8 @@ static const struct attribute_spec m68k_attribute_table[] =
   { "interrupt_handler", 0, 0, true,  false, false, false,
     m68k_handle_fndecl_attribute, NULL },
   { "interrupt_thread", 0, 0, true,  false, false, false,
-    m68k_handle_fndecl_attribute, NULL },
-  { NULL, 0, 0, false, false, false, false, NULL, NULL }
-};
+    m68k_handle_fndecl_attribute, NULL }
+});
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -1494,12 +1503,14 @@ m68k_legitimize_address (rtx x, rtx oldx, machine_mode mode)
 
 #define COPY_ONCE(Y) if (!copied) { Y = copy_rtx (Y); copied = ch = 1; }
 
-      if (GET_CODE (XEXP (x, 0)) == MULT)
+      if (GET_CODE (XEXP (x, 0)) == MULT
+	  || GET_CODE (XEXP (x, 0)) == ASHIFT)
 	{
 	  COPY_ONCE (x);
 	  XEXP (x, 0) = force_operand (XEXP (x, 0), 0);
 	}
-      if (GET_CODE (XEXP (x, 1)) == MULT)
+      if (GET_CODE (XEXP (x, 1)) == MULT
+	  || GET_CODE (XEXP (x, 1)) == ASHIFT)
 	{
 	  COPY_ONCE (x);
 	  XEXP (x, 1) = force_operand (XEXP (x, 1), 0);
@@ -2060,16 +2071,29 @@ m68k_decompose_index (rtx x, bool strict_p, struct m68k_address *address)
 
   /* Check for a scale factor.  */
   scale = 1;
-  if ((TARGET_68020 || TARGET_COLDFIRE)
-      && GET_CODE (x) == MULT
-      && GET_CODE (XEXP (x, 1)) == CONST_INT
-      && (INTVAL (XEXP (x, 1)) == 2
-	  || INTVAL (XEXP (x, 1)) == 4
-	  || (INTVAL (XEXP (x, 1)) == 8
-	      && (TARGET_COLDFIRE_FPU || !TARGET_COLDFIRE))))
+  if (TARGET_68020 || TARGET_COLDFIRE)
     {
-      scale = INTVAL (XEXP (x, 1));
-      x = XEXP (x, 0);
+      if (GET_CODE (x) == MULT
+	  && GET_CODE (XEXP (x, 1)) == CONST_INT
+	  && (INTVAL (XEXP (x, 1)) == 2
+	      || INTVAL (XEXP (x, 1)) == 4
+	      || (INTVAL (XEXP (x, 1)) == 8
+		  && (TARGET_COLDFIRE_FPU || !TARGET_COLDFIRE))))
+	{
+	  scale = INTVAL (XEXP (x, 1));
+	  x = XEXP (x, 0);
+	}
+      /* LRA uses ASHIFT instead of MULT outside of MEM.  */
+      else if (GET_CODE (x) == ASHIFT
+	       && GET_CODE (XEXP (x, 1)) == CONST_INT
+	       && (INTVAL (XEXP (x, 1)) == 1
+		   || INTVAL (XEXP (x, 1)) == 2
+		   || (INTVAL (XEXP (x, 1)) == 3
+		       && (TARGET_COLDFIRE_FPU || !TARGET_COLDFIRE))))
+	{
+	  scale = 1 << INTVAL (XEXP (x, 1));
+	  x = XEXP (x, 0);
+	}
     }
 
   /* Check for a word extension.  */
@@ -2237,8 +2261,10 @@ m68k_decompose_address (machine_mode mode, rtx x,
      ??? do_tablejump creates these addresses before placing the target
      label, so we have to assume that unplaced labels are jump table
      references.  It seems unlikely that we would ever generate indexed
-     accesses to unplaced labels in other cases.  */
+     accesses to unplaced labels in other cases.  Do not accept it in
+     PIC mode, since the label address will need to be loaded from memory.  */
   if (GET_CODE (x) == PLUS
+      && !flag_pic
       && m68k_jump_table_ref_p (XEXP (x, 1))
       && m68k_decompose_index (XEXP (x, 0), strict_p, address))
     {
@@ -2311,7 +2337,7 @@ m68k_decompose_address (machine_mode mode, rtx x,
    STRICT_P says whether strict checking is needed.  */
 
 bool
-m68k_legitimate_address_p (machine_mode mode, rtx x, bool strict_p)
+m68k_legitimate_address_p (machine_mode mode, rtx x, bool strict_p, code_helper)
 {
   struct m68k_address address;
 
@@ -3059,12 +3085,17 @@ m68k_rtx_costs (rtx x, machine_mode mode, int outer_code,
       /* An lea costs about three times as much as a simple add.  */
       if (mode == SImode
 	  && GET_CODE (XEXP (x, 1)) == REG
-	  && GET_CODE (XEXP (x, 0)) == MULT
-	  && GET_CODE (XEXP (XEXP (x, 0), 0)) == REG
-	  && GET_CODE (XEXP (XEXP (x, 0), 1)) == CONST_INT
-	  && (INTVAL (XEXP (XEXP (x, 0), 1)) == 2
-	      || INTVAL (XEXP (XEXP (x, 0), 1)) == 4
-	      || INTVAL (XEXP (XEXP (x, 0), 1)) == 8))
+	  && ((GET_CODE (XEXP (x, 0)) == MULT
+	       && GET_CODE (XEXP (XEXP (x, 0), 0)) == REG
+	       && GET_CODE (XEXP (XEXP (x, 0), 1)) == CONST_INT
+	       && (INTVAL (XEXP (XEXP (x, 0), 1)) == 2
+		   || INTVAL (XEXP (XEXP (x, 0), 1)) == 4
+		   || INTVAL (XEXP (XEXP (x, 0), 1)) == 8))
+	      || (GET_CODE (XEXP (x, 0)) == ASHIFT
+		  && GET_CODE (XEXP (XEXP (x, 0), 0)) == REG
+		  && GET_CODE (XEXP (XEXP (x, 0), 1)) == CONST_INT
+		  && ((unsigned HOST_WIDE_INT) INTVAL (XEXP (XEXP (x, 0), 1))
+		      <= 3))))
 	{
 	    /* lea an@(dx:l:i),am */
 	    *total = COSTS_N_INSNS (TARGET_COLDFIRE ? 2 : 3);
@@ -5471,7 +5502,7 @@ output_andsi3 (rtx *operands)
 	operands[1] = GEN_INT (logval);
       else
         {
-	  operands[0] = adjust_address (operands[0], SImode, 3 - (logval / 8));
+	  operands[0] = adjust_address (operands[0], QImode, 3 - (logval / 8));
 	  operands[1] = GEN_INT (logval % 8);
         }
       return "bclr %1,%0";
@@ -5510,7 +5541,7 @@ output_iorsi3 (rtx *operands)
 	operands[1] = GEN_INT (logval);
       else
         {
-	  operands[0] = adjust_address (operands[0], SImode, 3 - (logval / 8));
+	  operands[0] = adjust_address (operands[0], QImode, 3 - (logval / 8));
 	  operands[1] = GEN_INT (logval % 8);
 	}
       return "bset %1,%0";
@@ -5548,7 +5579,7 @@ output_xorsi3 (rtx *operands)
 	operands[1] = GEN_INT (logval);
       else
         {
-	  operands[0] = adjust_address (operands[0], SImode, 3 - (logval / 8));
+	  operands[0] = adjust_address (operands[0], QImode, 3 - (logval / 8));
 	  operands[1] = GEN_INT (logval % 8);
 	}
       return "bchg %1,%0";
@@ -7164,6 +7195,68 @@ m68k_promote_function_mode (const_tree type, machine_mode mode,
   if (type == NULL_TREE && !for_return && (mode == QImode || mode == HImode))
     return SImode;
   return mode;
+}
+
+/* Implement TARGET_ZERO_CALL_USED_REGS.  */
+
+static HARD_REG_SET
+m68k_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
+{
+  rtx zero_fpreg = NULL_RTX;
+
+  for (unsigned int regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
+    if (TEST_HARD_REG_BIT (need_zeroed_hardregs, regno))
+      {
+	rtx reg, zero;
+
+	if (INT_REGNO_P (regno))
+	  {
+	    reg = regno_reg_rtx[regno];
+	    zero = CONST0_RTX (SImode);
+	  }
+	else if (FP_REGNO_P (regno))
+	  {
+	    reg = gen_raw_REG (SFmode, regno);
+	    if (zero_fpreg == NULL_RTX)
+	      {
+		/* On the 040/060 clearing an FP reg loads a large
+		   immediate.  To reduce code size use the first
+		   cleared FP reg to clear remaining ones.  Don't do
+		   this on cores which use fmovecr.  */
+		zero = CONST0_RTX (SFmode);
+		if (TUNE_68040_60)
+		  zero_fpreg = reg;
+	      }
+	    else
+	      zero = zero_fpreg;
+	  }
+	else
+	  gcc_unreachable ();
+
+	emit_move_insn (reg, zero);
+      }
+
+  return need_zeroed_hardregs;
+}
+
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return XFmode or DFmode
+   for TI_LONG_DOUBLE_TYPE which is for long double type, go with the
+   default one for the others.  */
+
+static machine_mode
+m68k_c_mode_for_floating_type (enum tree_index ti)
+{
+  if (ti == TI_LONG_DOUBLE_TYPE)
+    return LONG_DOUBLE_TYPE_MODE;
+  return default_mode_for_floating_type (ti);
+}
+
+/* Implement TARGET_LRA_P.  */
+
+static bool
+m68k_use_lra_p ()
+{
+  return m68k_lra_p;
 }
 
 #include "gt-m68k.h"

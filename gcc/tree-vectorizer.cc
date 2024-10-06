@@ -1,5 +1,5 @@
 /* Vectorizer
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
    Contributed by Dorit Naishlos <dorit@il.ibm.com>
 
 This file is part of GCC.
@@ -55,6 +55,7 @@ along with GCC; see the file COPYING3.  If not see
 */
 
 #include "config.h"
+#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "backend.h"
@@ -463,7 +464,10 @@ shrink_simd_arrays
 vec_info::vec_info (vec_info::vec_kind kind_in, vec_info_shared *shared_)
   : kind (kind_in),
     shared (shared_),
-    stmt_vec_info_ro (false)
+    stmt_vec_info_ro (false),
+    bbs (NULL),
+    nbbs (0),
+    inv_pattern_def_seq (NULL)
 {
   stmt_vec_infos.create (50);
 }
@@ -532,6 +536,7 @@ stmt_vec_info
 vec_info::add_pattern_stmt (gimple *stmt, stmt_vec_info stmt_info)
 {
   stmt_vec_info res = new_stmt_vec_info (stmt);
+  res->pattern_stmt_p = true;
   set_vinfo_for_stmt (stmt, res, false);
   STMT_VINFO_RELATED_STMT (res) = stmt_info;
   return res;
@@ -660,9 +665,8 @@ vec_info::insert_seq_on_entry (stmt_vec_info context, gimple_seq seq)
     }
   else
     {
-      bb_vec_info bb_vinfo = as_a <bb_vec_info> (this);
       gimple_stmt_iterator gsi_region_begin
-	= gsi_after_labels (bb_vinfo->bbs[0]);
+	= gsi_after_labels (bbs[0]);
       gsi_insert_seq_before (&gsi_region_begin, seq, GSI_SAME_STMT);
     }
 }
@@ -943,6 +947,8 @@ set_uid_loop_bbs (loop_vec_info loop_vinfo, gimple *loop_vectorized_call,
   class loop *scalar_loop = get_loop (fun, tree_to_shwi (arg));
 
   LOOP_VINFO_SCALAR_LOOP (loop_vinfo) = scalar_loop;
+  LOOP_VINFO_SCALAR_IV_EXIT (loop_vinfo)
+    = vec_init_loop_exit_info (scalar_loop);
   gcc_checking_assert (vect_loop_vectorized_call (scalar_loop)
 		       == loop_vectorized_call);
   /* If we are going to vectorize outer loop, prevent vectorization
@@ -1379,7 +1385,9 @@ pass_vectorize::execute (function *fun)
 	 predicates that need to be shared for optimal predicate usage.
 	 However reassoc will re-order them and prevent CSE from working
 	 as it should.  CSE only the loop body, not the entry.  */
-      bitmap_set_bit (exit_bbs, single_exit (loop)->dest->index);
+      auto_vec<edge> exits = get_loop_exit_edges (loop);
+      for (edge exit : exits)
+	bitmap_set_bit (exit_bbs, exit->dest->index);
 
       edge entry = EDGE_PRED (loop_preheader_edge (loop)->src, 0);
       do_rpo_vn (fun, entry, exit_bbs);

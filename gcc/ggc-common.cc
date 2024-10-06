@@ -1,5 +1,5 @@
 /* Simple garbage collection for the GNU compiler.
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -75,6 +75,18 @@ ggc_mark_root_tab (const_ggc_root_tab_t rt)
       (*rt->cb) (*(void **) ((char *)rt->base + rt->stride * i));
 }
 
+/* Zero out all the roots in the table RT.  */
+
+static void
+ggc_zero_rtab_roots (const_ggc_root_tab_t rt)
+{
+  size_t i;
+
+  for ( ; rt->base != NULL; rt++)
+    for (i = 0; i < rt->nelt; i++)
+      (*(void **) ((char *)rt->base + rt->stride * i)) = (void*)0;
+}
+
 /* Iterate through all registered roots and mark each element.  */
 
 void
@@ -86,7 +98,7 @@ ggc_mark_roots (void)
 
   for (rt = gt_ggc_deletable_rtab; *rt; rt++)
     for (rti = *rt; rti->base != NULL; rti++)
-      memset (rti->base, 0, rti->stride);
+      memset (rti->base, 0, rti->stride * rti->nelt);
 
   for (rt = gt_ggc_rtab; *rt; rt++)
     ggc_mark_root_tab (*rt);
@@ -680,7 +692,7 @@ gt_pch_save (FILE *f)
     {
       gcc_assert ((uintptr_t) addr >= (uintptr_t) mmi.preferred_base
 		  && ((uintptr_t) addr + sizeof (void *)
-		      < (uintptr_t) mmi.preferred_base + mmi.size));
+		      <= (uintptr_t) mmi.preferred_base + mmi.size));
       if (addr == last_addr)
 	continue;
       if (last_addr == NULL)
@@ -1292,4 +1304,24 @@ report_heap_memory_use ()
     fprintf (stderr, " {heap " PRsa (0) "}",
 	     SIZE_AMOUNT (MALLINFO_FN ().arena));
 #endif
+}
+
+/* Forcibly clear all GTY roots.  */
+
+void
+ggc_common_finalize ()
+{
+  const struct ggc_root_tab *const *rt;
+  const_ggc_root_tab_t rti;
+
+  for (rt = gt_ggc_deletable_rtab; *rt; rt++)
+    for (rti = *rt; rti->base != NULL; rti++)
+      memset (rti->base, 0, rti->stride * rti->nelt);
+
+  for (rt = gt_ggc_rtab; *rt; rt++)
+    ggc_zero_rtab_roots (*rt);
+
+  for (rt = gt_pch_scalar_rtab; *rt; rt++)
+    for (rti = *rt; rti->base != NULL; rti++)
+      memset (rti->base, 0, rti->stride * rti->nelt);
 }

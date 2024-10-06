@@ -1,5 +1,5 @@
 /* Thread edges through blocks and update the control flow and SSA graphs.
-   Copyright (C) 2004-2023 Free Software Foundation, Inc.
+   Copyright (C) 2004-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,6 +18,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include "config.h"
+#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "backend.h"
@@ -1059,14 +1060,19 @@ ssa_fix_duplicate_block_edges (struct redirection_data *rd,
 	     threading path.  */
 	  if (!any_remaining_duplicated_blocks (path, i))
 	    {
-	      e2 = redirect_edge_and_branch (victim, elast->dest);
-	      /* If we redirected the edge, then we need to copy PHI arguments
-		 at the target.  If the edge already existed (e2 != victim
-		 case), then the PHIs in the target already have the correct
-		 arguments.  */
-	      if (e2 == victim)
-		copy_phi_args (e2->dest, elast, e2,
-			       path, multi_incomings ? 0 : i);
+	      if (victim->dest != elast->dest)
+		{
+		  e2 = redirect_edge_and_branch (victim, elast->dest);
+		  /* If we redirected the edge, then we need to copy PHI arguments
+		     at the target.  If the edge already existed (e2 != victim
+		     case), then the PHIs in the target already have the correct
+		     arguments.  */
+		  if (e2 == victim)
+		    copy_phi_args (e2->dest, elast, e2,
+				   path, multi_incomings ? 0 : i);
+		}
+	      else
+		e2 = victim;
 	    }
 	  else
 	    {
@@ -1448,6 +1454,19 @@ fwd_jt_path_registry::thread_block_1 (basic_block bb,
       if (((*path)[1]->type == EDGE_COPY_SRC_JOINER_BLOCK && !joiners)
 	  || ((*path)[1]->type == EDGE_COPY_SRC_BLOCK && joiners))
 	continue;
+
+      /* When a NO_COPY_SRC block became non-empty cancel the path.  */
+      if (path->last ()->type == EDGE_NO_COPY_SRC_BLOCK)
+	{
+	  auto gsi = gsi_start_nondebug_bb (path->last ()->e->src);
+	  if (!gsi_end_p (gsi)
+	      && !is_ctrl_stmt (gsi_stmt (gsi)))
+	    {
+	      cancel_thread (path, "Non-empty EDGE_NO_COPY_SRC_BLOCK");
+	      e->aux = NULL;
+	      continue;
+	    }
+	}
 
       e2 = path->last ()->e;
       if (!e2 || noloop_only)

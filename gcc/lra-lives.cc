@@ -1,5 +1,5 @@
 /* Build live ranges for pseudos.
-   Copyright (C) 2010-2023 Free Software Foundation, Inc.
+   Copyright (C) 2010-2024 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -770,9 +770,7 @@ process_bb_lives (basic_block bb, int &curr_point, bool dead_insn_p)
 	{
 	  int regno = reg->regno;
 
-	  if (partial_subreg_p (lra_reg_info[regno].biggest_mode,
-				reg->biggest_mode))
-	    lra_reg_info[regno].biggest_mode = reg->biggest_mode;
+	  lra_update_biggest_mode (regno, reg->biggest_mode);
 	  if (HARD_REGISTER_NUM_P (regno))
 	    lra_hard_reg_usage[regno] += freq;
 	}
@@ -989,7 +987,7 @@ process_bb_lives (basic_block bb, int &curr_point, bool dead_insn_p)
 	    /* We can have early clobbered non-operand hard reg and
 	       the same hard reg as an insn input.  Don't make hard
 	       reg dead before the insns.  */
-	    for (reg2 = curr_id->regs; reg2 != NULL; reg2 = reg2->next)
+	    for (reg2 = curr_static_id->hard_regs; reg2 != NULL; reg2 = reg2->next)
 	      if (reg2->type != OP_OUT && reg2->regno == reg->regno)
 		break;
 	    if (reg2 == NULL)

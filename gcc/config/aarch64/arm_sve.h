@@ -1,5 +1,5 @@
 /* AArch64 SVE intrinsics include file.
-   Copyright (C) 2018-2023 Free Software Foundation, Inc.
+   Copyright (C) 2018-2024 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -26,6 +26,7 @@
 #define _ARM_SVE_H_
 
 #include <stdint.h>
+#include <arm_private_fp8.h>
 #include <arm_bf16.h>
 
 typedef __fp16 float16_t;

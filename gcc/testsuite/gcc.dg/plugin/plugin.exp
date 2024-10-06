@@ -1,4 +1,4 @@
-#   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2024 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -73,7 +73,11 @@ set plugin_test_list [list \
 	  crash-test-ice-stderr.c \
 	  crash-test-write-though-null-stderr.c \
 	  crash-test-ice-sarif.c \
+	  crash-test-ice-in-header-sarif-2.1.c \
+	  crash-test-ice-in-header-sarif-2.2.c \
 	  crash-test-write-though-null-sarif.c } \
+    { diagnostic_plugin_xhtml_format.c \
+	  diagnostic-test-xhtml-1.c } \
     { diagnostic_group_plugin.c \
 	  diagnostic-group-test-1.c } \
     { diagnostic_plugin_test_show_locus.c \
@@ -101,13 +105,18 @@ set plugin_test_list [list \
 	  diagnostic-test-inlining-2.c \
 	  diagnostic-test-inlining-3.c \
 	  diagnostic-test-inlining-4.c } \
-    { diagnostic_plugin_test_metadata.c diagnostic-test-metadata.c } \
+    { diagnostic_plugin_test_metadata.c \
+	  diagnostic-test-metadata.c \
+	  diagnostic-test-metadata-sarif.c } \
     { diagnostic_plugin_test_paths.c \
 	  diagnostic-test-paths-1.c \
 	  diagnostic-test-paths-2.c \
 	  diagnostic-test-paths-3.c \
 	  diagnostic-test-paths-4.c \
 	  diagnostic-test-paths-5.c \
+	  diagnostic-test-paths-multithreaded-inline-events.c \
+	  diagnostic-test-paths-multithreaded-sarif.c \
+	  diagnostic-test-paths-multithreaded-separate-events.c \
 	  diagnostic-path-format-plain.c \
 	  diagnostic-path-format-none.c \
 	  diagnostic-path-format-separate-events.c \
@@ -147,6 +156,9 @@ set plugin_test_list [list \
 	  infoleak-CVE-2017-18550-1.c \
 	  infoleak-antipatterns-1.c \
 	  infoleak-fixit-1.c \
+	  infoleak-pr112969.c \
+	  infoleak-uninit-size-1.c \
+	  infoleak-uninit-size-2.c \
 	  infoleak-net-ethtool-ioctl.c \
 	  infoleak-vfio_iommu_type1.c \
 	  taint-CVE-2011-0521-1-fixed.c \
@@ -159,7 +171,21 @@ set plugin_test_list [list \
 	  taint-CVE-2011-0521-5.c \
 	  taint-CVE-2011-0521-5-fixed.c \
 	  taint-CVE-2011-0521-6.c \
-	  taint-antipatterns-1.c } \
+	  taint-antipatterns-1.c \
+	  taint-modulus.c \
+	  taint-pr112850.c \
+	  taint-pr112850-precise.c \
+	  taint-pr112850-too-complex.c \
+	  taint-pr112850-unsanitized.c \
+	  taint-pr112927.c \
+	  taint-pr112974.c \
+	  taint-pr112975.c \
+	  taint-pr112977.c } \
+    { analyzer_cpython_plugin.c \
+	  cpython-plugin-test-no-Python-h.c \
+	  cpython-plugin-test-PyList_Append.c \
+	  cpython-plugin-test-PyList_New.c \
+	  cpython-plugin-test-PyLong_FromLong.c } \
 ]
 
 foreach plugin_test $plugin_test_list {

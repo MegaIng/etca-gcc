@@ -1,6 +1,6 @@
 /* elfos.h  --  operating system specific defines to be used when
    targeting GCC for some generic ELF system
-   Copyright (C) 1991-2023 Free Software Foundation, Inc.
+   Copyright (C) 1991-2024 Free Software Foundation, Inc.
    Based on svr4.h contributed by Ron Guilmette (rfg@netcom.com).
 
 This file is part of GCC.
@@ -443,6 +443,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define ELF_STRING_LIMIT	((unsigned) 256)
 
 #define STRING_ASM_OP	"\t.string\t"
+
+#ifdef HAVE_GAS_BASE64
+#define BASE64_ASM_OP	"\t.base64\t"
+#endif
 
 /* The routine used to output NUL terminated strings.  We use a special
    version of this for most svr4 targets because doing so makes the

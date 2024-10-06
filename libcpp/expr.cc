@@ -1,5 +1,5 @@
 /* Parse C expressions for cpplib.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994.
 
 This program is free software; you can redistribute it and/or modify it
@@ -97,7 +97,7 @@ interpret_float_suffix (cpp_reader *pfile, const uchar *s, size_t len)
   f = d = l = w = q = i = fn = fnx = fn_bits = bf16 = 0;
 
   /* The following decimal float suffixes, from TR 24732:2009, TS
-     18661-2:2015 and C2X, are supported:
+     18661-2:2015 and C23, are supported:
 
      df, DF - _Decimal32.
      dd, DD - _Decimal64.
@@ -327,9 +327,9 @@ static unsigned int
 interpret_int_suffix (cpp_reader *pfile, const uchar *s, size_t len)
 {
   size_t orig_len = len;
-  size_t u, l, i, z;
+  size_t u, l, i, z, wb;
 
-  u = l = i = z = 0;
+  u = l = i = z = wb = 0;
 
   while (len--)
     switch (s[len])
@@ -343,11 +343,23 @@ interpret_int_suffix (cpp_reader *pfile, const uchar *s, size_t len)
 	if (l == 2 && s[len] != s[len + 1])
 	  return 0;
 	break;
+      case 'b':
+	if (len == 0 || s[len - 1] != 'w')
+	  return 0;
+	wb++;
+	len--;
+	break;
+      case 'B':
+	if (len == 0 || s[len - 1] != 'W')
+	  return 0;
+	wb++;
+	len--;
+	break;
       default:
 	return 0;
       }
 
-  if (l > 2 || u > 1 || i > 1 || z > 1)
+  if (l > 2 || u > 1 || i > 1 || z > 1 || wb > 1)
     return 0;
 
   if (z)
@@ -355,6 +367,14 @@ interpret_int_suffix (cpp_reader *pfile, const uchar *s, size_t len)
       if (l > 0 || i > 0)
 	return 0;
       if (!CPP_OPTION (pfile, cplusplus))
+	return 0;
+    }
+
+  if (wb)
+    {
+      if (CPP_OPTION (pfile, cplusplus))
+	return 0;
+      if (l > 0 || i > 0 || z > 0)
 	return 0;
     }
 
@@ -376,7 +396,8 @@ interpret_int_suffix (cpp_reader *pfile, const uchar *s, size_t len)
 	  | (u ? CPP_N_UNSIGNED : 0)
 	  | ((l == 0) ? CPP_N_SMALL
 	     : (l == 1) ? CPP_N_MEDIUM : CPP_N_LARGE)
-	  | (z ? CPP_N_SIZE_T : 0));
+	  | (z ? CPP_N_SIZE_T : 0)
+	  | (wb ? CPP_N_BITINT : 0));
 }
 
 /* Return the classification flags for an int suffix.  */
@@ -641,9 +662,9 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token,
 	  if (radix == 8)
 	    radix = 10;
 
-	  if (CPP_PEDANTIC (pfile))
-	    cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-				 "fixed-point constants are a GCC extension");
+	  cpp_pedwarning_with_line
+	    (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+	     "fixed-point constants are a GCC extension");
 	  goto syntax_ok;
 	}
       else
@@ -680,11 +701,13 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token,
 	  && !CPP_OPTION (pfile, extended_numbers))
 	{
 	  if (CPP_OPTION (pfile, cplusplus))
-	    cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-				 "use of C++17 hexadecimal floating constant");
+	    cpp_pedwarning_with_line (pfile, CPP_W_CXX17_EXTENSIONS,
+				      virtual_location, 0, "use of C++17 "
+				      "hexadecimal floating constant");
 	  else
-	    cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-				 "use of C99 hexadecimal floating constant");
+	    cpp_pedwarning_with_line (pfile, CPP_W_PEDANTIC,
+				      virtual_location, 0, "use of C99 "
+				      "hexadecimal floating constant");
 	}
 
       if (float_flag == AFTER_EXPON)
@@ -745,9 +768,10 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token,
       /* A suffix for double is a GCC extension via decimal float support.
 	 If the suffix also specifies an imaginary value we'll catch that
 	 later.  */
-      if ((result == CPP_N_MEDIUM) && CPP_PEDANTIC (pfile))
-	cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-			     "suffix for double constant is a GCC extension");
+      if (result == CPP_N_MEDIUM)
+	cpp_pedwarning_with_line
+	  (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+	   "suffix for double constant is a GCC extension");
 
       /* Radix must be 10 for decimal floats.  */
       if ((result & CPP_N_DFLOAT) && radix != 10)
@@ -758,19 +782,20 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token,
           return CPP_N_INVALID;
         }
 
-      if ((result & (CPP_N_FRACT | CPP_N_ACCUM)) && CPP_PEDANTIC (pfile))
-	cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-			     "fixed-point constants are a GCC extension");
+      if (result & (CPP_N_FRACT | CPP_N_ACCUM))
+	cpp_pedwarning_with_line (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+				  "fixed-point constants are a GCC extension");
 
       if (result & CPP_N_DFLOAT)
 	{
-	  if (CPP_PEDANTIC (pfile) && !CPP_OPTION (pfile, dfp_constants))
-	    cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-				 "decimal float constants are a C2X feature");
-	  else if (CPP_OPTION (pfile, cpp_warn_c11_c2x_compat) > 0)
-	    cpp_warning_with_line (pfile, CPP_W_C11_C2X_COMPAT,
+	  if (!CPP_OPTION (pfile, dfp_constants))
+	    cpp_pedwarning_with_line
+	      (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+	       "decimal float constants are a C23 feature");
+	  else if (CPP_OPTION (pfile, cpp_warn_c11_c23_compat) > 0)
+	    cpp_warning_with_line (pfile, CPP_W_C11_C23_COMPAT,
 				   virtual_location, 0,
-				   "decimal float constants are a C2X feature");
+				   "decimal float constants are a C23 feature");
 	}
 
       result |= CPP_N_FLOATING;
@@ -835,27 +860,57 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token,
 				 virtual_location, 0, message);
        }
 
+      if ((result & CPP_N_BITINT) != 0
+	  && CPP_OPTION (pfile, cpp_warn_c11_c23_compat) != 0)
+	{
+	  if (CPP_OPTION (pfile, cpp_warn_c11_c23_compat) > 0)
+	    {
+	      const char *message = N_("ISO C does not support literal "
+				       "%<wb%> suffixes before C23");
+	      if (CPP_PEDANTIC (pfile) && !CPP_OPTION (pfile, true_false))
+		cpp_pedwarning_with_line (pfile, CPP_W_C11_C23_COMPAT,
+					  virtual_location, 0, message);
+	      else
+		cpp_warning_with_line (pfile, CPP_W_C11_C23_COMPAT,
+				       virtual_location, 0, message);
+	    }
+	  else if (!CPP_OPTION (pfile, true_false))
+	    {
+	      const char *message = N_("ISO C does not support literal "
+				       "%<wb%> suffixes before C23");
+	      cpp_pedwarning_with_line (pfile, CPP_W_PEDANTIC,
+					virtual_location, 0, message);
+	    }
+	}
+
       result |= CPP_N_INTEGER;
     }
 
  syntax_ok:
-  if ((result & CPP_N_IMAGINARY) && CPP_PEDANTIC (pfile))
-    cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-			 "imaginary constants are a GCC extension");
+  if (result & CPP_N_IMAGINARY)
+    cpp_pedwarning_with_line (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+			      "imaginary constants are a GCC extension");
   if (radix == 2)
     {
+      bool warned = false;
       if (!CPP_OPTION (pfile, binary_constants)
 	  && CPP_PEDANTIC (pfile))
-	cpp_error_with_line (pfile, CPP_DL_PEDWARN, virtual_location, 0,
-			     CPP_OPTION (pfile, cplusplus)
-			     ? N_("binary constants are a C++14 feature "
-				  "or GCC extension")
-			     : N_("binary constants are a C2X feature "
-				  "or GCC extension"));
-      else if (CPP_OPTION (pfile, cpp_warn_c11_c2x_compat) > 0)
-	cpp_warning_with_line (pfile, CPP_W_C11_C2X_COMPAT,
+	{
+	  if (CPP_OPTION (pfile, cplusplus))
+	    warned
+	      = (cpp_pedwarning_with_line
+		 (pfile, CPP_W_CXX14_EXTENSIONS, virtual_location, 0,
+		  "binary constants are a C++14 feature or GCC extension"));
+	  else
+	    warned
+	      = (cpp_pedwarning_with_line
+		 (pfile, CPP_W_PEDANTIC, virtual_location, 0,
+		  "binary constants are a C23 feature or GCC extension"));
+	}
+      if (!warned && CPP_OPTION (pfile, cpp_warn_c11_c23_compat) > 0)
+	cpp_warning_with_line (pfile, CPP_W_C11_C23_COMPAT,
 			       virtual_location, 0,
-			       "binary constants are a C2X feature");
+			       "binary constants are a C23 feature");
     }
 
   if (radix == 10)
@@ -1062,6 +1117,9 @@ parse_defined (cpp_reader *pfile)
   const cpp_token *token;
   cpp_context *initial_context = pfile->context;
 
+  if (pfile->state.in_directive == 3)
+    cpp_error (pfile, CPP_DL_ERROR, "'defined' in #embed parameter");
+
   /* Don't expand macros.  */
   pfile->state.prevent_expansion++;
 
@@ -1220,10 +1278,10 @@ eval_token (cpp_reader *pfile, const cpp_token *token,
 	{
 	  /* A pedantic warning takes precedence over a deprecated
 	     warning here.  */
-	  if (CPP_PEDANTIC (pfile))
-	    cpp_error_with_line (pfile, CPP_DL_PEDWARN,
-				 virtual_location, 0,
-				 "assertions are a GCC extension");
+	  if (cpp_pedwarning_with_line (pfile, CPP_W_PEDANTIC,
+					virtual_location, 0,
+					"assertions are a GCC extension"))
+	    ;
 	  else if (CPP_OPTION (pfile, cpp_warn_deprecated))
 	    cpp_warning_with_line (pfile, CPP_W_DEPRECATED, virtual_location, 0,
 				   "assertions are a deprecated extension");
@@ -1312,7 +1370,9 @@ static const struct cpp_operator
 };
 
 /* Parse and evaluate a C expression, reading from PFILE.
-   Returns the truth value of the expression.
+   Returns the truth value of the expression if OPEN_PAREN
+   is NULL, otherwise the low 64-bits of the result (when parsing
+   #embed/__has_embed parameters).
 
    The implementation is an operator precedence parser, i.e. a
    bottom-up parser, using a stack for not-yet-reduced tokens.
@@ -1322,8 +1382,9 @@ static const struct cpp_operator
    recently pushed operator is 'top->op'.  An operand (value) is
    stored in the 'value' field of the stack element of the operator
    that precedes it.  */
-bool
-_cpp_parse_expr (cpp_reader *pfile, bool is_if)
+cpp_num_part
+_cpp_parse_expr (cpp_reader *pfile, const char *dir,
+		 const cpp_token *open_paren)
 {
   struct op *top = pfile->op_stack;
   unsigned int lex_count;
@@ -1339,6 +1400,14 @@ _cpp_parse_expr (cpp_reader *pfile, bool is_if)
 
   /* Lowest priority operator prevents further reductions.  */
   top->op = CPP_EOF;
+
+  if (pfile->state.in_directive == 3)
+    {
+      ++top;
+      top->op = CPP_OPEN_PAREN;
+      top->token = open_paren;
+      top->loc = open_paren->src_loc;
+    }
 
   for (;;)
     {
@@ -1410,7 +1479,7 @@ _cpp_parse_expr (cpp_reader *pfile, bool is_if)
 
 	  if (op.op == CPP_EOF && top->op == CPP_EOF)
  	    SYNTAX_ERROR2_AT (op.loc,
-			      "%s with no expression", is_if ? "#if" : "#elif");
+			      "%s with no expression", dir);
 
  	  if (top->op != CPP_EOF && top->op != CPP_OPEN_PAREN)
  	    SYNTAX_ERROR2_AT (op.loc,
@@ -1434,6 +1503,8 @@ _cpp_parse_expr (cpp_reader *pfile, bool is_if)
       switch (op.op)
 	{
 	case CPP_CLOSE_PAREN:
+	  if (pfile->state.in_directive == 3 && top == pfile->op_stack)
+	    goto embed_done;
 	  continue;
 	case CPP_OR_OR:
 	  if (!num_zerop (top->value))
@@ -1476,12 +1547,31 @@ _cpp_parse_expr (cpp_reader *pfile, bool is_if)
   if (top != pfile->op_stack)
     {
       cpp_error_with_line (pfile, CPP_DL_ICE, top->loc, 0,
-			   "unbalanced stack in %s",
-			   is_if ? "#if" : "#elif");
+			   "unbalanced stack in %s", dir);
     syntax_error:
       return false;  /* Return false on syntax error.  */
     }
 
+  if (pfile->state.in_directive == 3)
+    {
+    embed_done:
+      if (num_zerop (top->value))
+	return 0;
+      if (!top->value.unsignedp
+	  && !num_positive (top->value, CPP_OPTION (pfile, precision)))
+	{
+	  cpp_error_with_line (pfile, CPP_DL_ERROR, top->loc, 0,
+			       "negative embed parameter operand");
+	  return 1;
+	}
+      if (top->value.high)
+	{
+	  cpp_error_with_line (pfile, CPP_DL_ERROR, top->loc, 0,
+			       "too large embed parameter operand");
+	  return 1;
+	}
+      return top->value.low;
+    }
   return !num_zerop (top->value);
 }
 
@@ -2035,7 +2125,9 @@ num_binary_op (cpp_reader *pfile, cpp_num lhs, cpp_num rhs, enum cpp_ttype op)
       if (CPP_PEDANTIC (pfile) && (!CPP_OPTION (pfile, c99)
 				   || !pfile->state.skip_eval))
 	cpp_pedwarning (pfile, CPP_W_PEDANTIC,
-			"comma operator in operand of #if");
+			"comma operator in operand of #%s",
+			pfile->state.in_directive == 3
+			? "embed" : "if");
       lhs = rhs;
       break;
     }
@@ -2171,7 +2263,10 @@ num_div_op (cpp_reader *pfile, cpp_num lhs, cpp_num rhs, enum cpp_ttype op,
     {
       if (!pfile->state.skip_eval)
 	cpp_error_with_line (pfile, CPP_DL_ERROR, location, 0,
-			     "division by zero in #if");
+			     "division by zero in #%s",
+			     pfile->state.in_directive == 3
+			     ? "embed" : "if");
+      lhs.unsignedp = unsignedp;
       return lhs;
     }
 

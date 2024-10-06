@@ -1,5 +1,5 @@
 /* Target Code for OpenRISC
-   Copyright (C) 2018-2023 Free Software Foundation, Inc.
+   Copyright (C) 2018-2024 Free Software Foundation, Inc.
    Contributed by Stafford Horne based on other ports.
 
    This file is part of GCC.
@@ -575,7 +575,8 @@ or1k_initial_elimination_offset (int from, int to)
    Returns true if X is a legitimate address RTX on OpenRISC.  */
 
 static bool
-or1k_legitimate_address_p (machine_mode, rtx x, bool strict_p)
+or1k_legitimate_address_p (machine_mode, rtx x, bool strict_p,
+			   code_helper = ERROR_MARK)
 {
   rtx base, addend;
 

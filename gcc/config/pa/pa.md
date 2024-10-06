@@ -1,5 +1,5 @@
 ;;- Machine description for HP PA-RISC architecture for GCC compiler
-;;   Copyright (C) 1992-2023 Free Software Foundation, Inc.
+;;   Copyright (C) 1992-2024 Free Software Foundation, Inc.
 ;;   Contributed by the Center for Software Science at the University
 ;;   of Utah.
 
@@ -96,6 +96,8 @@
    UNSPECV_OPC		; outline_prologue_call
    UNSPECV_OEC		; outline_epilogue_call
    UNSPECV_LONGJMP	; builtin_longjmp
+   UNSPECV_GET_FPSR	; get floating-point status register
+   UNSPECV_SET_FPSR	; set floating-point status register
   ])
 
 ;; Maximum pc-relative branch offsets.
@@ -2220,9 +2222,9 @@
 
 (define_insn ""
   [(set (match_operand:SI 0 "move_dest_operand"
-			  "=r,r,r,r,r,r,Q,!*q,!r,!*f,*f,T")
+			  "=r,r,r,r,r,r,Q,!*q,!r,!*f,*f,T,?r,?*f")
 	(match_operand:SI 1 "move_src_operand"
-			  "A,r,J,N,K,RQ,rM,!rM,!*q,!*fM,RT,*f"))]
+			  "A,r,J,N,K,RQ,rM,!rM,!*q,!*fM,RT,*f,*f,r"))]
   "(register_operand (operands[0], SImode)
     || reg_or_0_operand (operands[1], SImode))
    && !TARGET_SOFT_FLOAT
@@ -2239,10 +2241,12 @@
    {mfctl|mfctl,w} %%sar,%0
    fcpy,sgl %f1,%0
    fldw%F1 %1,%0
-   fstw%F0 %1,%0"
-  [(set_attr "type" "load,move,move,move,shift,load,store,move,move,fpalu,fpload,fpstore")
+   fstw%F0 %1,%0
+   fstw %1,-40(%%sp)\n\tldw -40(%%sp),%0
+   stw %1,-40(%%sp)\n\tfldw -40(%%sp),%0"
+  [(set_attr "type" "load,move,move,move,shift,load,store,move,move,fpalu,fpload,fpstore,fpstore_load,store_fpload")
    (set_attr "pa_combine_type" "addmove")
-   (set_attr "length" "4,4,4,4,4,4,4,4,4,4,4,4")])
+   (set_attr "length" "4,4,4,4,4,4,4,4,4,4,4,4,8,8")])
 
 (define_insn ""
   [(set (match_operand:SI 0 "move_dest_operand"
@@ -2277,6 +2281,58 @@
   [(set_attr "type" "fpstore")
    (set_attr "pa_combine_type" "addmove")
    (set_attr "length" "4")])
+
+; Rewrite RTL using a REG+D store.  This will allow the insn that
+; computes the address to be deleted if the register it sets is dead.
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (mem:SI (match_dup 0))
+	(match_operand:SI 3 "register_operand" ""))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) != REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (mem:SI (plus:SI (match_dup 1) (match_dup 2))) (match_dup 3))
+   (set (match_dup 0) (plus:SI (match_dup 1) (match_dup 2)))]
+  "")
+
+; Rewrite RTL using a REG+D load.  This will allow the insn that
+; computes the address to be deleted if the register it sets is dead.
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (match_operand:SI 3 "register_operand" "")
+	(mem:SI (match_dup 0)))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) != REGNO (operands[3])
+   && REGNO (operands[1]) != REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (match_dup 3) (mem:SI (plus:SI (match_dup 1) (match_dup 2))))
+   (set (match_dup 0) (plus:SI (match_dup 1) (match_dup 2)))]
+  "")
+
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (match_operand:SI 3 "register_operand" "")
+	(mem:SI (match_dup 0)))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) == REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (match_dup 3) (mem:SI (plus:SI (match_dup 1) (match_dup 2))))]
+  "")
 
 ; Rewrite RTL using an indexed store.  This will allow the insn that
 ; computes the address to be deleted if the register it sets is dead.
@@ -3864,7 +3920,7 @@
 (define_insn ""
   [(set (match_operand:DF 0 "move_dest_operand"
 			  "=f,*r,T,?o,?Q,f,*r,*r,?*r,?f")
-	(match_operand:DF 1 "reg_or_0_or_nonsymb_mem_operand"
+	(match_operand:DF 1 "reg_or_0_or_mem_operand"
 			  "fG,*rG,f,*r,*r,RT,o,RQ,f,*r"))]
   "(register_operand (operands[0], DFmode)
     || reg_or_0_operand (operands[1], DFmode))
@@ -4038,7 +4094,7 @@
 (define_insn ""
   [(set (match_operand:DF 0 "move_dest_operand"
 			  "=r,?o,?Q,r,r")
-	(match_operand:DF 1 "reg_or_0_or_nonsymb_mem_operand"
+	(match_operand:DF 1 "reg_or_0_or_mem_operand"
 			  "rG,r,r,o,RQ"))]
   "(register_operand (operands[0], DFmode)
     || reg_or_0_operand (operands[1], DFmode))
@@ -4053,9 +4109,9 @@
 
 (define_insn ""
   [(set (match_operand:DF 0 "move_dest_operand"
-			  "=!*r,*r,*r,*r,*r,Q,f,f,T")
+			  "=!*r,*r,*r,*r,*r,Q,f,f,T,?*r,?f")
 	(match_operand:DF 1 "move_src_operand"
-			  "!*rG,J,N,K,RQ,*rG,fG,RT,f"))]
+			  "!*rG,J,N,K,RQ,*rG,fG,RT,f,f,*r"))]
   "(register_operand (operands[0], DFmode)
     || reg_or_0_operand (operands[1], DFmode))
    && !TARGET_SOFT_FLOAT && TARGET_64BIT"
@@ -4068,10 +4124,12 @@
    std%M0 %r1,%0
    fcpy,dbl %f1,%0
    fldd%F1 %1,%0
-   fstd%F0 %1,%0"
-  [(set_attr "type" "move,move,move,shift,load,store,fpalu,fpload,fpstore")
+   fstd%F0 %1,%0
+   fstd %1,-40(%%sp)\n\tldd -40(%%sp),%0
+   std %1,-40(%%sp)\n\tfldd -40(%%sp),%0"
+  [(set_attr "type" "move,move,move,shift,load,store,fpalu,fpload,fpstore,fpstore_load,store_fpload")
    (set_attr "pa_combine_type" "addmove")
-   (set_attr "length" "4,4,4,4,4,4,4,4,4")])
+   (set_attr "length" "4,4,4,4,4,4,4,4,4,8,8")])
 
 (define_insn ""
   [(set (match_operand:DF 0 "move_dest_operand"
@@ -4227,9 +4285,9 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "move_dest_operand"
-			  "=r,r,r,r,r,r,Q,!*q,!r,!*f,*f,T")
+			  "=r,r,r,r,r,r,Q,!*q,!r,!*f,*f,T,?r,?*f")
 	(match_operand:DI 1 "move_src_operand"
-			  "A,r,J,N,K,RQ,rM,!rM,!*q,!*fM,RT,*f"))]
+			  "A,r,J,N,K,RQ,rM,!rM,!*q,!*fM,RT,*f,*f,r"))]
   "(register_operand (operands[0], DImode)
     || reg_or_0_operand (operands[1], DImode))
    && !TARGET_SOFT_FLOAT && TARGET_64BIT"
@@ -4245,10 +4303,12 @@
    {mfctl|mfctl,w} %%sar,%0
    fcpy,dbl %f1,%0
    fldd%F1 %1,%0
-   fstd%F0 %1,%0"
-  [(set_attr "type" "load,move,move,move,shift,load,store,move,move,fpalu,fpload,fpstore")
+   fstd%F0 %1,%0
+   fstd %1,-40(%%sp)\n\tldd -40(%%sp),%0
+   std %1,-40(%%sp)\n\tfldd -40(%%sp),%0"
+  [(set_attr "type" "load,move,move,move,shift,load,store,move,move,fpalu,fpload,fpstore,fpstore_load,store_fpload")
    (set_attr "pa_combine_type" "addmove")
-   (set_attr "length" "4,4,4,4,4,4,4,4,4,4,4,4")])
+   (set_attr "length" "4,4,4,4,4,4,4,4,4,4,4,4,8,8")])
 
 (define_insn ""
   [(set (match_operand:DI 0 "move_dest_operand"
@@ -4438,7 +4498,7 @@
 (define_insn ""
   [(set (match_operand:SF 0 "move_dest_operand"
 			  "=f,!*r,f,*r,T,Q,?*r,?f")
-	(match_operand:SF 1 "reg_or_0_or_nonsymb_mem_operand"
+	(match_operand:SF 1 "reg_or_0_or_mem_operand"
 			  "fG,!*rG,RT,RQ,f,*rG,f,*r"))]
   "(register_operand (operands[0], SFmode)
     || reg_or_0_operand (operands[1], SFmode))
@@ -4459,9 +4519,9 @@
 
 (define_insn ""
   [(set (match_operand:SF 0 "move_dest_operand"
-			  "=f,!*r,f,*r,T,Q")
-	(match_operand:SF 1 "reg_or_0_or_nonsymb_mem_operand"
-			  "fG,!*rG,RT,RQ,f,*rG"))]
+			  "=f,!*r,f,*r,T,Q,?*r,?f")
+	(match_operand:SF 1 "reg_or_0_or_mem_operand"
+			  "fG,!*rG,RT,RQ,f,*rG,f,*r"))]
   "(register_operand (operands[0], SFmode)
     || reg_or_0_operand (operands[1], SFmode))
    && !TARGET_SOFT_FLOAT
@@ -4472,15 +4532,17 @@
    fldw%F1 %1,%0
    ldw%M1 %1,%0
    fstw%F0 %1,%0
-   stw%M0 %r1,%0"
-  [(set_attr "type" "fpalu,move,fpload,load,fpstore,store")
+   stw%M0 %r1,%0
+   fstw %1,-40(%%sp)\n\tldw -40(%%sp),%0
+   stw %1,-40(%%sp)\n\tfldw -40(%%sp),%0"
+  [(set_attr "type" "fpalu,move,fpload,load,fpstore,store,fpstore_load,store_fpload")
    (set_attr "pa_combine_type" "addmove")
-   (set_attr "length" "4,4,4,4,4,4")])
+   (set_attr "length" "4,4,4,4,4,4,8,8")])
 
 (define_insn ""
   [(set (match_operand:SF 0 "move_dest_operand"
 			  "=!*r,*r,Q")
-	(match_operand:SF 1 "reg_or_0_or_nonsymb_mem_operand"
+	(match_operand:SF 1 "reg_or_0_or_mem_operand"
 			  "!*rG,RQ,*rG"))]
   "(register_operand (operands[0], SFmode)
     || reg_or_0_operand (operands[1], SFmode))
@@ -4504,6 +4566,54 @@
   [(set_attr "type" "fpstore")
    (set_attr "pa_combine_type" "addmove")
    (set_attr "length" "4")])
+
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (mem:SF (match_dup 0))
+	(match_operand:SF 3 "register_operand" ""))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) != REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (mem:SF (plus:SI (match_dup 1) (match_dup 2))) (match_dup 3))
+   (set (match_dup 0) (plus:SI (match_dup 1) (match_dup 2)))]
+  "")
+
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (match_operand:SF 3 "register_operand" "")
+	(mem:SF (match_dup 0)))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) != REGNO (operands[3])
+   && REGNO (operands[1]) != REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (match_dup 3) (mem:SF (plus:DI (match_dup 1) (match_dup 2))))
+   (set (match_dup 0) (plus:SI (match_dup 1) (match_dup 2)))]
+  "")
+
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand" "")
+	(plus:SI (match_operand:SI 1 "register_operand" "")
+		 (match_operand:SI 2 "const_int_operand" "")))
+   (set (match_operand:SF 3 "register_operand" "")
+	(mem:SF (match_dup 0)))]
+  "!TARGET_64BIT
+   && !INT14_OK_STRICT
+   && GENERAL_REGNO_P (REGNO (operands[0]))
+   && GENERAL_REGNO_P (REGNO (operands[3]))
+   && REGNO (operands[0]) == REGNO (operands[3])
+   && base14_operand (operands[2], E_SImode)"
+  [(set (match_dup 3) (mem:SF (plus:DI (match_dup 1) (match_dup 2))))]
+  "")
 
 (define_peephole2
   [(set (match_operand:SI 0 "register_operand" "")
@@ -4613,7 +4723,7 @@
 (define_insn ""
   [(set (match_operand:SF 0 "move_dest_operand"
 			  "=r,r,Q")
-	(match_operand:SF 1 "reg_or_0_or_nonsymb_mem_operand"
+	(match_operand:SF 1 "reg_or_0_or_mem_operand"
 			  "rG,RQ,rG"))]
   "(register_operand (operands[0], SFmode)
     || reg_or_0_operand (operands[1], SFmode))
@@ -5498,24 +5608,6 @@
 		 (zero_extend:DI (match_operand:SI 2 "register_operand" "f"))))]
   "TARGET_PA_11 && ! TARGET_SOFT_FLOAT && ! TARGET_SOFT_MULT"
   "xmpyu %1,%2,%0"
-  [(set_attr "type" "fpmuldbl")
-   (set_attr "length" "4")])
-
-(define_insn ""
-  [(set (match_operand:DI 0 "register_operand" "=f")
-	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
-		 (match_operand:DI 2 "uint32_operand" "f")))]
-  "TARGET_PA_11 && ! TARGET_SOFT_FLOAT && ! TARGET_SOFT_MULT && !TARGET_64BIT"
-  "xmpyu %1,%R2,%0"
-  [(set_attr "type" "fpmuldbl")
-   (set_attr "length" "4")])
-
-(define_insn ""
-  [(set (match_operand:DI 0 "register_operand" "=f")
-	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
-		 (match_operand:DI 2 "uint32_operand" "f")))]
-  "TARGET_PA_11 && ! TARGET_SOFT_FLOAT && ! TARGET_SOFT_MULT && TARGET_64BIT"
-  "xmpyu %1,%2R,%0"
   [(set_attr "type" "fpmuldbl")
    (set_attr "length" "4")])
 
@@ -7327,7 +7419,6 @@
   /* Ensure the frame pointer move is not optimized.  */
   emit_insn (gen_blockage ());
   emit_clobber (hard_frame_pointer_rtx);
-  emit_clobber (frame_pointer_rtx);
   emit_move_insn (hard_frame_pointer_rtx, fp);
 
   emit_use (hard_frame_pointer_rtx);
@@ -7342,7 +7433,7 @@
 })
 
 (define_insn "indirect_goto"
-  [(unspec [(match_operand 0 "register_operand" "=r")] UNSPEC_GOTO)]
+  [(unspec [(match_operand 0 "register_operand" "r")] UNSPEC_GOTO)]
   "GET_MODE (operands[0]) == word_mode"
   "bv%* %%r0(%0)"
   [(set_attr "type" "branch")
@@ -9118,7 +9209,6 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
   /* Ensure the frame pointer move is not optimized.  */
   emit_insn (gen_blockage ());
   emit_clobber (hard_frame_pointer_rtx);
-  emit_clobber (frame_pointer_rtx);
   emit_move_insn (hard_frame_pointer_rtx, fp);
 
   emit_use (hard_frame_pointer_rtx);
@@ -10723,13 +10813,13 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 (define_insn "atomic_storedi_1"
   [(set (mem:DI (match_operand:SI 0 "register_operand" "r,r"))
         (match_operand:DI 1 "reg_or_0_operand" "M,r"))
-   (clobber (match_scratch:DI 2 "=X,f"))]
+   (clobber (match_scratch:DI 2 "=f,f"))]
   "!TARGET_64BIT && !TARGET_SOFT_FLOAT"
   "@
-   {fstds|fstd} %%fr0,0(%0)
+   fcpy,dbl %%fr0,%2\n\t{fstds|fstd} %2,0(%0)
    {stws|stw} %1,-16(%%sp)\n\t{stws|stw} %R1,-12(%%sp)\n\t{fldds|fldd} -16(%%sp),%2\n\t{fstds|fstd} %2,0(%0)"
   [(set_attr "type" "move,move")
-   (set_attr "length" "4,16")])
+   (set_attr "length" "8,16")])
 
 ;; PA 2.0 hardware supports out-of-order execution of loads and stores, so
 ;; we need memory barriers to enforce program order for memory references
@@ -10739,10 +10829,10 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 ;; generating PA 1.x code even though all PA 1.x systems are strongly ordered.
 
 ;; When barriers are needed, we use a strongly ordered ldcw instruction as
-;; the barrier.  Most PA 2.0 targets are cache coherent.  In that case, we
-;; can use the coherent cache control hint and avoid aligning the ldcw
-;; address.  In spite of its description, it is not clear that the sync
-;; instruction works as a barrier.
+;; the barrier.  All PA 2.0 targets accept the "co" cache control hint but
+;; only PA8800 and PA8900 processors implement the cacheable hint.  In
+;; that case, we can avoid aligning the ldcw address.  In spite of its
+;; description, it is not clear that the sync instruction works as a barrier.
 
 (define_expand "memory_barrier"
   [(parallel
@@ -10772,7 +10862,7 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
         (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
     (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
   "TARGET_64BIT"
-  "ldo 15(%%sp),%1\n\tdepd %%r0,63,3,%1\n\tldcw 0(%1),%1"
+  "ldo 15(%%sp),%1\n\tdepd %%r0,63,3,%1\n\tldcw,co 0(%1),%1"
   [(set_attr "type" "binary")
    (set_attr "length" "12")])
 
@@ -10781,6 +10871,88 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
         (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
     (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
   ""
-  "ldo 15(%%sp),%1\n\t{dep|depw} %%r0,31,3,%1\n\tldcw 0(%1),%1"
+  "ldo 15(%%sp),%1\n\t{dep|depw} %%r0,31,3,%1\n\t{ldcw|ldcw,co} 0(%1),%1"
   [(set_attr "type" "binary")
    (set_attr "length" "12")])
+
+;; Get floating-point status register.
+
+(define_expand "get_fpsr"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+	(unspec_volatile:SI [(const_int 0)] UNSPECV_GET_FPSR))]
+  ""
+{
+  if (TARGET_SOFT_FLOAT)
+    FAIL;
+
+  if (TARGET_64BIT)
+    emit_insn (gen_get_fpsr_64 (operands[0]));
+  else
+    emit_insn (gen_get_fpsr_32 (operands[0]));
+  DONE;
+})
+
+;; The floating-point status register is stored to an unused slot in
+;; the frame marker and then loaded to register operand 0.  The final
+;; floating-point load restores the T bit in the status register.
+
+;; The final load might be avoided if a word mode store was used to
+;; store the status register.  It is unclear why we need a double-word
+;; store.  I suspect PA 1.0 didn't support single-word stores of the
+;; status register.
+
+(define_insn "get_fpsr_32"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+	(unspec_volatile:SI [(const_int 0)] UNSPECV_GET_FPSR))]
+  "!TARGET_SOFT_FLOAT && !TARGET_64BIT"
+  "{fstds|fstd} %%fr0,-16(%%sp)\n\tldw -16(%%sp),%0\n\t{fldds|fldd} -16(%%sp),%%fr0"
+  [(set_attr "type" "fpstore_load")
+   (set_attr "length" "12")])
+
+;; The 64-bit pattern is similar to the 32-bit pattern except we need
+;; compute the address of the frame location as long displacements aren't
+;; supported on Linux targets.
+
+(define_insn "get_fpsr_64"
+  [(set (match_operand:SI 0 "register_operand" "=r")
+	(unspec_volatile:SI [(const_int 0)] UNSPECV_GET_FPSR))
+   (clobber (match_scratch:DI 1 "=&r"))]
+  "!TARGET_SOFT_FLOAT && TARGET_64BIT"
+  "ldo -40(%%sp),%1\n\tfstd %%fr0,0(%1)\n\tldw 0(%1),%0\n\tfldd 0(%1),%%fr0"
+  [(set_attr "type" "fpstore_load")
+   (set_attr "length" "16")])
+
+;; Set floating-point status register.
+
+(define_expand "set_fpsr"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPECV_SET_FPSR)]
+  ""
+{
+  if (TARGET_SOFT_FLOAT)
+    FAIL;
+
+  if (TARGET_64BIT)
+    emit_insn (gen_set_fpsr_64 (operands[0]));
+  else
+    emit_insn (gen_set_fpsr_32 (operands[0]));
+  DONE;
+})
+
+;; The old T bit is extracted and stored in the new status register.
+
+(define_insn "set_fpsr_32"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPECV_SET_FPSR)
+   (clobber (match_scratch:SI 1 "=&r"))]
+  "!TARGET_SOFT_FLOAT && !TARGET_64BIT"
+  "{fstds|fstd} %%fr0,-16(%%sp)\n\tldw -16(%%sp),%1\n\t{extru|extrw,u} %1,25,1,%1\n\t{dep|depw} %1,25,1,%0\n\tstw %0,-16(%%sp)\n\t{fldds|fldd} -16(%%sp),%%fr0"
+  [(set_attr "type" "store_fpload")
+   (set_attr "length" "24")])
+
+(define_insn "set_fpsr_64"
+  [(unspec_volatile [(match_operand:SI 0 "register_operand" "r")] UNSPECV_SET_FPSR)
+   (clobber (match_scratch:DI 1 "=&r"))
+   (clobber (match_scratch:SI 2 "=&r"))]
+  "!TARGET_SOFT_FLOAT && TARGET_64BIT"
+  "ldo -40(%%sp),%1\n\tfstd %%fr0,0(%1)\n\tldw 0(%1),%2\n\textrw,u %2,25,1,%2\n\tdepw %2,25,1,%0\n\tstw %0,0(%1)\n\tfldd 0(%1),%%fr0"
+  [(set_attr "type" "store_fpload")
+   (set_attr "length" "28")])

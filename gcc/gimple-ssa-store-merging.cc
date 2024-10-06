@@ -1,5 +1,5 @@
 /* GIMPLE store merging and byte swapping passes.
-   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+   Copyright (C) 2009-2024 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -227,7 +227,7 @@ struct symbolic_number {
   tree type;
   tree base_addr;
   tree offset;
-  poly_int64_pod bytepos;
+  poly_int64 bytepos;
   tree src;
   tree alias_set;
   tree vuse;
@@ -363,7 +363,7 @@ init_symbolic_number (struct symbolic_number *n, tree src)
    the answer. If so, REF is that memory source and the base of the memory area
    accessed and the offset of the access from that base are recorded in N.  */
 
-bool
+static bool
 find_bswap_or_nop_load (gimple *stmt, tree ref, struct symbolic_number *n)
 {
   /* Leaf node is an array or component ref. Memorize its base and
@@ -610,7 +610,9 @@ find_bswap_or_nop_1 (gimple *stmt, struct symbolic_number *n, int limit)
   gimple *rhs1_stmt, *rhs2_stmt, *source_stmt1;
   enum gimple_rhs_class rhs_class;
 
-  if (!limit || !is_gimple_assign (stmt))
+  if (!limit
+      || !is_gimple_assign (stmt)
+      || stmt_can_throw_internal (cfun, stmt))
     return NULL;
 
   rhs1 = gimple_assign_rhs1 (stmt);
@@ -3051,7 +3053,10 @@ imm_store_chain_info::try_coalesce_bswap (merged_store_group *merged_store,
 	return false;
       case 64:
 	if (builtin_decl_explicit_p (BUILT_IN_BSWAP64)
-	    && optab_handler (bswap_optab, DImode) != CODE_FOR_nothing)
+	    && (optab_handler (bswap_optab, DImode) != CODE_FOR_nothing
+		|| (word_mode == SImode
+		    && builtin_decl_explicit_p (BUILT_IN_BSWAP32)
+		    && optab_handler (bswap_optab, SImode) != CODE_FOR_nothing)))
 	  break;
 	return false;
       default:
@@ -4687,12 +4692,13 @@ imm_store_chain_info::output_merged_store (merged_store_group *group)
 		    }
 		  else if ((BYTES_BIG_ENDIAN ? start_gap : end_gap) > 0)
 		    {
-		      const unsigned HOST_WIDE_INT imask
-			= (HOST_WIDE_INT_1U << info->bitsize) - 1;
+		      wide_int imask
+			= wi::mask (info->bitsize, false,
+				    TYPE_PRECISION (TREE_TYPE (tem)));
 		      tem = gimple_build (&seq, loc,
 					  BIT_AND_EXPR, TREE_TYPE (tem), tem,
-					  build_int_cst (TREE_TYPE (tem),
-							 imask));
+					  wide_int_to_tree (TREE_TYPE (tem),
+							    imask));
 		    }
 		  const HOST_WIDE_INT shift
 		    = (BYTES_BIG_ENDIAN ? end_gap : start_gap);

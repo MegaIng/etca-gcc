@@ -1,6 +1,6 @@
 // Concepts and traits for use with iterators -*- C++ -*-
 
-// Copyright (C) 2019-2023 Free Software Foundation, Inc.
+// Copyright (C) 2019-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,12 +30,17 @@
 #ifndef _ITERATOR_CONCEPTS_H
 #define _ITERATOR_CONCEPTS_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus >= 202002L
 #include <concepts>
 #include <bits/ptr_traits.h>	// to_address
 #include <bits/ranges_cmp.h>	// identity, ranges::less
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic" // __int128
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -97,16 +102,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   namespace ranges
   {
-    namespace __cust_imove
+    /// @cond undocumented
+    namespace __imove
     {
-      void iter_move();
+      void iter_move() = delete;
 
       template<typename _Tp>
 	concept __adl_imove
 	  = (std::__detail::__class_or_enum<remove_reference_t<_Tp>>)
 	  && requires(_Tp&& __t) { iter_move(static_cast<_Tp&&>(__t)); };
 
-      struct _IMove
+      struct _IterMove
       {
       private:
 	template<typename _Tp>
@@ -153,19 +159,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	      return *__e;
 	  }
       };
-    } // namespace __cust_imove
+    } // namespace __imove
+    /// @endcond
 
-    inline namespace __cust
-    {
-      inline constexpr __cust_imove::_IMove iter_move{};
-    } // inline namespace __cust
+    inline namespace _Cpo {
+      inline constexpr __imove::_IterMove iter_move{};
+    }
   } // namespace ranges
 
   template<__detail::__dereferenceable _Tp>
-    requires __detail::
-      __can_reference<ranges::__cust_imove::_IMove::__type<_Tp&>>
-    using iter_rvalue_reference_t
-      = ranges::__cust_imove::_IMove::__type<_Tp&>;
+    requires __detail::__can_reference<ranges::__imove::_IterMove::__type<_Tp&>>
+    using iter_rvalue_reference_t = ranges::__imove::_IterMove::__type<_Tp&>;
 
   template<typename> struct incrementable_traits { };
 
@@ -553,9 +557,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     concept indirectly_readable
       = __detail::__indirectly_readable_impl<remove_cvref_t<_In>>;
 
+  namespace __detail
+  {
+    template<typename _Tp>
+      struct __indirect_value
+      { using type = iter_value_t<_Tp>&; };
+
+    // __indirect_value<projected<_Iter, _Proj>> is defined later.
+  } // namespace __detail
+
+  template<typename _Tp>
+    using __indirect_value_t = typename __detail::__indirect_value<_Tp>::type;
+
   template<indirectly_readable _Tp>
     using iter_common_reference_t
-      = common_reference_t<iter_reference_t<_Tp>, iter_value_t<_Tp>&>;
+      = common_reference_t<iter_reference_t<_Tp>, __indirect_value_t<_Tp>>;
 
   /// Requirements for writing a value into an iterator's referenced object.
   template<typename _Out, typename _Tp>
@@ -711,60 +727,51 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _Fn, typename _Iter>
     concept indirectly_unary_invocable = indirectly_readable<_Iter>
-      && copy_constructible<_Fn> && invocable<_Fn&, iter_value_t<_Iter>&>
+      && copy_constructible<_Fn> && invocable<_Fn&, __indirect_value_t<_Iter>>
       && invocable<_Fn&, iter_reference_t<_Iter>>
-      && invocable<_Fn&, iter_common_reference_t<_Iter>>
-      && common_reference_with<invoke_result_t<_Fn&, iter_value_t<_Iter>&>,
+      && common_reference_with<invoke_result_t<_Fn&, __indirect_value_t<_Iter>>,
 			       invoke_result_t<_Fn&, iter_reference_t<_Iter>>>;
 
   template<typename _Fn, typename _Iter>
     concept indirectly_regular_unary_invocable = indirectly_readable<_Iter>
       && copy_constructible<_Fn>
-      && regular_invocable<_Fn&, iter_value_t<_Iter>&>
+      && regular_invocable<_Fn&, __indirect_value_t<_Iter>>
       && regular_invocable<_Fn&, iter_reference_t<_Iter>>
-      && regular_invocable<_Fn&, iter_common_reference_t<_Iter>>
-      && common_reference_with<invoke_result_t<_Fn&, iter_value_t<_Iter>&>,
+      && common_reference_with<invoke_result_t<_Fn&, __indirect_value_t<_Iter>>,
 			       invoke_result_t<_Fn&, iter_reference_t<_Iter>>>;
 
   template<typename _Fn, typename _Iter>
     concept indirect_unary_predicate = indirectly_readable<_Iter>
-      && copy_constructible<_Fn> && predicate<_Fn&, iter_value_t<_Iter>&>
-      && predicate<_Fn&, iter_reference_t<_Iter>>
-      && predicate<_Fn&, iter_common_reference_t<_Iter>>;
+      && copy_constructible<_Fn> && predicate<_Fn&, __indirect_value_t<_Iter>>
+      && predicate<_Fn&, iter_reference_t<_Iter>>;
 
   template<typename _Fn, typename _I1, typename _I2>
     concept indirect_binary_predicate
       = indirectly_readable<_I1> && indirectly_readable<_I2>
       && copy_constructible<_Fn>
-      && predicate<_Fn&, iter_value_t<_I1>&, iter_value_t<_I2>&>
-      && predicate<_Fn&, iter_value_t<_I1>&, iter_reference_t<_I2>>
-      && predicate<_Fn&, iter_reference_t<_I1>, iter_value_t<_I2>&>
-      && predicate<_Fn&, iter_reference_t<_I1>, iter_reference_t<_I2>>
-      && predicate<_Fn&, iter_common_reference_t<_I1>,
-		   iter_common_reference_t<_I2>>;
+      && predicate<_Fn&, __indirect_value_t<_I1>, __indirect_value_t<_I2>>
+      && predicate<_Fn&, __indirect_value_t<_I1>, iter_reference_t<_I2>>
+      && predicate<_Fn&, iter_reference_t<_I1>, __indirect_value_t<_I2>>
+      && predicate<_Fn&, iter_reference_t<_I1>, iter_reference_t<_I2>>;
 
   template<typename _Fn, typename _I1, typename _I2 = _I1>
     concept indirect_equivalence_relation
       = indirectly_readable<_I1> && indirectly_readable<_I2>
       && copy_constructible<_Fn>
-      && equivalence_relation<_Fn&, iter_value_t<_I1>&, iter_value_t<_I2>&>
-      && equivalence_relation<_Fn&, iter_value_t<_I1>&, iter_reference_t<_I2>>
-      && equivalence_relation<_Fn&, iter_reference_t<_I1>, iter_value_t<_I2>&>
+      && equivalence_relation<_Fn&, __indirect_value_t<_I1>, __indirect_value_t<_I2>>
+      && equivalence_relation<_Fn&, __indirect_value_t<_I1>, iter_reference_t<_I2>>
+      && equivalence_relation<_Fn&, iter_reference_t<_I1>, __indirect_value_t<_I2>>
       && equivalence_relation<_Fn&, iter_reference_t<_I1>,
-			      iter_reference_t<_I2>>
-      && equivalence_relation<_Fn&, iter_common_reference_t<_I1>,
-			      iter_common_reference_t<_I2>>;
+			      iter_reference_t<_I2>>;
 
   template<typename _Fn, typename _I1, typename _I2 = _I1>
     concept indirect_strict_weak_order
       = indirectly_readable<_I1> && indirectly_readable<_I2>
       && copy_constructible<_Fn>
-      && strict_weak_order<_Fn&, iter_value_t<_I1>&, iter_value_t<_I2>&>
-      && strict_weak_order<_Fn&, iter_value_t<_I1>&, iter_reference_t<_I2>>
-      && strict_weak_order<_Fn&, iter_reference_t<_I1>, iter_value_t<_I2>&>
-      && strict_weak_order<_Fn&, iter_reference_t<_I1>, iter_reference_t<_I2>>
-      && strict_weak_order<_Fn&, iter_common_reference_t<_I1>,
-			   iter_common_reference_t<_I2>>;
+      && strict_weak_order<_Fn&, __indirect_value_t<_I1>, __indirect_value_t<_I2>>
+      && strict_weak_order<_Fn&, __indirect_value_t<_I1>, iter_reference_t<_I2>>
+      && strict_weak_order<_Fn&, iter_reference_t<_I1>, __indirect_value_t<_I2>>
+      && strict_weak_order<_Fn&, iter_reference_t<_I1>, iter_reference_t<_I2>>;
 
   template<typename _Fn, typename... _Is>
     requires (indirectly_readable<_Is> && ...)
@@ -780,6 +787,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{
 	  using value_type = remove_cvref_t<indirect_result_t<_Proj&, _Iter>>;
 	  indirect_result_t<_Proj&, _Iter> operator*() const; // not defined
+
+	  // These are used to identify and obtain the template arguments of a
+	  // specialization of the 'projected' alias template below.
+	  using __projected_Iter = _Iter;
+	  using __projected_Proj = _Proj;
 	};
       };
 
@@ -791,14 +803,40 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  using value_type = remove_cvref_t<indirect_result_t<_Proj&, _Iter>>;
 	  using difference_type = iter_difference_t<_Iter>;
 	  indirect_result_t<_Proj&, _Iter> operator*() const; // not defined
+
+	  using __projected_Iter = _Iter;
+	  using __projected_Proj = _Proj;
 	};
       };
+
+    // Optimize the common case of the projection being std::identity.
+    template<typename _Iter>
+      struct __projected<_Iter, identity>
+      { using __type = _Iter; };
   } // namespace __detail
 
   /// [projected], projected
   template<indirectly_readable _Iter,
 	   indirectly_regular_unary_invocable<_Iter> _Proj>
     using projected = typename __detail::__projected<_Iter, _Proj>::__type;
+
+  // Matches specializations of the 'projected' alias template.
+  template<typename _Tp>
+    requires same_as<_Tp, projected<typename _Tp::__projected_Iter,
+				    typename _Tp::__projected_Proj>>
+    struct __detail::__indirect_value<_Tp>
+    {
+      using _Iter = typename _Tp::__projected_Iter;
+      using _Proj = typename _Tp::__projected_Proj;
+      using type = invoke_result_t<_Proj&, __indirect_value_t<_Iter>>;
+    };
+
+#if __glibcxx_algorithm_default_value_type // C++ >= 26
+  template<indirectly_readable _Iter,
+	   indirectly_regular_unary_invocable<_Iter> _Proj>
+    using projected_value_t
+	= remove_cvref_t<invoke_result_t<_Proj&, iter_value_t<_Iter>&>>;
+#endif
 
   // [alg.req], common algorithm requirements
 
@@ -832,7 +870,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 namespace ranges
 {
-  namespace __cust_iswap
+  /// @cond undocumented
+  namespace __iswap
   {
     template<typename _It1, typename _It2>
       void iter_swap(_It1, _It2) = delete;
@@ -873,8 +912,8 @@ namespace ranges
 					 *std::declval<_Up>()));
 	  else
 	    return noexcept(*std::declval<_Tp>()
-		= __iter_exchange_move(std::declval<_Up>(),
-				       std::declval<_Tp>()));
+		= __iswap::__iter_exchange_move(std::declval<_Up>(),
+						    std::declval<_Tp>()));
 	}
 
     public:
@@ -896,15 +935,15 @@ namespace ranges
 	      && swappable_with<iter_reference_t<_Tp>, iter_reference_t<_Up>>)
 	    ranges::swap(*__e1, *__e2);
 	  else
-	    *__e1 = __iter_exchange_move(__e2, __e1);
+	    *__e1 = __iswap::__iter_exchange_move(__e2, __e1);
 	}
     };
-  } // namespace __cust_iswap
+  } // namespace __iswap
+  /// @endcond
 
-  inline namespace __cust
-  {
-    inline constexpr __cust_iswap::_IterSwap iter_swap{};
-  } // inline namespace __cust
+  inline namespace _Cpo {
+    inline constexpr __iswap::_IterSwap iter_swap{};
+  }
 
 } // namespace ranges
 
@@ -960,7 +999,7 @@ namespace ranges
   inline constexpr unreachable_sentinel_t unreachable_sentinel{};
 
   // This is the namespace for [range.access] CPOs.
-  namespace ranges::__cust_access
+  namespace ranges::__access
   {
     using std::__detail::__class_or_enum;
 
@@ -979,9 +1018,8 @@ namespace ranges
 	  { __decay_copy(__t.begin()) } -> input_or_output_iterator;
 	};
 
-    // Poison pills so that unqualified lookup doesn't find std::begin.
-    void begin(auto&) = delete;
-    void begin(const auto&) = delete;
+    // Poison pill so that unqualified lookup doesn't find std::begin.
+    void begin() = delete;
 
     template<typename _Tp>
       concept __adl_begin = __class_or_enum<remove_reference_t<_Tp>>
@@ -1004,19 +1042,20 @@ namespace ranges
 	else
 	  return begin(__t);
       }
-  } // namespace ranges::__cust_access
+  } // namespace ranges::__access
 
   namespace __detail
   {
     // Implementation of std::ranges::iterator_t, without using ranges::begin.
     template<typename _Tp>
       using __range_iter_t
-	= decltype(ranges::__cust_access::__begin(std::declval<_Tp&>()));
+	= decltype(ranges::__access::__begin(std::declval<_Tp&>()));
 
   } // namespace __detail
 
 #endif // C++20 library concepts
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
+#pragma GCC diagnostic pop
 #endif // C++20
 #endif // _ITERATOR_CONCEPTS_H

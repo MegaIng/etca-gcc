@@ -1,5 +1,5 @@
 /* Parse and display command line options.
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -57,8 +57,10 @@ set_default_std_flags (void)
   gfc_option.allow_std = GFC_STD_F95_OBS | GFC_STD_F95_DEL
     | GFC_STD_F2003 | GFC_STD_F2008 | GFC_STD_F95 | GFC_STD_F77
     | GFC_STD_F2008_OBS | GFC_STD_GNU | GFC_STD_LEGACY
-    | GFC_STD_F2018 | GFC_STD_F2018_DEL | GFC_STD_F2018_OBS;
-  gfc_option.warn_std = GFC_STD_F2018_DEL | GFC_STD_F95_DEL | GFC_STD_LEGACY;
+    | GFC_STD_F2018 | GFC_STD_F2018_DEL | GFC_STD_F2018_OBS | GFC_STD_F2023
+    | GFC_STD_F2023_DEL;
+  gfc_option.warn_std = GFC_STD_F2018_DEL | GFC_STD_F95_DEL | GFC_STD_LEGACY
+    | GFC_STD_F2023_DEL;
 }
 
 /* Set (or unset) the DEC extension flags.  */
@@ -143,8 +145,11 @@ gfc_init_options (unsigned int decoded_options_count,
   gfc_source_file = NULL;
   gfc_option.module_dir = NULL;
   gfc_option.source_form = FORM_UNKNOWN;
-  gfc_option.max_continue_fixed = 255;
-  gfc_option.max_continue_free = 255;
+  /* The following is not quite right as Fortran since 2023 has: "A statement
+      shall not have more than one million characters."  This can already be
+      reached by 'just' 100 lines with 10,000 characters each.  */
+  gfc_option.max_continue_fixed = 1000000;
+  gfc_option.max_continue_free = 1000000;
   gfc_option.max_identifier_length = GFC_MAX_SYMBOL_LEN;
   gfc_option.max_errors = 25;
 
@@ -192,6 +197,12 @@ form_from_filename (const char *filename)
     ,
     {
     ".f08", FORM_FREE}
+    ,
+    {
+    ".fii", FORM_FREE}
+    ,
+    {
+    ".fi", FORM_FIXED}
     ,
     {
     ".f", FORM_FIXED}
@@ -265,6 +276,10 @@ gfc_post_options (const char **pfilename)
   SET_OPTION_IF_UNSET (&global_options, &global_options_set,
 		       cpp_warn_missing_include_dirs, 1);
   gfc_check_include_dirs (verbose_missing_dir_warn);
+
+  SET_OPTION_IF_UNSET (&global_options, &global_options_set,
+		       flag_free_line_length,
+		       (gfc_option.allow_std & GFC_STD_F2023) ? 10000 : 132);
 
   /* Finalize DEC flags.  */
   post_dec_flags (flag_dec);
@@ -389,8 +404,7 @@ gfc_post_options (const char **pfilename)
       /* Enable -Werror=line-truncation when -Werror and -Wno-error have
 	 not been set.  */
       if (warn_line_truncation && !OPTION_SET_P (warnings_are_errors)
-	  && (global_dc->classify_diagnostic[OPT_Wline_truncation] ==
-	      DK_UNSPECIFIED))
+	  && option_unspecified_p (OPT_Wline_truncation))
 	diagnostic_classify_diagnostic (global_dc, OPT_Wline_truncation,
 					DK_ERROR, UNKNOWN_LOCATION);
     }
@@ -458,7 +472,26 @@ gfc_post_options (const char **pfilename)
   /* Implement -fno-automatic as -fmax-stack-var-size=0.  */
   if (!flag_automatic)
     flag_max_stack_var_size = 0;
-  
+
+  /* Decide inlining preference depending on optimization if nothing was
+     specified on the command line.  */
+  if ((flag_inline_intrinsics & GFC_FLAG_INLINE_INTRINSIC_MAXLOC)
+      == GFC_FLAG_INLINE_INTRINSIC_MAXLOC_UNSET)
+    {
+      if (optimize == 0 || optimize_size != 0)
+	flag_inline_intrinsics &= ~GFC_FLAG_INLINE_INTRINSIC_MAXLOC;
+      else
+	flag_inline_intrinsics |= GFC_FLAG_INLINE_INTRINSIC_MAXLOC;
+    }
+  if ((flag_inline_intrinsics & GFC_FLAG_INLINE_INTRINSIC_MINLOC)
+      == GFC_FLAG_INLINE_INTRINSIC_MINLOC_UNSET)
+    {
+      if (optimize == 0 || optimize_size != 0)
+	flag_inline_intrinsics &= ~GFC_FLAG_INLINE_INTRINSIC_MINLOC;
+      else
+	flag_inline_intrinsics |= GFC_FLAG_INLINE_INTRINSIC_MINLOC;
+    }
+
   /* If the user did not specify an inline matmul limit, inline up to the BLAS
      limit or up to 30 if no external BLAS is specified.  */
 
@@ -555,9 +588,12 @@ gfc_handle_fpe_option (const char *arg, bool trap)
 	pos++;
 
       result = 0;
-      if (!trap && strncmp ("none", arg, pos) == 0)
+      if (strncmp ("none", arg, pos) == 0)
 	{
-	  gfc_option.fpe_summary = 0;
+	  if (trap)
+	    gfc_option.fpe = 0;
+	  else
+	    gfc_option.fpe_summary = 0;
 	  arg += pos;
 	  pos = 0;
 	  continue;
@@ -586,7 +622,7 @@ gfc_handle_fpe_option (const char *arg, bool trap)
 	      break;
 	    }
 	  }
-      if (!result && !trap)
+      if (!result && trap)
 	gfc_fatal_error ("Argument to %<-ffpe-trap%> is not valid: %s", arg);
       else if (!result)
 	gfc_fatal_error ("Argument to %<-ffpe-summary%> is not valid: %s", arg);
@@ -767,6 +803,8 @@ gfc_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
     case OPT_std_f2003:
       gfc_option.allow_std = GFC_STD_OPT_F03;
       gfc_option.warn_std = GFC_STD_F95_OBS;
+      gfc_option.max_continue_fixed = 255;
+      gfc_option.max_continue_free = 255;
       gfc_option.max_identifier_length = 63;
       warn_ampersand = 1;
       warn_tabs = 1;
@@ -775,6 +813,8 @@ gfc_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
     case OPT_std_f2008:
       gfc_option.allow_std = GFC_STD_OPT_F08;
       gfc_option.warn_std = GFC_STD_F95_OBS | GFC_STD_F2008_OBS;
+      gfc_option.max_continue_free = 255;
+      gfc_option.max_continue_fixed = 255;
       gfc_option.max_identifier_length = 63;
       warn_ampersand = 1;
       warn_tabs = 1;
@@ -783,6 +823,17 @@ gfc_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
     case OPT_std_f2008ts:
     case OPT_std_f2018:
       gfc_option.allow_std = GFC_STD_OPT_F18;
+      gfc_option.warn_std = GFC_STD_F95_OBS | GFC_STD_F2008_OBS
+	| GFC_STD_F2018_OBS;
+      gfc_option.max_continue_free = 255;
+      gfc_option.max_continue_fixed = 255;
+      gfc_option.max_identifier_length = 63;
+      warn_ampersand = 1;
+      warn_tabs = 1;
+      break;
+
+    case OPT_std_f2023:
+      gfc_option.allow_std = GFC_STD_OPT_F23;
       gfc_option.warn_std = GFC_STD_F95_OBS | GFC_STD_F2008_OBS
 	| GFC_STD_F2018_OBS;
       gfc_option.max_identifier_length = 63;
@@ -811,6 +862,18 @@ gfc_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
       /* Set (or unset) the DEC extension flags.  */
       set_dec_flags (value);
       break;
+
+    case OPT_fbuiltin_:
+      /* We only handle -fno-builtin-omp_is_initial_device.  */
+      if (value)
+	return false;  /* Not supported. */
+      if (!strcmp ("omp_is_initial_device", arg))
+	gfc_option.disable_omp_is_initial_device = true;
+      else
+	warning (0, "command-line option %<-fno-builtin-%s%> is not valid for "
+		 "Fortran", arg);
+      break;
+
     }
 
   Fortran_handle_option_auto (&global_options, &global_options_set, 

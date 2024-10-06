@@ -1,11 +1,11 @@
-/* { dg-do run { target { riscv_vector } } } */
+/* { dg-do run { target { riscv_v } } } */
 /* For some reason we exceed
    the default code model's +-2 GiB limits.  We should investigate why and
    add a proper description here.  For now just make sure the test case
    compiles properly.  */
 /* { dg-additional-options "-mcmodel=medany" } */
 
-#include "scatter_store-8.c"
+#include "scatter_store_64-8.c"
 #include <assert.h>
 
 int

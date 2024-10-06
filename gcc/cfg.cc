@@ -1,5 +1,5 @@
 /* Control flow graph manipulation code for GNU compiler.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -81,6 +81,7 @@ init_flow (struct function *the_fun)
     = ENTRY_BLOCK_PTR_FOR_FN (the_fun);
   the_fun->cfg->edge_flags_allocated = EDGE_ALL_FLAGS;
   the_fun->cfg->bb_flags_allocated = BB_ALL_FLAGS;
+  the_fun->cfg->full_profile = false;
 }
 
 /* Helper function for remove_edge and free_cffg.  Frees edge structure
@@ -1194,4 +1195,28 @@ get_loop_copy (class loop *loop)
     return get_loop (cfun, *entry);
   else
     return NULL;
+}
+
+/* Scales the frequencies of all basic blocks that are strictly
+   dominated by BB by NUM/DEN.  */
+
+void
+scale_strictly_dominated_blocks (basic_block bb,
+				 profile_count num, profile_count den)
+{
+  basic_block son;
+
+  if (!den.nonzero_p () && !(num == profile_count::zero ()))
+    return;
+  auto_vec <basic_block, 8> worklist;
+  worklist.safe_push (bb);
+
+  while (!worklist.is_empty ())
+    for (son = first_dom_son (CDI_DOMINATORS, worklist.pop ());
+	 son;
+	 son = next_dom_son (CDI_DOMINATORS, son))
+      {
+	son->count = son->count.apply_scale (num, den);
+	worklist.safe_push (son);
+      }
 }

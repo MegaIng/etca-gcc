@@ -1,5 +1,5 @@
 /* Definitions for code generation pass of GNU compiler.
-   Copyright (C) 2001-2023 Free Software Foundation, Inc.
+   Copyright (C) 2001-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -37,7 +37,8 @@ enum expand_operand_type {
   EXPAND_CONVERT_TO,
   EXPAND_CONVERT_FROM,
   EXPAND_ADDRESS,
-  EXPAND_INTEGER
+  EXPAND_INTEGER,
+  EXPAND_UNDEFINED_INPUT
 };
 
 /* Information about an operand for instruction expansion.  */
@@ -117,6 +118,16 @@ create_input_operand (class expand_operand *op, rtx value,
   create_expand_operand (op, EXPAND_INPUT, value, mode, false);
 }
 
+/* Make OP describe an undefined input operand of mode MODE.  MODE cannot
+   be null.  */
+
+inline void
+create_undefined_input_operand (class expand_operand *op, machine_mode mode)
+{
+  create_expand_operand (op, EXPAND_UNDEFINED_INPUT, gen_rtx_SCRATCH (mode),
+			 mode, false);
+}
+
 /* Like create_input_operand, except that VALUE must first be converted
    to mode MODE.  UNSIGNED_P says whether VALUE is unsigned.  */
 
@@ -171,7 +182,7 @@ enum optab_methods
   OPTAB_MUST_WIDEN
 };
 
-extern rtx expand_widen_pattern_expr (struct separate_ops *, rtx , rtx , rtx,
+extern rtx expand_widen_pattern_expr (const struct separate_ops *, rtx , rtx , rtx,
                                       rtx, int);
 extern rtx expand_ternary_op (machine_mode mode, optab ternary_optab,
 			      rtx op0, rtx op1, rtx op2, rtx target,

@@ -1,5 +1,5 @@
 /* Parser for GIMPLE.
-   Copyright (C) 2016-2023 Free Software Foundation, Inc.
+   Copyright (C) 2016-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -108,7 +108,7 @@ gimple_parser::push_edge (int src, int dest, int flags,
 static bool c_parser_gimple_compound_statement (gimple_parser &, gimple_seq *);
 static void c_parser_gimple_label (gimple_parser &, gimple_seq *);
 static void c_parser_gimple_statement (gimple_parser &, gimple_seq *);
-static struct c_expr c_parser_gimple_binary_expression (gimple_parser &);
+static struct c_expr c_parser_gimple_binary_expression (gimple_parser &, tree);
 static struct c_expr c_parser_gimple_unary_expression (gimple_parser &);
 static struct c_expr c_parser_gimple_postfix_expression (gimple_parser &);
 static struct c_expr c_parser_gimple_postfix_expression_after_primary
@@ -280,7 +280,13 @@ c_parser_parse_gimple_body (c_parser *cparser, char *gimple_pass,
       for (tree var = BIND_EXPR_VARS (stmt); var; var = DECL_CHAIN (var))
 	if (VAR_P (var)
 	    && !DECL_EXTERNAL (var))
-	  add_local_decl (cfun, var);
+	  {
+	    add_local_decl (cfun, var);
+	    /* When the middle-end re-gimplifies any expression we might
+	       run into the assertion that we've seen the decl in a BIND.  */
+	    if (!TREE_STATIC (var))
+	      DECL_SEEN_IN_BIND_EXPR_P (var) = 1;
+	  }
       /* We have a CFG.  Build the edges.  */
       for (unsigned i = 0; i < parser.edges.length (); ++i)
 	{
@@ -869,7 +875,7 @@ c_parser_gimple_statement (gimple_parser &parser, gimple_seq *seq)
       return;
     }
 
-  rhs = c_parser_gimple_binary_expression (parser);
+  rhs = c_parser_gimple_binary_expression (parser, TREE_TYPE (lhs.value));
   if (lhs.value != error_mark_node
       && rhs.value != error_mark_node)
     {
@@ -930,7 +936,7 @@ c_parser_gimple_statement (gimple_parser &parser, gimple_seq *seq)
 */
 
 static c_expr
-c_parser_gimple_binary_expression (gimple_parser &parser)
+c_parser_gimple_binary_expression (gimple_parser &parser, tree ret_type)
 {
   /* Location of the binary operator.  */
   struct c_expr ret, lhs, rhs;
@@ -939,7 +945,6 @@ c_parser_gimple_binary_expression (gimple_parser &parser)
   lhs = c_parser_gimple_postfix_expression (parser);
   if (c_parser_error (parser))
     return ret;
-  tree ret_type = TREE_TYPE (lhs.value);
   switch (c_parser_peek_token (parser)->type)
     {
     case CPP_MULT:
@@ -958,7 +963,10 @@ c_parser_gimple_binary_expression (gimple_parser &parser)
 	code = PLUS_EXPR;
       break;
     case CPP_MINUS:
-      code = MINUS_EXPR;
+      if (POINTER_TYPE_P (TREE_TYPE (lhs.value)))
+	code = POINTER_DIFF_EXPR;
+      else
+	code = MINUS_EXPR;
       break;
     case CPP_LSHIFT:
       code = LSHIFT_EXPR;
@@ -968,27 +976,21 @@ c_parser_gimple_binary_expression (gimple_parser &parser)
       break;
     case CPP_LESS:
       code = LT_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_GREATER:
       code = GT_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_LESS_EQ:
       code = LE_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_GREATER_EQ:
       code = GE_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_EQ_EQ:
       code = EQ_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_NOT_EQ:
       code = NE_EXPR;
-      ret_type = boolean_type_node;
       break;
     case CPP_AND:
       code = BIT_AND_EXPR;
@@ -1006,14 +1008,89 @@ c_parser_gimple_binary_expression (gimple_parser &parser)
       c_parser_error (parser, "%<||%> not valid in GIMPLE");
       return ret;
     case CPP_NAME:
-	{
-	  tree id = c_parser_peek_token (parser)->value;
-	  if (strcmp (IDENTIFIER_POINTER (id), "__MULT_HIGHPART") == 0)
-	    {
-	      code = MULT_HIGHPART_EXPR;
-	      break;
-	    }
-	}
+      {
+	tree id = c_parser_peek_token (parser)->value;
+	if (strcmp (IDENTIFIER_POINTER (id), "__MULT_HIGHPART") == 0)
+	  {
+	    code = MULT_HIGHPART_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNLT") == 0)
+	  {
+	    code = UNLT_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNLE") == 0)
+	  {
+	    code = UNLE_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNGT") == 0)
+	  {
+	    code = UNGT_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNGE") == 0)
+	  {
+	    code = UNGE_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNEQ") == 0)
+	  {
+	    code = UNEQ_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__UNORDERED") == 0)
+	  {
+	    code = UNORDERED_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__ORDERED") == 0)
+	  {
+	    code = ORDERED_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__LTGT") == 0)
+	  {
+	    code = LTGT_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__FLOOR_DIV") == 0)
+	  {
+	    code = FLOOR_DIV_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__ROUND_DIV") == 0)
+	  {
+	    code = ROUND_DIV_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__EXACT_DIV") == 0)
+	  {
+	    code = EXACT_DIV_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__CEIL_DIV") == 0)
+	  {
+	    code = CEIL_DIV_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__FLOOR_MOD") == 0)
+	  {
+	    code = FLOOR_MOD_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__ROUND_MOD") == 0)
+	  {
+	    code = ROUND_MOD_EXPR;
+	    break;
+	  }
+	else if (strcmp (IDENTIFIER_POINTER (id), "__CEIL_MOD") == 0)
+	  {
+	    code = CEIL_MOD_EXPR;
+	    break;
+	  }
+      }
       /* Fallthru.  */
     default:
       /* Not a binary expression.  */
@@ -1445,9 +1522,12 @@ c_parser_gimple_postfix_expression (gimple_parser &parser)
 	      location_t loc = c_parser_peek_token (parser)->location;
 	      c_parser_consume_token (parser);
 	      tree type = c_parser_gimple_typespec (parser);
-	      struct c_expr ptr;
+	      struct c_expr ptr, alias_off, step, index, index2;
 	      ptr.value = error_mark_node;
-	      tree alias_off = NULL_TREE;
+	      alias_off.value = NULL_TREE;
+	      step.value = NULL_TREE;
+	      index.value = NULL_TREE;
+	      index2.value = NULL_TREE;
 	      if (c_parser_require (parser, CPP_OPEN_PAREN, "expected %<(%>"))
 		{
 		  tree alias_type = NULL_TREE;
@@ -1483,12 +1563,52 @@ c_parser_gimple_postfix_expression (gimple_parser &parser)
 		  if (c_parser_next_token_is (parser, CPP_PLUS))
 		    {
 		      c_parser_consume_token (parser);
-		      alias_off
-			= c_parser_gimple_postfix_expression (parser).value;
-		      alias_off = fold_convert (alias_type, alias_off);
+		      alias_off = c_parser_gimple_postfix_expression (parser);
 		    }
-		  if (! alias_off)
-		    alias_off = build_int_cst (alias_type, 0);
+		  if (c_parser_next_token_is (parser, CPP_MULT))
+		    {
+		      std::swap (index, alias_off);
+		      c_parser_consume_token (parser);
+		      step = c_parser_gimple_postfix_expression (parser);
+		    }
+		  else if (c_parser_next_token_is (parser, CPP_PLUS))
+		    {
+		      c_parser_consume_token (parser);
+		      index = c_parser_gimple_postfix_expression (parser);
+		      if (c_parser_next_token_is (parser, CPP_MULT))
+			{
+			  c_parser_consume_token (parser);
+			  step = c_parser_gimple_postfix_expression (parser);
+			}
+		      else
+			std::swap (index, index2);
+		    }
+		  else if (alias_off.value
+			   && TREE_CODE (alias_off.value) != INTEGER_CST)
+		    std::swap (alias_off, index2);
+		  if (c_parser_next_token_is (parser, CPP_PLUS))
+		    {
+		      c_parser_consume_token (parser);
+		      index2 = c_parser_gimple_postfix_expression (parser);
+		    }
+		  if (alias_off.value)
+		    {
+		      if (TREE_CODE (alias_off.value) != INTEGER_CST)
+			error_at (alias_off.get_start (),
+				  "expected constant offset for %<__MEM%> "
+				  "operand");
+		      alias_off.value = fold_convert (alias_type,
+						      alias_off.value);
+		    }
+		  else
+		    alias_off.value = build_int_cst (alias_type, 0);
+		  if (step.value)
+		    {
+		      if (TREE_CODE (step.value) != INTEGER_CST)
+			error_at (step.get_start (),
+				  "expected constant step for %<__MEM%> "
+				  "operand");
+		    }
 		  c_parser_skip_until_found (parser, CPP_CLOSE_PAREN,
 					     "expected %<)%>");
 		}
@@ -1497,8 +1617,13 @@ c_parser_gimple_postfix_expression (gimple_parser &parser)
 		  c_parser_set_error (parser, false);
 		  return expr;
 		}
-	      expr.value = build2_loc (loc, MEM_REF,
-				       type, ptr.value, alias_off);
+	      if (index.value || step.value || index2.value)
+		expr.value = build5_loc (loc, TARGET_MEM_REF,
+					 type, ptr.value, alias_off.value,
+					 index.value, step.value, index2.value);
+	      else
+		expr.value = build2_loc (loc, MEM_REF,
+					 type, ptr.value, alias_off.value);
 	      break;
 	    }
 	  else if (strcmp (IDENTIFIER_POINTER (id), "__VIEW_CONVERT") == 0)
@@ -2158,7 +2283,8 @@ c_parser_gimple_paren_condition (gimple_parser &parser)
 {
   if (! c_parser_require (parser, CPP_OPEN_PAREN, "expected %<(%>"))
     return error_mark_node;
-  tree cond = c_parser_gimple_binary_expression (parser).value;
+  tree cond
+    = c_parser_gimple_binary_expression (parser, boolean_type_node).value;
   if (cond != error_mark_node
       && ! COMPARISON_CLASS_P (cond)
       && ! CONSTANT_CLASS_P (cond)

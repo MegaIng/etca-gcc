@@ -1,5 +1,5 @@
 /* "Supergraph" classes that combine CFGs and callgraph into one digraph.
-   Copyright (C) 2019-2023 Free Software Foundation, Inc.
+   Copyright (C) 2019-2024 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -182,6 +182,10 @@ supergraph::supergraph (logger *logger)
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	    {
 	      gimple *stmt = gsi_stmt (gsi);
+	      /* Discard debug stmts here, so we don't have to check for
+		 them anywhere within the analyzer.  */
+	      if (is_gimple_debug (stmt))
+		continue;
 	      node_for_stmts->m_stmts.safe_push (stmt);
 	      m_stmt_to_node_t.put (stmt, node_for_stmts);
 	      m_stmt_uids.make_uid_unique (stmt);
@@ -360,6 +364,7 @@ supergraph::dump_dot_to_pp (pretty_printer *pp,
     FOR_EACH_FUNCTION_WITH_GIMPLE_BODY (node)
     {
       function *fun = node->get_fun ();
+      gcc_assert (fun);
       const char *funcname = function_name (fun);
       gv.println ("subgraph \"cluster_%s\" {",
 		  funcname);
@@ -405,9 +410,9 @@ supergraph::dump_dot_to_pp (pretty_printer *pp,
 
       /* Add an invisible edge from ENTRY to EXIT, to improve the graph layout.  */
       pp_string (pp, "\t");
-      get_node_for_function_entry (fun)->dump_dot_id (pp);
+      get_node_for_function_entry (*fun)->dump_dot_id (pp);
       pp_string (pp, ":s -> ");
-      get_node_for_function_exit (fun)->dump_dot_id (pp);
+      get_node_for_function_exit (*fun)->dump_dot_id (pp);
       pp_string (pp, ":n [style=\"invis\",constraint=true];\n");
 
       /* Terminate per-function "subgraph" */
@@ -432,13 +437,13 @@ supergraph::dump_dot_to_pp (pretty_printer *pp,
 void
 supergraph::dump_dot_to_file (FILE *fp, const dump_args_t &dump_args) const
 {
-  pretty_printer *pp = global_dc->printer->clone ();
+  pretty_printer *pp = global_dc->m_printer->clone ();
   pp_show_color (pp) = 0;
   /* %qE in logs for SSA_NAMEs should show the ssa names, rather than
      trying to prettify things by showing the underlying var.  */
   pp_format_decoder (pp) = default_tree_printer;
 
-  pp->buffer->stream = fp;
+  pp->set_output_stream (fp);
   dump_dot_to_pp (pp, dump_args);
   pp_flush (pp);
   delete pp;
@@ -718,18 +723,17 @@ supernode::to_json () const
 {
   json::object *snode_obj = new json::object ();
 
-  snode_obj->set ("idx", new json::integer_number (m_index));
-  snode_obj->set ("bb_idx", new json::integer_number (m_bb->index));
+  snode_obj->set_integer ("idx", m_index);
+  snode_obj->set_integer ("bb_idx", m_bb->index);
   if (function *fun = get_function ())
-    snode_obj->set ("fun", new json::string (function_name (fun)));
+    snode_obj->set_string ("fun", function_name (fun));
 
   if (m_returning_call)
     {
       pretty_printer pp;
       pp_format_decoder (&pp) = default_tree_printer;
       pp_gimple_stmt_1 (&pp, m_returning_call, 0, (dump_flags_t)0);
-      snode_obj->set ("returning_call",
-		      new json::string (pp_formatted_text (&pp)));
+      snode_obj->set_string ("returning_call", pp_formatted_text (&pp));
     }
 
   /* Phi nodes.  */
@@ -742,7 +746,7 @@ supernode::to_json () const
 	pretty_printer pp;
 	pp_format_decoder (&pp) = default_tree_printer;
 	pp_gimple_stmt_1 (&pp, stmt, 0, (dump_flags_t)0);
-	phi_arr->append (new json::string (pp_formatted_text (&pp)));
+	phi_arr->append_string (pp_formatted_text (&pp));
       }
     snode_obj->set ("phis", phi_arr);
   }
@@ -757,7 +761,7 @@ supernode::to_json () const
 	pretty_printer pp;
 	pp_format_decoder (&pp) = default_tree_printer;
 	pp_gimple_stmt_1 (&pp, stmt, 0, (dump_flags_t)0);
-	stmt_arr->append (new json::string (pp_formatted_text (&pp)));
+	stmt_arr->append_string (pp_formatted_text (&pp));
       }
     snode_obj->set ("stmts", stmt_arr);
   }
@@ -790,6 +794,13 @@ supernode::get_start_location () const
   if (return_p ())
     return m_fun->function_end_locus;
 
+  /* We have no locations for stmts.  If we have a single out-edge that's
+     a CFG edge, the goto_locus of that edge is a better location for this
+     than UNKNOWN_LOCATION.  */
+  if (m_succs.length () == 1)
+    if (const cfg_superedge *cfg_sedge = m_succs[0]->dyn_cast_cfg_superedge ())
+      return cfg_sedge->get_goto_locus ();
+
   return UNKNOWN_LOCATION;
 }
 
@@ -813,6 +824,12 @@ supernode::get_end_location () const
   if (return_p ())
     return m_fun->function_end_locus;
 
+  /* If we have a single out-edge that's a CFG edge, use the goto_locus of
+     that edge.  */
+  if (m_succs.length () == 1)
+    if (const cfg_superedge *cfg_sedge = m_succs[0]->dyn_cast_cfg_superedge ())
+      return cfg_sedge->get_goto_locus ();
+
   return UNKNOWN_LOCATION;
 }
 
@@ -827,6 +844,19 @@ supernode::get_stmt_index (const gimple *stmt) const
     if (iter_stmt == stmt)
       return i;
   gcc_unreachable ();
+}
+
+/* Get any label_decl for this supernode, or NULL_TREE if there isn't one.  */
+
+tree
+supernode::get_label () const
+{
+  if (m_stmts.length () == 0)
+    return NULL_TREE;
+  const glabel *label_stmt = dyn_cast<const glabel *> (m_stmts[0]);
+  if (!label_stmt)
+    return NULL_TREE;
+  return gimple_label_label (label_stmt);
 }
 
 /* Get a string for PK.  */
@@ -868,13 +898,9 @@ superedge::dump (pretty_printer *pp) const
 DEBUG_FUNCTION void
 superedge::dump () const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   dump (&pp);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
 /* Implementation of dedge::dump_dot for superedges.
@@ -959,15 +985,15 @@ json::object *
 superedge::to_json () const
 {
   json::object *sedge_obj = new json::object ();
-  sedge_obj->set ("kind", new json::string (edge_kind_to_string (m_kind)));
-  sedge_obj->set ("src_idx", new json::integer_number (m_src->m_index));
-  sedge_obj->set ("dst_idx", new json::integer_number (m_dest->m_index));
+  sedge_obj->set_string ("kind", edge_kind_to_string (m_kind));
+  sedge_obj->set_integer ("src_idx", m_src->m_index);
+  sedge_obj->set_integer ("dst_idx", m_dest->m_index);
 
   {
     pretty_printer pp;
     pp_format_decoder (&pp) = default_tree_printer;
     dump_label_to_pp (&pp, false);
-    sedge_obj->set ("desc", new json::string (pp_formatted_text (&pp)));
+    sedge_obj->set_string ("desc", pp_formatted_text (&pp));
   }
 
   return sedge_obj;
@@ -1049,6 +1075,9 @@ cfg_superedge::dump_label_to_pp (pretty_printer *pp,
 #undef DEF_EDGE_FLAG
       pp_string (pp, ")");
     }
+
+  if (m_cfg_edge->goto_locus > BUILTINS_LOCATION)
+    pp_string (pp, " (has goto_locus)");
 
   /* Otherwise, no label.  */
 }

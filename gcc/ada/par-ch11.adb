@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -163,7 +163,6 @@ package body Ch11 is
 
    function P_Exception_Choice return Node_Id is
    begin
-
       if Token = Tok_Others then
          Scan; -- past OTHERS
          return New_Node (N_Others_Choice, Prev_Token_Ptr);

@@ -1,5 +1,5 @@
 /* Generate code from machine description to recognize rtl as insns.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -4619,7 +4619,6 @@ print_nonbool_test (output_state *os, const rtx_test &test)
       printf ("SUBREG_BYTE (");
       print_test_rtx (os, test);
       printf (")");
-      printf (".to_constant ()");
       break;
 
     case rtx_test::WIDE_INT_FIELD:

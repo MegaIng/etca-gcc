@@ -1,6 +1,6 @@
 // Exception Handling support header (exception_ptr class) for -*- C++ -*-
 
-// Copyright (C) 2008-2023 Free Software Foundation, Inc.
+// Copyright (C) 2008-2024 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -151,8 +151,7 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
 #ifdef _GLIBCXX_EH_PTR_COMPAT
       // Retained for compatibility with CXXABI_1.3.
-      void _M_safe_bool_dummy() _GLIBCXX_USE_NOEXCEPT
-	__attribute__ ((__const__));
+      void _M_safe_bool_dummy() _GLIBCXX_USE_NOEXCEPT;
       bool operator!() const _GLIBCXX_USE_NOEXCEPT
 	__attribute__ ((__pure__));
       operator __safe_bool() const _GLIBCXX_USE_NOEXCEPT;

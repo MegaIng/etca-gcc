@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Iterator Wrappers for the C++ library testsuite.
 //
-// Copyright (C) 2004-2023 Free Software Foundation, Inc.
+// Copyright (C) 2004-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,6 +32,10 @@
 
 #if __cplusplus >= 201103L
 #include <bits/move.h>
+#endif
+
+#if __cplusplus > 201703L
+#include <bits/max_size_type.h>
 #endif
 
 #ifndef _TESTSUITE_ITERATORS
@@ -675,6 +679,9 @@ namespace __gnu_test
 
       using iterator_concept = std::contiguous_iterator_tag;
 
+      // Use an integer-class type to try and break the library code.
+      using difference_type = std::ranges::__detail::__max_diff_type;
+
       contiguous_iterator_wrapper&
       operator++()
       {
@@ -706,27 +713,42 @@ namespace __gnu_test
       }
 
       contiguous_iterator_wrapper&
-      operator+=(std::ptrdiff_t n)
+      operator+=(difference_type n)
       {
-	random_access_iterator_wrapper<T>::operator+=(n);
+	auto d = static_cast<std::ptrdiff_t>(n);
+	random_access_iterator_wrapper<T>::operator+=(d);
 	return *this;
       }
 
       friend contiguous_iterator_wrapper
-      operator+(contiguous_iterator_wrapper iter, std::ptrdiff_t n)
+      operator+(contiguous_iterator_wrapper iter, difference_type n)
       { return iter += n; }
 
       friend contiguous_iterator_wrapper
-      operator+(std::ptrdiff_t n, contiguous_iterator_wrapper iter)
+      operator+(difference_type n, contiguous_iterator_wrapper iter)
       { return iter += n; }
 
       contiguous_iterator_wrapper&
-      operator-=(std::ptrdiff_t n)
+      operator-=(difference_type n)
       { return *this += -n; }
 
       friend contiguous_iterator_wrapper
-      operator-(contiguous_iterator_wrapper iter, std::ptrdiff_t n)
+      operator-(contiguous_iterator_wrapper iter, difference_type n)
       { return iter -= n; }
+
+      friend difference_type
+      operator-(contiguous_iterator_wrapper l, contiguous_iterator_wrapper r)
+      {
+	const random_access_iterator_wrapper<T>& lbase = l;
+	const random_access_iterator_wrapper<T>& rbase = r;
+	return static_cast<difference_type>(lbase - rbase);
+      }
+
+      decltype(auto) operator[](difference_type n) const
+      {
+	auto d = static_cast<std::ptrdiff_t>(n);
+	return random_access_iterator_wrapper<T>::operator[](d);
+      }
     };
 
   template<typename T>
@@ -788,11 +810,11 @@ namespace __gnu_test
 
 	  friend auto operator-(const sentinel& s, const I& i) noexcept
 	    requires std::random_access_iterator<I>
-	  { return s.end - i.ptr; }
+	  { return std::iter_difference_t<I>(s.end - i.ptr); }
 
 	  friend auto operator-(const I& i, const sentinel& s) noexcept
 	    requires std::random_access_iterator<I>
-	  { return i.ptr - s.end; }
+	  { return std::iter_difference_t<I>(i.ptr - s.end); }
 	};
 
     protected:
@@ -890,11 +912,11 @@ namespace __gnu_test
 
 	  friend std::iter_difference_t<I>
 	  operator-(const sentinel& s, const I& i) noexcept
-	  { return s.end - i.ptr; }
+	  { return std::iter_difference_t<I>(s.end - i.ptr); }
 
 	  friend std::iter_difference_t<I>
 	  operator-(const I& i, const sentinel& s) noexcept
-	  { return i.ptr - s.end; }
+	  { return std::iter_difference_t<I>(i.ptr - s.end); }
 	};
 
       auto end() &
@@ -916,7 +938,7 @@ namespace __gnu_test
   // Test for basic properties of C++20 16.3.3.6 [customization.point.object].
   template<typename T>
     constexpr bool
-    is_customization_point_object(T& obj) noexcept
+    is_customization_point_object(T&) noexcept
     {
       // A [CPO] is a function object with a literal class type.
       static_assert( std::is_class_v<T> || std::is_union_v<T> );

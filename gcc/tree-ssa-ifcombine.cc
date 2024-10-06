@@ -1,5 +1,5 @@
 /* Combining of if-expressions on trees.
-   Copyright (C) 2007-2023 Free Software Foundation, Inc.
+   Copyright (C) 2007-2024 Free Software Foundation, Inc.
    Contributed by Richard Guenther <rguenther@suse.de>
 
 This file is part of GCC.
@@ -430,6 +430,10 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
     {
       tree t, t2;
 
+      if (TREE_CODE (name1) == SSA_NAME
+	  && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name1))
+	return false;
+
       /* Do it.  */
       gsi = gsi_for_stmt (inner_cond);
       t = fold_build2 (LSHIFT_EXPR, TREE_TYPE (name1),
@@ -485,6 +489,12 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
     {
       gimple_stmt_iterator gsi;
       tree t;
+
+      if ((TREE_CODE (name1) == SSA_NAME
+	   && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name1))
+	  || (TREE_CODE (name2) == SSA_NAME
+	      && SSA_NAME_OCCURS_IN_ABNORMAL_PHI (name2)))
+	return false;
 
       /* Find the common name which is bit-tested.  */
       if (name1 == name2)
@@ -872,7 +882,7 @@ pass_tree_ifcombine::execute (function *fun)
 		     || POINTER_TYPE_P (TREE_TYPE (lhs)))
 		    && arith_code_with_undefined_signed_overflow
 			 (gimple_assign_rhs_code (ass)))
-		  rewrite_to_defined_overflow (ass, true);
+		  rewrite_to_defined_overflow (&gsi);
 	      }
 	    cfg_changed |= true;
 	  }

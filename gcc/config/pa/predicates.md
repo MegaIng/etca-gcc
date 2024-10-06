@@ -1,5 +1,5 @@
 ;; Predicate definitions for HP PA-RISC.
-;; Copyright (C) 2005-2023 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2024 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -267,6 +267,10 @@
   if (!INT_14_BITS (op))
     return false;
 
+  /* Short displacement.  */
+  if (INT_5_BITS (op))
+    return true;
+
   /* Although this may not be necessary, we require that the
      base value is correctly aligned for its mode as this is
      assumed in the instruction encoding.  */
@@ -304,6 +308,10 @@
 
   if (reg_plus_base_memory_operand (op, mode))
     {
+      /* There is no support for handling secondary reloads of integer
+	 REG+D instructions in pa_emit_move_sequence.  Further, the Q
+	 constraint is used in more than simple move instructions.  So,
+	 we must return true and let reload handle the reload.  */
       if (reload_in_progress)
 	return true;
 
@@ -312,7 +320,7 @@
 	op = SUBREG_REG (op);
       op = XEXP (op, 0);
       op = REG_P (XEXP (op, 0)) ? XEXP (op, 1) : XEXP (op, 0);
-      return base14_operand (op, mode) || INT_5_BITS (op);
+      return base14_operand (op, mode);
     }
 
   if (!MEM_P (op))
@@ -323,12 +331,17 @@
 	  && !IS_INDEX_ADDR_P (XEXP (op, 0)));
 })
 
-;; True iff the operand OP can be used as the destination operand of
-;; a floating point store.  This also implies the operand could be used as
+;; True iff the operand OP can be used as the destination operand of a
+;; floating point store.  This also implies the operand could be used as
 ;; the source operand of a floating point load.  LO_SUM DLT and indexed
-;; memory operands are not allowed.  Symbolic operands are accepted if
-;; INT14_OK_STRICT is true.  We accept reloading pseudos and other memory
-;; operands.
+;; memory operands are not allowed.  Symbolic operands are accepted for
+;; PA 2.0.  We accept reloading pseudos and other memory operands.
+
+;; NOTE: The GNU ELF32 linker clobbered the least significant bit of
+;; the target floating-point register in PA 2.0 floating-point loads
+;; and stores with long displacements in ld versions prior to 2.42.
+;; The global pointer also was not double-word aligned.  This broke
+;; various DPREL relocations.
 
 (define_predicate "floating_point_store_memory_operand"
   (match_code "reg,mem")
@@ -341,17 +354,12 @@
 
   if (reg_plus_base_memory_operand (op, mode))
     {
-      if (reload_in_progress)
-	return true;
-
       /* Extract CONST_INT operand.  */
       if (GET_CODE (op) == SUBREG)
 	op = SUBREG_REG (op);
       op = XEXP (op, 0);
       op = REG_P (XEXP (op, 0)) ? XEXP (op, 1) : XEXP (op, 0);
-      return ((TARGET_PA_20
-	       && !TARGET_ELF32
-	       && base14_operand (op, mode))
+      return ((INT14_OK_STRICT && base14_operand (op, mode))
 	      || INT_5_BITS (op));
     }
 
@@ -459,9 +467,9 @@
   return memory_address_p (mode, XEXP (op, 0));
 })
 
-;; True iff OP is not a symbolic memory operand. 
+;; True iff OP is a valid memory operand. 
 
-(define_predicate "nonsymb_mem_operand"
+(define_predicate "mem_operand"
   (match_code "subreg,mem")
 {
   if (GET_CODE (op) == SUBREG)
@@ -480,8 +488,7 @@
       && REG_P (XEXP (XEXP (op, 0), 1)))
     return false;
 
-  return (!symbolic_memory_operand (op, mode)
-	  && memory_address_p (mode, XEXP (op, 0)));
+  return (memory_address_p (mode, XEXP (op, 0)));
 })
 
 ;; True iff OP is anything other than a hard register.
@@ -568,11 +575,11 @@
   (ior (match_operand 0 "register_operand")
        (match_operand 0 "const_0_operand")))
 
-;; True iff OP is either a register, zero, or a non-symbolic memory operand.
+;; True iff OP is either a register, zero, or a memory operand.
 
-(define_predicate "reg_or_0_or_nonsymb_mem_operand"
+(define_predicate "reg_or_0_or_mem_operand"
   (ior (match_operand 0 "reg_or_0_operand")
-       (match_operand 0 "nonsymb_mem_operand")))
+       (match_operand 0 "mem_operand")))
 
 ;; Accept REG and any CONST_INT that can be moved in one instruction
 ;; into a general register.

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2007-2023 Free Software Foundation, Inc.
+// Copyright (C) 2007-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -2067,6 +2067,6 @@ namespace __gnu_parallel
 	(__seqs_begin, __seqs_end, __target, __length, __comp,
 	 exact_tag(__tag.__get_num_threads()));
     }
-}; // namespace __gnu_parallel
+} // namespace __gnu_parallel
 
 #endif /* _GLIBCXX_PARALLEL_MULTIWAY_MERGE_H */

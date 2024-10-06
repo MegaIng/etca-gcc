@@ -1,5 +1,5 @@
 /* Wrapper to call lto.  Used by collect2 and the linker plugin.
-   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+   Copyright (C) 2009-2024 Free Software Foundation, Inc.
 
    Factored out of collect2 by Rafael Espindola <espindola@google.com>
 
@@ -218,15 +218,18 @@ find_option (vec<cl_decoded_option> &options, cl_decoded_option *option)
   return find_option (options, option->opt_index);
 }
 
-/* Merge -flto FOPTION into vector of DECODED_OPTIONS.  */
+/* Merge -flto FOPTION into vector of DECODED_OPTIONS.  If FORCE is true
+   then FOPTION overrides previous settings.  */
 
 static void
 merge_flto_options (vec<cl_decoded_option> &decoded_options,
-		    cl_decoded_option *foption)
+		    cl_decoded_option *foption, bool force)
 {
   int existing_opt = find_option (decoded_options, foption);
   if (existing_opt == -1)
     decoded_options.safe_push (*foption);
+  else if (force)
+    decoded_options[existing_opt].arg = foption->arg;
   else
     {
       if (strcmp (foption->arg, decoded_options[existing_opt].arg) != 0)
@@ -307,6 +310,8 @@ merge_and_complain (vec<cl_decoded_option> &decoded_options,
 
 	  /* Fallthru.  */
 	case OPT_fdiagnostics_show_caret:
+	case OPT_fdiagnostics_show_event_links:
+	case OPT_fdiagnostics_show_highlight_colors:
 	case OPT_fdiagnostics_show_labels:
 	case OPT_fdiagnostics_show_line_numbers:
 	case OPT_fdiagnostics_show_option:
@@ -479,6 +484,7 @@ merge_and_complain (vec<cl_decoded_option> &decoded_options,
  
 
 	case OPT_foffload_abi_:
+	case OPT_foffload_abi_host_opts_:
 	  if (existing_opt == -1)
 	    decoded_options.safe_push (*foption);
 	  else if (foption->value != decoded_options[existing_opt].value)
@@ -493,7 +499,7 @@ merge_and_complain (vec<cl_decoded_option> &decoded_options,
 	  break;
 
 	case OPT_flto_:
-	  merge_flto_options (decoded_options, foption);
+	  merge_flto_options (decoded_options, foption, false);
 	  break;
 	}
     }
@@ -723,6 +729,8 @@ append_compiler_options (obstack *argv_obstack, vec<cl_decoded_option> opts)
       switch (option->opt_index)
 	{
 	case OPT_fdiagnostics_show_caret:
+	case OPT_fdiagnostics_show_event_links:
+	case OPT_fdiagnostics_show_highlight_colors:
 	case OPT_fdiagnostics_show_labels:
 	case OPT_fdiagnostics_show_line_numbers:
 	case OPT_fdiagnostics_show_option:
@@ -738,6 +746,7 @@ append_compiler_options (obstack *argv_obstack, vec<cl_decoded_option> opts)
 	case OPT_fopenacc:
 	case OPT_fopenacc_dim_:
 	case OPT_foffload_abi_:
+	case OPT_foffload_abi_host_opts_:
 	case OPT_fcf_protection_:
 	case OPT_fasynchronous_unwind_tables:
 	case OPT_funwind_tables:
@@ -782,6 +791,8 @@ append_diag_options (obstack *argv_obstack, vec<cl_decoded_option> opts)
 	case OPT_fdiagnostics_color_:
 	case OPT_fdiagnostics_format_:
 	case OPT_fdiagnostics_show_caret:
+	case OPT_fdiagnostics_show_event_links:
+	case OPT_fdiagnostics_show_highlight_colors:
 	case OPT_fdiagnostics_show_labels:
 	case OPT_fdiagnostics_show_line_numbers:
 	case OPT_fdiagnostics_show_option:
@@ -993,7 +1004,8 @@ compile_offload_image (const char *target, const char *compiler_path,
 
   obstack_ptr_grow (&argv_obstack, NULL);
   argv = XOBFINISH (&argv_obstack, char **);
-  fork_execute (argv[0], argv, true, "offload_args");
+  suffix = concat (target, ".offload_args", NULL);
+  fork_execute (argv[0], argv, true, suffix);
   obstack_free (&argv_obstack, NULL);
 
   free_array_of_ptrs ((void **) paths, n_paths);
@@ -1354,11 +1366,11 @@ init_num_threads (void)
 void
 print_lto_docs_link ()
 {
-  bool print_url = global_dc->printer->url_format != URL_FORMAT_NONE;
-  const char *url = global_dc->get_option_url (global_dc, OPT_flto);
+  bool print_url = global_dc->m_printer->supports_urls_p ();
+  const char *url = global_dc->make_option_url (OPT_flto);
 
   pretty_printer pp;
-  pp.url_format = URL_FORMAT_DEFAULT;
+  pp.set_url_format (URL_FORMAT_DEFAULT);
   pp_string (&pp, "see the ");
   if (print_url)
     pp_begin_url (&pp, url);
@@ -1549,8 +1561,8 @@ run_gcc (unsigned argc, char *argv[])
 	  break;
 
 	case OPT_flto_:
-	  /* Merge linker -flto= option with what we have in IL files.  */
-	  merge_flto_options (fdecoded_options, option);
+	  /* Override IL file settings with a linker -flto= option.  */
+	  merge_flto_options (fdecoded_options, option, true);
 	  if (strcmp (option->arg, "jobserver") == 0)
 	    jobserver_requested = true;
 	  break;
@@ -1584,6 +1596,10 @@ run_gcc (unsigned argc, char *argv[])
 
 	case OPT_fdiagnostics_color_:
 	  diagnostic_color_init (global_dc, option->value);
+	  break;
+
+	case OPT_fdiagnostics_show_highlight_colors:
+	  global_dc->set_show_highlight_colors (option->value);
 	  break;
 
 	default:
@@ -1980,7 +1996,10 @@ cont:
 
       if (parallel)
 	{
-	  makefile = make_temp_file (".mk");
+	  if (save_temps)
+	    makefile = concat (dumppfx, "ltrans.mk", NULL);
+	  else
+	    makefile = make_temp_file (".mk");
 	  mstream = fopen (makefile, "w");
 	  qsort (ltrans_priorities, nr, sizeof (int) * 2, cmp_priority);
 	}
@@ -2019,14 +2038,12 @@ cont:
 	      fprintf (mstream, "%s:\n\t@%s ", output_name, new_argv[0]);
 	      for (j = 1; new_argv[j] != NULL; ++j)
 		fprintf (mstream, " '%s'", new_argv[j]);
-	      fprintf (mstream, "\n");
 	      /* If we are not preserving the ltrans input files then
 	         truncate them as soon as we have processed it.  This
 		 reduces temporary disk-space usage.  */
 	      if (! save_temps)
-		fprintf (mstream, "\t@-touch -r \"%s\" \"%s.tem\" > /dev/null "
-			 "2>&1 && mv \"%s.tem\" \"%s\"\n",
-			 input_name, input_name, input_name, input_name); 
+		fprintf (mstream, " -truncate '%s'", input_name);
+	      fprintf (mstream, "\n");
 	    }
 	  else
 	    {
@@ -2124,6 +2141,26 @@ cont:
   obstack_free (&argv_obstack, NULL);
 }
 
+/* Concrete implementation of diagnostic_option_manager for LTO.  */
+
+class lto_diagnostic_option_manager : public gcc_diagnostic_option_manager
+{
+public:
+  lto_diagnostic_option_manager ()
+  : gcc_diagnostic_option_manager (0 /* lang_mask */)
+  {
+  }
+  int option_enabled_p (diagnostic_option_id) const final override
+  {
+    return true;
+  }
+  char *make_option_name (diagnostic_option_id,
+			  diagnostic_t,
+			  diagnostic_t) const final override
+  {
+    return nullptr;
+  }
+};
 
 /* Entry point.  */
 
@@ -2146,7 +2183,7 @@ main (int argc, char *argv[])
   diagnostic_initialize (global_dc, 0);
   diagnostic_color_init (global_dc);
   diagnostic_urls_init (global_dc);
-  global_dc->get_option_url = get_option_url;
+  global_dc->set_option_manager (new lto_diagnostic_option_manager (), 0);
 
   if (atexit (lto_wrapper_cleanup) != 0)
     fatal_error (input_location, "%<atexit%> failed");

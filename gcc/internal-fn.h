@@ -1,5 +1,5 @@
 /* Internal functions.
-   Copyright (C) 2011-2023 Free Software Foundation, Inc.
+   Copyright (C) 2011-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -224,6 +224,7 @@ extern bool set_edom_supported_p (void);
 
 extern internal_fn get_conditional_internal_fn (tree_code);
 extern internal_fn get_conditional_internal_fn (internal_fn);
+extern internal_fn get_len_internal_fn (internal_fn);
 extern internal_fn get_conditional_len_internal_fn (tree_code);
 extern tree_code conditional_internal_fn_code (internal_fn);
 extern internal_fn get_unconditional_internal_fn (internal_fn);
@@ -236,6 +237,7 @@ extern bool internal_store_fn_p (internal_fn);
 extern bool internal_gather_scatter_fn_p (internal_fn);
 extern int internal_fn_mask_index (internal_fn);
 extern int internal_fn_len_index (internal_fn);
+extern int internal_fn_else_index (internal_fn);
 extern int internal_fn_stored_value_index (internal_fn);
 extern bool internal_gather_scatter_fn_supported_p (internal_fn, tree,
 						    tree, tree, int);
@@ -256,6 +258,16 @@ extern void expand_SPACESHIP (internal_fn, gcall *);
 extern void expand_TRAP (internal_fn, gcall *);
 extern void expand_ASSUME (internal_fn, gcall *);
 extern void expand_MASK_CALL (internal_fn, gcall *);
+extern void expand_MULBITINT (internal_fn, gcall *);
+extern void expand_DIVMODBITINT (internal_fn, gcall *);
+extern void expand_FLOATTOBITINT (internal_fn, gcall *);
+extern void expand_BITINTTOFLOAT (internal_fn, gcall *);
+extern void expand_CLRSB (internal_fn, gcall *);
+extern void expand_CLZ (internal_fn, gcall *);
+extern void expand_CTZ (internal_fn, gcall *);
+extern void expand_FFS (internal_fn, gcall *);
+extern void expand_PARITY (internal_fn, gcall *);
+extern void expand_POPCOUNT (internal_fn, gcall *);
 
 extern bool vectorized_internal_fn_supported_p (internal_fn, tree);
 

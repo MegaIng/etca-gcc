@@ -1,6 +1,6 @@
 // Types used in iterator implementation -*- C++ -*-
 
-// Copyright (C) 2001-2023 Free Software Foundation, Inc.
+// Copyright (C) 2001-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -59,7 +59,9 @@
 #ifndef _STL_ITERATOR_BASE_TYPES_H
 #define _STL_ITERATOR_BASE_TYPES_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 
@@ -243,16 +245,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #if __cplusplus >= 201103L
   template<typename _Iter>
-    using __iterator_category_t
+    using __iter_category_t
       = typename iterator_traits<_Iter>::iterator_category;
 
   template<typename _InIter>
     using _RequireInputIter =
-      __enable_if_t<is_convertible<__iterator_category_t<_InIter>,
+      __enable_if_t<is_convertible<__iter_category_t<_InIter>,
 				   input_iterator_tag>::value>;
 
   template<typename _It,
-	   typename _Cat = __iterator_category_t<_It>>
+	   typename _Cat = __iter_category_t<_It>>
     struct __is_random_access_iter
       : is_base_of<random_access_iterator_tag, _Cat>
     {
@@ -268,5 +270,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
+
+#if __glibcxx_algorithm_default_value_type // C++ >= 26
+# define _GLIBCXX26_DEF_VAL_T(T) = T
+# define _GLIBCXX26_ALGO_DEF_VAL_T(_Iterator) \
+     = typename iterator_traits<_Iterator>::value_type
+#else
+# define _GLIBCXX26_DEF_VAL_T(T)
+# define _GLIBCXX26_ALGO_DEF_VAL_T(_Iterator)
+#endif
 
 #endif /* _STL_ITERATOR_BASE_TYPES_H */

@@ -1,5 +1,5 @@
 /* Induction variable canonicalization and loop peeling.
-   Copyright (C) 2004-2023 Free Software Foundation, Inc.
+   Copyright (C) 2004-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -36,6 +36,7 @@ along with GCC; see the file COPYING3.  If not see
        info).  */
 
 #include "config.h"
+#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "backend.h"
@@ -63,6 +64,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-cfgcleanup.h"
 #include "builtins.h"
 #include "tree-ssa-sccvn.h"
+#include "tree-vectorizer.h" /* For find_loop_location */
 #include "dbgcnt.h"
 
 /* Specifies types of loops that may be unrolled.  */
@@ -166,6 +168,11 @@ constant_after_peeling (tree op, gimple *stmt, class loop *loop)
   if (CONSTANT_CLASS_P (op))
     return true;
 
+  /* Get at the actual SSA operand.  */
+  if (handled_component_p (op)
+      && TREE_CODE (TREE_OPERAND (op, 0)) == SSA_NAME)
+    op = TREE_OPERAND (op, 0);
+
   /* We can still fold accesses to constant arrays when index is known.  */
   if (TREE_CODE (op) != SSA_NAME)
     {
@@ -198,7 +205,46 @@ constant_after_peeling (tree op, gimple *stmt, class loop *loop)
   tree ev = analyze_scalar_evolution (loop, op);
   if (chrec_contains_undetermined (ev)
       || chrec_contains_symbols (ev))
-    return false;
+    {
+      if (ANY_INTEGRAL_TYPE_P (TREE_TYPE (op)))
+	{
+	  gassign *ass = nullptr;
+	  gphi *phi = nullptr;
+	  if (is_a <gassign *> (SSA_NAME_DEF_STMT (op)))
+	    {
+	      ass = as_a <gassign *> (SSA_NAME_DEF_STMT (op));
+	      if (TREE_CODE (gimple_assign_rhs1 (ass)) == SSA_NAME)
+		phi = dyn_cast <gphi *>
+			(SSA_NAME_DEF_STMT (gimple_assign_rhs1  (ass)));
+	    }
+	  else if (is_a <gphi *> (SSA_NAME_DEF_STMT (op)))
+	    {
+	      phi = as_a <gphi *> (SSA_NAME_DEF_STMT (op));
+	      if (gimple_bb (phi) == loop->header)
+		{
+		  tree def = gimple_phi_arg_def_from_edge
+		    (phi, loop_latch_edge (loop));
+		  if (TREE_CODE (def) == SSA_NAME
+		      && is_a <gassign *> (SSA_NAME_DEF_STMT (def)))
+		    ass = as_a <gassign *> (SSA_NAME_DEF_STMT (def));
+		}
+	    }
+	  if (ass && phi)
+	    {
+	      tree rhs1 = gimple_assign_rhs1 (ass);
+	      if (gimple_assign_rhs_class (ass) == GIMPLE_BINARY_RHS
+		  && CONSTANT_CLASS_P (gimple_assign_rhs2 (ass))
+		  && rhs1 == gimple_phi_result (phi)
+		  && gimple_bb (phi) == loop->header
+		  && (gimple_phi_arg_def_from_edge (phi, loop_latch_edge (loop))
+		      == gimple_assign_lhs (ass))
+		  && (CONSTANT_CLASS_P (gimple_phi_arg_def_from_edge
+					 (phi, loop_preheader_edge (loop)))))
+		return true;
+	    }
+	}
+      return false;
+    }
   return true;
 }
 
@@ -392,11 +438,7 @@ tree_estimate_loop_size (class loop *loop, edge exit, edge edge_to_cancel,
    It is (NUNROLL + 1) * size of loop body with taking into account
    the fact that in last copy everything after exit conditional
    is dead and that some instructions will be eliminated after
-   peeling.
-
-   Loop body is likely going to simplify further, this is difficult
-   to guess, we just decrease the result by 1/3.  */
-
+   peeling.  */
 static unsigned HOST_WIDE_INT
 estimated_unrolled_size (struct loop_size *size,
 			 unsigned HOST_WIDE_INT nunroll)
@@ -407,10 +449,6 @@ estimated_unrolled_size (struct loop_size *size,
   if (!nunroll)
     unr_insns = 0;
   unr_insns += size->last_iteration - size->last_iteration_eliminated_by_peeling;
-
-  unr_insns = unr_insns * 2 / 3;
-  if (unr_insns <= 0)
-    unr_insns = 1;
 
   return unr_insns;
 }
@@ -577,10 +615,11 @@ remove_redundant_iv_tests (class loop *loop)
 	      || !integer_zerop (niter.may_be_zero)
 	      || !niter.niter
 	      || TREE_CODE (niter.niter) != INTEGER_CST
-	      || !wi::ltu_p (loop->nb_iterations_upper_bound,
+	      || !wi::ltu_p (widest_int::from (loop->nb_iterations_upper_bound,
+					       SIGNED),
 			     wi::to_widest (niter.niter)))
 	    continue;
-	  
+
 	  if (dump_file && (dump_flags & TDF_DETAILS))
 	    {
 	      fprintf (dump_file, "Removed pointless exit: ");
@@ -621,6 +660,7 @@ static bitmap peeled_loops;
 void
 unloop_loops (vec<class loop *> &loops_to_unloop,
 	      vec<int> &loops_to_unloop_nunroll,
+	      vec<edge> &edges_to_remove,
 	      bitmap loop_closed_ssa_invalidated,
 	      bool *irred_invalidated)
 {
@@ -687,7 +727,8 @@ try_unroll_loop_completely (class loop *loop,
 			    edge exit, tree niter, bool may_be_zero,
 			    enum unroll_level ul,
 			    HOST_WIDE_INT maxiter,
-			    dump_user_location_t locus, bool allow_peel)
+			    dump_user_location_t locus, bool allow_peel,
+			    bool cunrolli)
 {
   unsigned HOST_WIDE_INT n_unroll = 0;
   bool n_unroll_found = false;
@@ -800,8 +841,9 @@ try_unroll_loop_completely (class loop *loop,
 
 	  /* If the code is going to shrink, we don't need to be extra
 	     cautious on guessing if the unrolling is going to be
-	     profitable.  */
-	  if (unr_insns
+	     profitable.
+	     Move from estimated_unrolled_size to unroll small loops.  */
+	  if (unr_insns * 2 / 3
 	      /* If there is IV variable that will become constant, we
 		 save one instruction in the loop prologue we do not
 		 account otherwise.  */
@@ -872,7 +914,13 @@ try_unroll_loop_completely (class loop *loop,
 			 loop->num);
 	      return false;
 	    }
-	  else if (unr_insns
+	  /* Move 2 / 3 reduction from estimated_unrolled_size, but don't reduce
+	     unrolled size for innermost loop.
+	     1) It could increase register pressure.
+	     2) Big loop after completely unroll may not be vectorized
+	     by BB vectorizer.  */
+	  else if ((cunrolli && !loop->inner
+		    ? unr_insns : unr_insns * 2 / 3)
 		   > (unsigned) param_max_completely_peeled_insns)
 	    {
 	      if (dump_file && (dump_flags & TDF_DETAILS))
@@ -1180,13 +1228,12 @@ try_peel_loop (class loop *loop,
 static bool
 canonicalize_loop_induction_variables (class loop *loop,
 				       bool create_iv, enum unroll_level ul,
-				       bool try_eval, bool allow_peel)
+				       bool try_eval, bool allow_peel, bool cunrolli)
 {
   edge exit = NULL;
   tree niter;
   HOST_WIDE_INT maxiter;
   bool modified = false;
-  dump_user_location_t locus;
   class tree_niter_desc niter_desc;
   bool may_be_zero = false;
 
@@ -1200,9 +1247,7 @@ canonicalize_loop_induction_variables (class loop *loop,
       may_be_zero
 	= niter_desc.may_be_zero && !integer_zerop (niter_desc.may_be_zero);
     }
-  if (TREE_CODE (niter) == INTEGER_CST)
-    locus = last_nondebug_stmt (exit->src);
-  else
+  if (TREE_CODE (niter) != INTEGER_CST)
     {
       /* For non-constant niter fold may_be_zero into niter again.  */
       if (may_be_zero)
@@ -1226,9 +1271,6 @@ canonicalize_loop_induction_variables (class loop *loop,
 	  && (chrec_contains_undetermined (niter)
 	      || TREE_CODE (niter) != INTEGER_CST))
 	niter = find_loop_niter_by_eval (loop, &exit);
-
-      if (exit)
-	locus = last_nondebug_stmt (exit->src);
 
       if (TREE_CODE (niter) != INTEGER_CST)
 	exit = NULL;
@@ -1271,8 +1313,9 @@ canonicalize_loop_induction_variables (class loop *loop,
      populates the loop bounds.  */
   modified |= remove_redundant_iv_tests (loop);
 
+  dump_user_location_t locus = find_loop_location (loop);
   if (try_unroll_loop_completely (loop, exit, niter, may_be_zero, ul,
-				  maxiter, locus, allow_peel))
+				  maxiter, locus, allow_peel, cunrolli))
     return true;
 
   if (create_iv
@@ -1316,11 +1359,11 @@ canonicalize_induction_variables (void)
     {
       changed |= canonicalize_loop_induction_variables (loop,
 							true, UL_SINGLE_ITER,
-							true, false);
+							true, false, false);
     }
   gcc_assert (!need_ssa_update_p (cfun));
 
-  unloop_loops (loops_to_unloop, loops_to_unloop_nunroll,
+  unloop_loops (loops_to_unloop, loops_to_unloop_nunroll, edges_to_remove,
 		loop_closed_ssa_invalidated, &irred_invalidated);
   loops_to_unloop.release ();
   loops_to_unloop_nunroll.release ();
@@ -1350,7 +1393,7 @@ canonicalize_induction_variables (void)
 
 static bool
 tree_unroll_loops_completely_1 (bool may_increase_size, bool unroll_outer,
-				bitmap father_bbs, class loop *loop)
+				bitmap father_bbs, class loop *loop, bool cunrolli)
 {
   class loop *loop_father;
   bool changed = false;
@@ -1368,7 +1411,7 @@ tree_unroll_loops_completely_1 (bool may_increase_size, bool unroll_outer,
 	if (!child_father_bbs)
 	  child_father_bbs = BITMAP_ALLOC (NULL);
 	if (tree_unroll_loops_completely_1 (may_increase_size, unroll_outer,
-					    child_father_bbs, inner))
+					    child_father_bbs, inner, cunrolli))
 	  {
 	    bitmap_ior_into (father_bbs, child_father_bbs);
 	    bitmap_clear (child_father_bbs);
@@ -1414,7 +1457,7 @@ tree_unroll_loops_completely_1 (bool may_increase_size, bool unroll_outer,
     ul = UL_NO_GROWTH;
 
   if (canonicalize_loop_induction_variables
-        (loop, false, ul, !flag_tree_loop_ivcanon, unroll_outer))
+      (loop, false, ul, !flag_tree_loop_ivcanon, unroll_outer, cunrolli))
     {
       /* If we'll continue unrolling, we need to propagate constants
 	 within the new basic blocks to fold away induction variable
@@ -1449,6 +1492,7 @@ tree_unroll_loops_completely (bool may_increase_size, bool unroll_outer)
   bool changed;
   int iteration = 0;
   bool irred_invalidated = false;
+  bool cunrolli = true;
 
   estimate_numbers_of_iterations (cfun);
 
@@ -1465,14 +1509,18 @@ tree_unroll_loops_completely (bool may_increase_size, bool unroll_outer)
 
       changed = tree_unroll_loops_completely_1 (may_increase_size,
 						unroll_outer, father_bbs,
-						current_loops->tree_root);
+						current_loops->tree_root,
+						cunrolli);
       if (changed)
 	{
 	  unsigned i;
+	  /* For the outer loop, considering that the inner loop is completely
+	     unrolled, it would expose more optimization opportunities, so it's
+	     better to keep 2/3 reduction of estimated unrolled size.  */
+	  cunrolli = false;
 
-	  unloop_loops (loops_to_unloop,
-			loops_to_unloop_nunroll,
-			loop_closed_ssa_invalidated,
+	  unloop_loops (loops_to_unloop, loops_to_unloop_nunroll,
+			edges_to_remove, loop_closed_ssa_invalidated,
 			&irred_invalidated);
 	  loops_to_unloop.release ();
 	  loops_to_unloop_nunroll.release ();
@@ -1629,8 +1677,7 @@ pass_complete_unroll::execute (function *fun)
      re-peeling the same loop multiple times.  */
   if (flag_peel_loops)
     peeled_loops = BITMAP_ALLOC (NULL);
-  unsigned int val = tree_unroll_loops_completely (flag_cunroll_grow_size, 
-						   true);
+  unsigned int val = tree_unroll_loops_completely (flag_cunroll_grow_size, true);
   if (peeled_loops)
     {
       BITMAP_FREE (peeled_loops);

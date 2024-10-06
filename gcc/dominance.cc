@@ -1,5 +1,5 @@
 /* Calculate (post)dominators in slightly super-linear time.
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Michael Matz (matz@ifh.de).
 
    This file is part of GCC.
@@ -1656,6 +1656,36 @@ debug_dominance_info (enum cdi_direction dir)
   FOR_EACH_BB_FN (bb, cfun)
     if ((bb2 = get_immediate_dominator (dir, bb)))
       fprintf (stderr, "%i %i\n", bb->index, bb2->index);
+}
+
+/* Dump the dominance tree in direction DIR to the file F in dot form.
+   This allows easily visualizing the tree using graphviz.  */
+
+DEBUG_FUNCTION void
+dot_dominance_tree (FILE *f, enum cdi_direction dir)
+{
+  fprintf (f, "digraph {\n");
+  basic_block bb, idom;
+  FOR_EACH_BB_FN (bb, cfun)
+    if ((idom = get_immediate_dominator (dir, bb)))
+      fprintf (f, "%i -> %i;\n", idom->index, bb->index);
+  fprintf (f, "}\n");
+}
+
+/* Convenience wrapper around the above that dumps the dominance tree in
+   direction DIR to the file at path FNAME in dot form.  */
+
+DEBUG_FUNCTION void
+dot_dominance_tree (const char *fname, enum cdi_direction dir)
+{
+  FILE *f = fopen (fname, "w");
+  if (f)
+    {
+      dot_dominance_tree (f, dir);
+      fclose (f);
+    }
+  else
+    fprintf (stderr, "failed to open %s: %s\n", fname, xstrerror (errno));
 }
 
 /* Prints to stderr representation of the dominance tree (for direction DIR)

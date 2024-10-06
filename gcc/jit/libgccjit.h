@@ -1,5 +1,5 @@
 /* A pure C API to enable client code to embed GCC as a JIT-compiler.
-   Copyright (C) 2013-2023 Free Software Foundation, Inc.
+   Copyright (C) 2013-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,11 @@ along with GCC; see the file COPYING3.  If not see
 #define LIBGCCJIT_H
 
 #include <stdio.h>
+#ifdef __has_include
+#if __has_include (<sys/types.h>)
+#include <sys/types.h>
+#endif
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -604,7 +609,9 @@ enum gcc_jit_types
   GCC_JIT_TYPE_INT16_T,
   GCC_JIT_TYPE_INT32_T,
   GCC_JIT_TYPE_INT64_T,
-  GCC_JIT_TYPE_INT128_T
+  GCC_JIT_TYPE_INT128_T,
+
+  GCC_JIT_TYPE_BFLOAT16,
 };
 
 extern gcc_jit_type *
@@ -629,6 +636,15 @@ gcc_jit_type_get_const (gcc_jit_type *type);
 /* Given type "T", get type "volatile T".  */
 extern gcc_jit_type *
 gcc_jit_type_get_volatile (gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_type_get_restrict
+
+/* Given type "T", get type "restrict T".
+   This API entrypoint was added in LIBGCCJIT_ABI_25; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_type_get_restrict  */
+extern gcc_jit_type *
+gcc_jit_type_get_restrict (gcc_jit_type *type);
 
 #define LIBGCCJIT_HAVE_SIZED_INTEGERS
 
@@ -1083,6 +1099,31 @@ gcc_jit_context_new_rvalue_from_ptr (gcc_jit_context *ctxt,
 extern gcc_jit_rvalue *
 gcc_jit_context_null (gcc_jit_context *ctxt,
 		      gcc_jit_type *pointer_type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_new_sizeof
+
+/* Generates an rvalue that is equal to the size of type.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_27; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_sizeof  */
+
+extern gcc_jit_rvalue *
+gcc_jit_context_new_sizeof (gcc_jit_context *ctxt,
+			    gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_new_alignof
+
+/* Generates an rvalue that is equal to the alignment of type.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_38; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_alignof  */
+
+extern gcc_jit_rvalue *
+gcc_jit_context_new_alignof (gcc_jit_context *ctxt,
+			     gcc_jit_type *type);
+
 
 /* String literals. */
 extern gcc_jit_rvalue *
@@ -1989,6 +2030,61 @@ gcc_jit_vector_type_get_element_type (gcc_jit_vector_type *vector_type);
  * and alignment qualifiers.  */
 extern gcc_jit_type *
 gcc_jit_type_unqualified (gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_ATTRIBUTES
+
+/* Function attributes.  */
+enum gcc_jit_fn_attribute
+{
+  GCC_JIT_FN_ATTRIBUTE_ALIAS,
+  GCC_JIT_FN_ATTRIBUTE_ALWAYS_INLINE,
+  GCC_JIT_FN_ATTRIBUTE_INLINE,
+  GCC_JIT_FN_ATTRIBUTE_NOINLINE,
+  GCC_JIT_FN_ATTRIBUTE_TARGET,
+  GCC_JIT_FN_ATTRIBUTE_USED,
+  GCC_JIT_FN_ATTRIBUTE_VISIBILITY,
+  GCC_JIT_FN_ATTRIBUTE_COLD,
+  GCC_JIT_FN_ATTRIBUTE_RETURNS_TWICE,
+  GCC_JIT_FN_ATTRIBUTE_PURE,
+  GCC_JIT_FN_ATTRIBUTE_CONST,
+  GCC_JIT_FN_ATTRIBUTE_WEAK,
+  GCC_JIT_FN_ATTRIBUTE_NONNULL,
+
+  /* Maximum value of this enum, should always be last. */
+  GCC_JIT_FN_ATTRIBUTE_MAX,
+};
+
+/* Add an attribute to a function.  */
+extern void
+gcc_jit_function_add_attribute (gcc_jit_function *func,
+				enum gcc_jit_fn_attribute attribute);
+
+extern void
+gcc_jit_function_add_string_attribute (gcc_jit_function *func,
+				       enum gcc_jit_fn_attribute attribute,
+				       const char* value);
+
+extern void
+gcc_jit_function_add_integer_array_attribute (
+  gcc_jit_function *func,
+  enum gcc_jit_fn_attribute attribute,
+  const int* value,
+  size_t length);
+
+/* Variable attributes.  */
+enum gcc_jit_variable_attribute
+{
+  GCC_JIT_VARIABLE_ATTRIBUTE_VISIBILITY,
+
+  /* Maximum value of this enum, should always be last. */
+  GCC_JIT_VARIABLE_ATTRIBUTE_MAX,
+};
+
+/* Add a string attribute to a variable.  */
+extern void
+gcc_jit_lvalue_add_string_attribute (gcc_jit_lvalue *variable,
+				     enum gcc_jit_variable_attribute attribute,
+				     const char* value);
 
 #ifdef __cplusplus
 }

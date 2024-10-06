@@ -1,5 +1,5 @@
 /* All matcher functions.
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
    Contributed by Steven Bosscher
 
 This file is part of GCC.
@@ -172,6 +172,7 @@ match gfc_match_omp_do_simd (void);
 match gfc_match_omp_loop (void);
 match gfc_match_omp_error (void);
 match gfc_match_omp_flush (void);
+match gfc_match_omp_interop (void);
 match gfc_match_omp_masked (void);
 match gfc_match_omp_masked_taskloop (void);
 match gfc_match_omp_masked_taskloop_simd (void);
@@ -228,6 +229,8 @@ match gfc_match_omp_teams_distribute_parallel_do_simd (void);
 match gfc_match_omp_teams_distribute_simd (void);
 match gfc_match_omp_teams_loop (void);
 match gfc_match_omp_threadprivate (void);
+match gfc_match_omp_tile (void);
+match gfc_match_omp_unroll (void);
 match gfc_match_omp_workshare (void);
 match gfc_match_omp_end_critical (void);
 match gfc_match_omp_end_nowait (void);

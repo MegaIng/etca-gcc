@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on Vitesse IQ2000 processors
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -170,7 +170,8 @@ static pad_direction iq2000_function_arg_padding (machine_mode, const_tree);
 static unsigned int iq2000_function_arg_boundary (machine_mode,
 						  const_tree);
 static void iq2000_va_start	      (tree, rtx);
-static bool iq2000_legitimate_address_p (machine_mode, rtx, bool);
+static bool iq2000_legitimate_address_p (machine_mode, rtx, bool,
+					 code_helper = ERROR_MARK);
 static bool iq2000_can_eliminate      (const int, const int);
 static void iq2000_asm_trampoline_template (FILE *);
 static void iq2000_trampoline_init    (rtx, tree, rtx);
@@ -304,7 +305,8 @@ iq2000_reg_mode_ok_for_base_p (rtx reg,
    function is called during reload.  */
 
 bool
-iq2000_legitimate_address_p (machine_mode mode, rtx xinsn, bool strict)
+iq2000_legitimate_address_p (machine_mode mode, rtx xinsn, bool strict,
+			     code_helper)
 {
   if (TARGET_DEBUG_A_MODE)
     {
@@ -3125,7 +3127,7 @@ iq2000_print_operand (FILE *file, rtx op, int letter)
     {
       int value;
       if (code != CONST_INT
-	  || (value = exact_log2 (INTVAL (op))) < 0)
+	  || (value = exact_log2 (UINTVAL (op) & 0xffffffff)) < 0)
 	output_operand_lossage ("invalid %%p value");
       else
 	fprintf (file, "%d", value);

@@ -1,5 +1,5 @@
 /* Integrated Register Allocator (IRA) entry point.
-   Copyright (C) 2006-2023 Free Software Foundation, Inc.
+   Copyright (C) 2006-2024 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -3838,7 +3838,8 @@ update_equiv_regs (void)
 static void
 add_store_equivs (void)
 {
-  auto_bitmap seen_insns;
+  auto_sbitmap seen_insns (get_max_uid () + 1);
+  bitmap_clear (seen_insns);
 
   for (rtx_insn *insn = get_insns (); insn; insn = NEXT_INSN (insn))
     {
@@ -5144,7 +5145,10 @@ split_live_ranges_for_shrink_wrap (void)
 	   use = DF_REF_NEXT_REG (use))
 	{
 	  int ubbi = DF_REF_BB (use)->index;
-	  if (bitmap_bit_p (reachable, ubbi))
+
+	  /* Only non debug insns should be taken into account.  */
+	  if (NONDEBUG_INSN_P (DF_REF_INSN (use))
+	      && bitmap_bit_p (reachable, ubbi))
 	    bitmap_set_bit (need_new, ubbi);
 	}
       last_interesting_insn = insn;
@@ -5542,6 +5546,9 @@ bool ira_conflicts_p;
 /* Saved between IRA and reload.  */
 static int saved_flag_ira_share_spill_slots;
 
+/* Set to true while in IRA.  */
+bool ira_in_progress = false;
+
 /* This is the main entry of IRA.  */
 static void
 ira (FILE *f)
@@ -5732,7 +5739,7 @@ ira (FILE *f)
     combine_and_move_insns ();
 
   /* Gather additional equivalences with memory.  */
-  if (optimize)
+  if (optimize && flag_expensive_optimizations)
     add_store_equivs ();
 
   loop_optimizer_finalize ();
@@ -5967,7 +5974,7 @@ do_reload (void)
 
       ira_destroy ();
 
-      lra (ira_dump_file);
+      lra (ira_dump_file, internal_flag_ira_verbose);
       /* ???!!! Move it before lra () when we use ira_reg_equiv in
 	 LRA.  */
       vec_free (reg_equivs);
@@ -6110,7 +6117,9 @@ public:
     }
   unsigned int execute (function *) final override
     {
+      ira_in_progress = true;
       ira (dump_file);
+      ira_in_progress = false;
       return 0;
     }
 

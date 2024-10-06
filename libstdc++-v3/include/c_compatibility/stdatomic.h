@@ -29,12 +29,13 @@
 #ifndef _GLIBCXX_STDATOMIC_H
 #define _GLIBCXX_STDATOMIC_H
 
-#if __cplusplus > 202002L
+#define __glibcxx_want_stdatomic_h
+#include <bits/version.h>
+
+#ifdef __cpp_lib_stdatomic_h // C++ >= 23
 #include <atomic>
 
-#define __cpp_lib_stdatomic_h 202011L
-
-#define _Atomic(_Tp) std::atomic<_Tp>
+#define _Atomic(_Tp) ::std::atomic<_Tp>
 
 using std::memory_order;
 using std::memory_order_relaxed;
@@ -124,7 +125,7 @@ using std::atomic_flag_clear_explicit;
 using std::atomic_thread_fence;
 using std::atomic_signal_fence;
 
-#elif defined __clang__
+#elif defined _GLIBCXX_CLANG
 # include_next <stdatomic.h>
-#endif // C++23
+#endif // __cpp_lib_stdatomic_h
 #endif // _GLIBCXX_STDATOMIC_H

@@ -403,7 +403,7 @@ struct Group(DataIndex)
 }
 
 //debugging tool, prints out instruction along with opcodes
-@trusted string disassemble(in Bytecode[] irb, uint pc, in NamedGroup[] dict=[])
+debug(std_regex_parser) @trusted string disassemble(in Bytecode[] irb, uint pc, in NamedGroup[] dict=[])
 {
     import std.array : appender;
     import std.format.write : formattedWrite;
@@ -467,7 +467,7 @@ struct Group(DataIndex)
 }
 
 //disassemble the whole chunk
-@trusted void printBytecode()(in Bytecode[] slice, in NamedGroup[] dict=[])
+debug(std_regex_parser) @trusted void printBytecode()(in Bytecode[] slice, in NamedGroup[] dict=[])
 {
     import std.stdio : writeln;
     for (uint pc=0; pc<slice.length; pc += slice[pc].length)
@@ -1045,7 +1045,7 @@ if (!hasElaborateDestructor!T)
         return isBig ? big.ptr[0 .. length] : small[0 .. length];
     }
 
-    this(this)
+    this(this) @trusted
     {
         if (isBig)
         {

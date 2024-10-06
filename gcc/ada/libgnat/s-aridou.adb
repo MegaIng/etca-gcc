@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,6 +28,9 @@
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
+
+pragma Annotate (Gnatcheck, Exempt_On, "Metrics_LSLOC",
+                 "limit exceeded due to proof code");
 
 with Ada.Unchecked_Conversion;
 with System.SPARK.Cut_Operations; use System.SPARK.Cut_Operations;
@@ -89,6 +92,9 @@ is
    pragma Warnings
      (On, "non-preelaborable call not allowed in preelaborated unit");
    pragma Warnings (On, "non-static constant in preelaborated unit");
+
+   pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                    "early returns for performance");
 
    -----------------------
    -- Local Subprograms --
@@ -811,6 +817,8 @@ is
    -- Double_Divide --
    -------------------
 
+   pragma Annotate (Gnatcheck, Exempt_On, "Metrics_Cyclomatic_Complexity",
+                    "limit exceeded due to proof code");
    procedure Double_Divide
      (X, Y, Z : Double_Int;
       Q, R    : out Double_Int;
@@ -963,7 +971,7 @@ is
       procedure Prove_Rounding_Case is
       begin
          if Same_Sign (Big (X), Big (Y) * Big (Z)) then
-            null;
+            pragma Assert (abs Big_Q = Big (Qu));
          end if;
       end Prove_Rounding_Case;
 
@@ -1218,6 +1226,7 @@ is
 
       Prove_Signs;
    end Double_Divide;
+   pragma Annotate (Gnatcheck, Exempt_Off, "Metrics_Cyclomatic_Complexity");
 
    ---------
    -- Le3 --
@@ -1594,6 +1603,7 @@ is
          pragma Loop_Invariant (XX = Shift_Right (X, J));
          pragma Loop_Invariant (XX = X / Double_Uns'(2) ** J);
       end loop;
+      Lemma_Div_Commutation (X, Double_Uns'(2) ** Shift);
    end Lemma_Shift_Right;
 
    ------------------------------
@@ -1896,6 +1906,8 @@ is
    -- Scaled_Divide --
    -------------------
 
+   pragma Annotate (Gnatcheck, Exempt_On, "Metrics_Cyclomatic_Complexity",
+                    "limit exceeded due to proof code");
    procedure Scaled_Divide
      (X, Y, Z : Double_Int;
       Q, R    : out Double_Int;
@@ -2430,7 +2442,11 @@ is
       procedure Prove_Rounding_Case is
       begin
          if Same_Sign (Big (X) * Big (Y), Big (Z)) then
-            null;
+            pragma Assert
+              (abs Big_Q =
+                 (if Ru > (Zu - Double_Uns'(1)) / Double_Uns'(2)
+                  then abs Quot + 1
+                  else abs Quot));
          end if;
       end Prove_Rounding_Case;
 
@@ -3314,6 +3330,7 @@ is
       Prove_Sign_R;
       Prove_Signs;
    end Scaled_Divide;
+   pragma Annotate (Gnatcheck, Exempt_Off, "Metrics_Cyclomatic_Complexity");
 
    ----------
    -- Sub3 --
@@ -3653,4 +3670,7 @@ is
       end if;
    end To_Pos_Int;
 
+   pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
 end System.Arith_Double;
+
+pragma Annotate (Gnatcheck, Exempt_Off, "Metrics_LSLOC");

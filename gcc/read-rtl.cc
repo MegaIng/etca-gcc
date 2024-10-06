@@ -1,5 +1,5 @@
 /* RTL reader for GCC.
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1293,8 +1293,25 @@ md_reader::read_mapping (struct iterator_group *group, htab_t table)
 	  string = read_string (false);
 	  require_char_ws (')');
 	}
-      number = group->find_builtin (name.string);
-      end_ptr = add_map_value (end_ptr, number, string);
+      auto *subm = (struct mapping *) htab_find (group->iterators,
+						 &name.string);
+      if (subm)
+	{
+	  if (m == subm)
+	    fatal_with_file_and_line ("recursive definition of `%s'",
+				      name.string);
+	  for (map_value *v = subm->values; v; v = v->next)
+	    {
+	      auto *joined = rtx_reader_ptr->join_c_conditions (v->string,
+								string);
+	      end_ptr = add_map_value (end_ptr, v->number, joined);
+	    }
+	}
+      else
+	{
+	  number = group->find_builtin (name.string);
+	  end_ptr = add_map_value (end_ptr, number, string);
+	}
       c = read_skip_spaces ();
     }
   while (c != ']');
@@ -1406,21 +1423,21 @@ check_code_iterator (struct mapping *iterator)
    consistent format.  Return a representative code.  */
 
 static rtx_code
-check_code_attribute (mapping *attr)
+check_attribute_codes (mapping *attr)
 {
   rtx_code bellwether = UNKNOWN;
   for (map_value *v = attr->values; v != 0; v = v->next)
     {
       rtx_code code = maybe_find_code (v->string);
       if (code == UNKNOWN)
-	fatal_with_file_and_line ("code attribute `%s' contains "
+	fatal_with_file_and_line ("attribute `%s' contains "
 				  "unrecognized rtx code `%s'",
 				  attr->name, v->string);
       if (bellwether == UNKNOWN)
 	bellwether = code;
       else if (strcmp (GET_RTX_FORMAT (bellwether),
 		       GET_RTX_FORMAT (code)) != 0)
-	fatal_with_file_and_line ("code attribute `%s' combines "
+	fatal_with_file_and_line ("attribute `%s' combines "
 				  "`%s' and `%s', which have different "
 				  "rtx formats", attr->name,
 				  GET_RTX_NAME (bellwether),
@@ -1587,7 +1604,7 @@ parse_reg_note_name (const char *string)
   fatal_with_file_and_line ("unrecognized REG_NOTE name: `%s'", string);
 }
 
-/* Allocate an rtx for code NAME.  If NAME is a code iterator or code
+/* Allocate an rtx for code NAME.  If NAME is a code iterator or an
    attribute, record its use for later and use one of its possible
    values as an interim rtx code.  */
 
@@ -1610,13 +1627,20 @@ rtx_reader::rtx_alloc_for_name (const char *name)
 	attr = deferred_name;
 
       /* Find the attribute itself.  */
-      mapping *m = (mapping *) htab_find (codes.attrs, &attr);
+      mapping *m = nullptr;
+      for (auto attrs : { codes.attrs, ints.attrs, modes.attrs })
+       if (auto *newm = (mapping *) htab_find (attrs, &attr))
+	 {
+	   if (m)
+	     fatal_with_file_and_line ("ambiguous attribute `%s`", attr);
+	   m = newm;
+	 }
       if (!m)
-	fatal_with_file_and_line ("unknown code attribute `%s'", attr);
+	fatal_with_file_and_line ("unknown attribute `%s'", attr);
 
       /* Pick the first possible code for now, and record the attribute
 	 use for later.  */
-      rtx x = rtx_alloc (check_code_attribute (m));
+      rtx x = rtx_alloc (check_attribute_codes (m));
       record_attribute_use (&codes, get_current_location (),
 			    x, 0, deferred_name);
       return x;
@@ -1896,8 +1920,10 @@ rtx_reader::read_rtx_operand (rtx return_rtx, int idx)
 		repeat_count--;
 		value = saved_rtx;
 	      }
-	    else
+	    else if (c == '(')
 	      value = read_nested_rtx ();
+	    else
+	      fatal_with_file_and_line ("unexpected character in vector");
 
 	    for (; repeat_count > 0; repeat_count--)
 	      {

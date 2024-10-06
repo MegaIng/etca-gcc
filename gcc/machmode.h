@@ -1,5 +1,5 @@
 /* Machine mode definitions for GCC; included by rtl.h and tree.h.
-   Copyright (C) 1991-2023 Free Software Foundation, Inc.
+   Copyright (C) 1991-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,10 +22,10 @@ along with GCC; see the file COPYING3.  If not see
 
 typedef opt_mode<machine_mode> opt_machine_mode;
 
-extern CONST_MODE_SIZE poly_uint16_pod mode_size[NUM_MACHINE_MODES];
-extern CONST_MODE_PRECISION poly_uint16_pod mode_precision[NUM_MACHINE_MODES];
+extern CONST_MODE_SIZE poly_uint16 mode_size[NUM_MACHINE_MODES];
+extern CONST_MODE_PRECISION poly_uint16 mode_precision[NUM_MACHINE_MODES];
 extern const unsigned short mode_inner[NUM_MACHINE_MODES];
-extern CONST_MODE_NUNITS poly_uint16_pod mode_nunits[NUM_MACHINE_MODES];
+extern CONST_MODE_NUNITS poly_uint16 mode_nunits[NUM_MACHINE_MODES];
 extern CONST_MODE_UNIT_SIZE unsigned char mode_unit_size[NUM_MACHINE_MODES];
 extern const unsigned short mode_unit_precision[NUM_MACHINE_MODES];
 extern const unsigned short mode_next[NUM_MACHINE_MODES];
@@ -905,15 +905,15 @@ decimal_float_mode_for_size (unsigned int size)
     (mode_for_size (size, MODE_DECIMAL_FLOAT, 0));
 }
 
-extern machine_mode smallest_mode_for_size (poly_uint64, enum mode_class);
+extern opt_machine_mode smallest_mode_for_size (poly_uint64, enum mode_class);
 
-/* Find the narrowest integer mode that contains at least SIZE bits.
-   Such a mode must exist.  */
+/* Find the narrowest integer mode that contains at least SIZE bits,
+   if such a mode exists.  */
 
-inline scalar_int_mode
+inline opt_scalar_int_mode
 smallest_int_mode_for_size (poly_uint64 size)
 {
-  return as_a <scalar_int_mode> (smallest_mode_for_size (size, MODE_INT));
+  return dyn_cast <scalar_int_mode> (smallest_mode_for_size (size, MODE_INT));
 }
 
 extern opt_scalar_int_mode int_mode_for_mode (machine_mode);

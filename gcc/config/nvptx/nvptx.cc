@@ -1,5 +1,5 @@
 /* Target code for NVPTX.
-   Copyright (C) 2014-2023 Free Software Foundation, Inc.
+   Copyright (C) 2014-2024 Free Software Foundation, Inc.
    Contributed by Bernd Schmidt <bernds@codesourcery.com>
 
    This file is part of GCC.
@@ -231,8 +231,7 @@ first_ptx_version_supporting_sm (enum ptx_isa sm)
 static enum ptx_version
 default_ptx_version_option (void)
 {
-  enum ptx_version first
-    = first_ptx_version_supporting_sm ((enum ptx_isa) ptx_isa_option);
+  enum ptx_version first = first_ptx_version_supporting_sm (ptx_isa_option);
 
   /* Pick a version that supports the sm.  */
   enum ptx_version res = first;
@@ -311,20 +310,21 @@ sm_version_to_string (enum ptx_isa sm)
 static void
 handle_ptx_version_option (void)
 {
-  if (!OPTION_SET_P (ptx_version_option)
-      || ptx_version_option == PTX_VERSION_default)
+  if (!OPTION_SET_P (ptx_version_option))
+    gcc_checking_assert (ptx_version_option == PTX_VERSION_default);
+
+  if (ptx_version_option == PTX_VERSION_default)
     {
       ptx_version_option = default_ptx_version_option ();
       return;
     }
 
-  enum ptx_version first
-    = first_ptx_version_supporting_sm ((enum ptx_isa) ptx_isa_option);
+  enum ptx_version first = first_ptx_version_supporting_sm (ptx_isa_option);
 
   if (ptx_version_option < first)
     error ("PTX version (%<-mptx%>) needs to be at least %s to support selected"
 	   " %<-misa%> (sm_%s)", ptx_version_to_string (first),
-	   sm_version_to_string ((enum ptx_isa)ptx_isa_option));
+	   sm_version_to_string (ptx_isa_option));
 }
 
 /* Implement TARGET_OPTION_OVERRIDE.  */
@@ -335,8 +335,11 @@ nvptx_option_override (void)
   init_machine_status = nvptx_init_machine_status;
 
   /* Via nvptx 'OPTION_DEFAULT_SPECS', '-misa' always appears on the command
-     line.  */
-  gcc_checking_assert (OPTION_SET_P (ptx_isa_option));
+     line; but handle the case that the compiler is not run via the driver.  */
+  gcc_checking_assert ((ptx_isa_option == PTX_ISA_unset)
+		       == (!OPTION_SET_P (ptx_isa_option)));
+  if (ptx_isa_option == PTX_ISA_unset)
+    fatal_error (UNKNOWN_LOCATION, "%<-march=%> must be specified");
 
   handle_ptx_version_option ();
 
@@ -720,7 +723,7 @@ nvptx_function_arg_advance (cumulative_args_t cum_v, const function_arg_info &)
 
 /* Implement TARGET_FUNCTION_ARG_BOUNDARY.
 
-   For nvptx This is only used for varadic args.  The type has already
+   For nvptx This is only used for variadic args.  The type has already
    been promoted and/or converted to invisible reference.  */
 
 static unsigned
@@ -994,8 +997,7 @@ static void
 write_fn_proto_1 (std::stringstream &s, bool is_defn,
 		  const char *name, const_tree decl, bool force_public)
 {
-  if (lookup_attribute ("alias", DECL_ATTRIBUTES (decl)) == NULL)
-    write_fn_marker (s, is_defn, TREE_PUBLIC (decl) || force_public, name);
+  write_fn_marker (s, is_defn, TREE_PUBLIC (decl) || force_public, name);
 
   /* PTX declaration.  */
   if (DECL_EXTERNAL (decl))
@@ -1548,7 +1550,7 @@ nvptx_declare_function_name (FILE *file, const char *name, const_tree decl)
   if (!TARGET_SOFT_STACK)
     {
       /* Declare a local var for outgoing varargs.  */
-      if (cfun->machine->has_varadic)
+      if (cfun->machine->has_variadic)
 	init_frame (file, STACK_POINTER_REGNUM,
 		    UNITS_PER_WORD, crtl->outgoing_args_size);
 
@@ -1558,7 +1560,7 @@ nvptx_declare_function_name (FILE *file, const char *name, const_tree decl)
 	init_frame (file, FRAME_POINTER_REGNUM, alignment,
 		    ROUND_UP (sz, GET_MODE_SIZE (DImode)));
     }
-  else if (need_frameptr || cfun->machine->has_varadic || cfun->calls_alloca
+  else if (need_frameptr || cfun->machine->has_variadic || cfun->calls_alloca
 	   || (cfun->machine->has_simtreg && !crtl->is_leaf))
     init_softstack_frame (file, alignment, sz);
 
@@ -1790,18 +1792,18 @@ nvptx_get_drap_rtx (void)
    argument to the next call.  */
 
 static void
-nvptx_call_args (rtx arg, tree fntype)
+nvptx_call_args (cumulative_args_t, rtx arg, tree fntype)
 {
   if (!cfun->machine->doing_call)
     {
       cfun->machine->doing_call = true;
-      cfun->machine->is_varadic = false;
+      cfun->machine->is_variadic = false;
       cfun->machine->num_args = 0;
 
       if (fntype && stdarg_p (fntype))
 	{
-	  cfun->machine->is_varadic = true;
-	  cfun->machine->has_varadic = true;
+	  cfun->machine->is_variadic = true;
+	  cfun->machine->has_variadic = true;
 	  cfun->machine->num_args++;
 	}
     }
@@ -1818,7 +1820,7 @@ nvptx_call_args (rtx arg, tree fntype)
    information we recorded.  */
 
 static void
-nvptx_end_call_args (void)
+nvptx_end_call_args (cumulative_args_t)
 {
   cfun->machine->doing_call = false;
   free_EXPR_LIST_list (&cfun->machine->call_args);
@@ -1871,7 +1873,7 @@ nvptx_expand_call (rtx retval, rtx address)
     }
 
   unsigned nargs = cfun->machine->num_args;
-  if (cfun->machine->is_varadic)
+  if (cfun->machine->is_variadic)
     {
       varargs = gen_reg_rtx (Pmode);
       emit_move_insn (varargs, stack_pointer_rtx);
@@ -2202,7 +2204,7 @@ nvptx_gen_shared_bcast (rtx reg, propagate_mask pm, unsigned rep,
 /* Returns true if X is a valid address for use in a memory reference.  */
 
 static bool
-nvptx_legitimate_address_p (machine_mode, rtx x, bool)
+nvptx_legitimate_address_p (machine_mode, rtx x, bool, code_helper)
 {
   enum rtx_code code = GET_CODE (x);
 
@@ -5833,16 +5835,15 @@ nvptx_handle_shared_attribute (tree *node, tree name, tree ARG_UNUSED (args),
 }
 
 /* Table of valid machine attributes.  */
-static const struct attribute_spec nvptx_attribute_table[] =
+TARGET_GNU_ATTRIBUTES (nvptx_attribute_table,
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
        affects_type_identity, handler, exclude } */
   { "kernel", 0, 0, true, false,  false, false, nvptx_handle_kernel_attribute,
     NULL },
   { "shared", 0, 0, true, false,  false, false, nvptx_handle_shared_attribute,
-    NULL },
-  { NULL, 0, 0, false, false, false, false, NULL, NULL }
-};
+    NULL }
+});
 
 /* Limit vector alignments to BIGGEST_ALIGNMENT.  */
 
@@ -5918,7 +5919,13 @@ nvptx_record_offload_symbol (tree decl)
 	/* OpenMP offloading does not set this attribute.  */
 	tree dims = attr ? TREE_VALUE (attr) : NULL_TREE;
 
-	fprintf (asm_out_file, "//:FUNC_MAP \"%s\"",
+	fprintf (asm_out_file, "//:");
+	if (lookup_attribute ("omp declare target indirect",
+			      DECL_ATTRIBUTES (decl)))
+	  fprintf (asm_out_file, "IND_FUNC_MAP");
+	else
+	  fprintf (asm_out_file, "FUNC_MAP");
+	fprintf (asm_out_file, " \"%s\"",
 		 IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)));
 
 	for (; dims; dims = TREE_CHAIN (dims))
@@ -5947,13 +5954,11 @@ nvptx_file_start (void)
   fputs ("// BEGIN PREAMBLE\n", asm_out_file);
 
   fputs ("\t.version\t", asm_out_file);
-  fputs (ptx_version_to_string ((enum ptx_version)ptx_version_option),
-	 asm_out_file);
+  fputs (ptx_version_to_string (ptx_version_option), asm_out_file);
   fputs ("\n", asm_out_file);
 
   fputs ("\t.target\tsm_", asm_out_file);
-  fputs (sm_version_to_string ((enum ptx_isa)ptx_isa_option),
-	 asm_out_file);
+  fputs (sm_version_to_string (ptx_isa_option), asm_out_file);
   fputs ("\n", asm_out_file);
 
   fprintf (asm_out_file, "\t.address_size %d\n", GET_MODE_BITSIZE (Pmode));
@@ -6397,7 +6402,8 @@ nvptx_omp_device_kind_arch_isa (enum omp_device_kind_arch_isa trait,
     case omp_device_kind:
       return strcmp (name, "gpu") == 0;
     case omp_device_arch:
-      return strcmp (name, "nvptx") == 0;
+      return (strcmp (name, "nvptx") == 0
+	      || (TARGET_ABI64 && strcmp (name, "nvptx64") == 0));
     case omp_device_isa:
 #define NVPTX_SM(XX, SEP)				\
       {							\
@@ -7576,7 +7582,8 @@ nvptx_mem_local_p (rtx mem)
   while (0)
 
 void
-nvptx_asm_output_def_from_decls (FILE *stream, tree name, tree value)
+nvptx_asm_output_def_from_decls (FILE *stream, tree name,
+				 tree value ATTRIBUTE_UNUSED)
 {
   if (nvptx_alias == 0 || !TARGET_PTX_6_3)
     {
@@ -7611,7 +7618,8 @@ nvptx_asm_output_def_from_decls (FILE *stream, tree name, tree value)
       return;
     }
 
-  if (!cgraph_node::get (name)->referred_to_p ())
+  cgraph_node *cnode = cgraph_node::get (name);
+  if (!cnode->referred_to_p ())
     /* Prevent "Internal error: reference to deleted section".  */
     return;
 
@@ -7620,8 +7628,27 @@ nvptx_asm_output_def_from_decls (FILE *stream, tree name, tree value)
   fputs (s.str ().c_str (), stream);
 
   tree id = DECL_ASSEMBLER_NAME (name);
+
+  /* Walk alias chain to get reference callgraph node.
+     The rationale of using ultimate_alias_target here is that
+     PTX's .alias directive only supports 1-level aliasing where
+     aliasee is function defined in same module.
+
+     So for the following case:
+     int foo() { return 42; }
+     int bar () __attribute__((alias ("foo")));
+     int baz () __attribute__((alias ("bar")));
+
+     should resolve baz to foo:
+     .visible .func (.param.u32 %value_out) baz;
+     .alias baz,foo;  */
+  symtab_node *alias_target_node = cnode->ultimate_alias_target ();
+  tree alias_target_id = DECL_ASSEMBLER_NAME (alias_target_node->decl);
+  std::stringstream s_def;
+  write_fn_marker (s_def, true, TREE_PUBLIC (name), IDENTIFIER_POINTER (id));
+  fputs (s_def.str ().c_str (), stream);
   NVPTX_ASM_OUTPUT_DEF (stream, IDENTIFIER_POINTER (id),
-			IDENTIFIER_POINTER (value));
+			IDENTIFIER_POINTER (alias_target_id));
 }
 
 #undef NVPTX_ASM_OUTPUT_DEF
@@ -7784,6 +7811,9 @@ nvptx_asm_output_def_from_decls (FILE *stream, tree name, tree value)
 
 #undef TARGET_LIBC_HAS_FUNCTION
 #define TARGET_LIBC_HAS_FUNCTION nvptx_libc_has_function
+
+#undef TARGET_HAVE_STRUB_SUPPORT_FOR
+#define TARGET_HAVE_STRUB_SUPPORT_FOR hook_bool_tree_false
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

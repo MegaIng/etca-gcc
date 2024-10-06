@@ -1,6 +1,6 @@
 // Debugging mode support code -*- C++ -*-
 
-// Copyright (C) 2003-2023 Free Software Foundation, Inc.
+// Copyright (C) 2003-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,6 +24,7 @@
 
 #include <bits/move.h>
 #include <bits/stl_iterator_base_types.h>
+#include <ext/atomicity.h> // __is_single_threaded
 
 #include <debug/formatter.h>
 #include <debug/safe_base.h>
@@ -44,24 +45,6 @@
 #include <cxxabi.h>	// for __cxa_demangle.
 
 #include "mutex_pool.h"
-
-#ifdef _GLIBCXX_VERBOSE_ASSERT
-namespace std
-{
-  [[__noreturn__]]
-  void
-  __glibcxx_assert_fail(const char* file, int line,
-			const char* function, const char* condition) noexcept
-  {
-    if (file && function && condition)
-      fprintf(stderr, "%s:%d: %s: Assertion '%s' failed.\n",
-	      file, line, function, condition);
-    else if (function)
-      fprintf(stderr, "%s: Undefined behavior detected.\n", function);
-    abort();
-  }
-}
-#endif
 
 using namespace std;
 
@@ -174,6 +157,31 @@ namespace
 	__old->_M_reset();
       }
   }
+
+  void*
+  acquire_sequence_ptr_for_lock(__gnu_debug::_Safe_sequence_base*& seq)
+  {
+#ifdef __GTHREADS
+    if (!__gnu_cxx::__is_single_threaded())
+      return __atomic_load_n(&seq, __ATOMIC_ACQUIRE);
+#endif
+    return seq;
+  }
+
+  void
+  reset_sequence_ptr(__gnu_debug::_Safe_sequence_base*& seq)
+  {
+#ifdef __GTHREADS
+    if (!__gnu_cxx::__is_single_threaded())
+      {
+	__atomic_store_n(&seq, (__gnu_debug::_Safe_sequence_base*)nullptr,
+			 __ATOMIC_RELEASE);
+	return;
+      }
+#endif
+    seq = nullptr;
+  }
+
 } // anonymous namespace
 
 namespace __gnu_debug
@@ -372,7 +380,7 @@ namespace __gnu_debug
 
   __gnu_cxx::__mutex&
   _Safe_sequence_base::
-  _M_get_mutex() throw ()
+  _M_get_mutex() noexcept
   { return get_safe_base_mutex(this); }
 
   void
@@ -385,7 +393,7 @@ namespace __gnu_debug
 
   void
   _Safe_sequence_base::
-  _M_attach_single(_Safe_iterator_base* __it, bool __constant) throw ()
+  _M_attach_single(_Safe_iterator_base* __it, bool __constant) noexcept
   {
     _Safe_iterator_base*& __its =
       __constant ? _M_const_iterators : _M_iterators;
@@ -406,7 +414,7 @@ namespace __gnu_debug
 
   void
   _Safe_sequence_base::
-  _M_detach_single(_Safe_iterator_base* __it) throw ()
+  _M_detach_single(_Safe_iterator_base* __it) noexcept
   {
     // Remove __it from this sequence's list
     __it->_M_unlink();
@@ -429,11 +437,13 @@ namespace __gnu_debug
 	_M_version = _M_sequence->_M_version;
 	_M_sequence->_M_attach(this, __constant);
       }
+    else
+      _M_version = 0;
   }
 
   void
   _Safe_iterator_base::
-  _M_attach_single(_Safe_sequence_base* __seq, bool __constant) throw ()
+  _M_attach_single(_Safe_sequence_base* __seq, bool __constant) noexcept
   {
     _M_detach_single();
 
@@ -444,6 +454,8 @@ namespace __gnu_debug
 	_M_version = _M_sequence->_M_version;
 	_M_sequence->_M_attach_single(this, __constant);
       }
+    else
+      _M_version = 0;
   }
 
   void
@@ -457,7 +469,7 @@ namespace __gnu_debug
     // If the sequence destructor runs between loading the pointer and
     // locking the mutex, it will detach this iterator and set _M_sequence
     // to null, and then _M_detach_single() will do nothing.
-    if (auto seq = __atomic_load_n(&_M_sequence, __ATOMIC_ACQUIRE))
+    if (auto seq = acquire_sequence_ptr_for_lock(_M_sequence))
       {
 	__gnu_cxx::__scoped_lock sentry(get_safe_base_mutex(seq));
 	_M_detach_single();
@@ -466,7 +478,7 @@ namespace __gnu_debug
 
   void
   _Safe_iterator_base::
-  _M_detach_single() throw ()
+  _M_detach_single() noexcept
   {
     if (_M_sequence)
       {
@@ -477,9 +489,9 @@ namespace __gnu_debug
 
   void
   _Safe_iterator_base::
-  _M_reset() throw ()
+  _M_reset() noexcept
   {
-    __atomic_store_n(&_M_sequence, (_Safe_sequence_base*)0, __ATOMIC_RELEASE);
+    reset_sequence_ptr(_M_sequence);
     // Do not reset version, so that a detached iterator does not look like a
     // value-initialized one.
     // _M_version = 0;
@@ -489,17 +501,17 @@ namespace __gnu_debug
 
   bool
   _Safe_iterator_base::
-  _M_singular() const throw ()
+  _M_singular() const noexcept
   { return !_M_sequence || _M_version != _M_sequence->_M_version; }
 
   bool
   _Safe_iterator_base::
-  _M_can_compare(const _Safe_iterator_base& __x) const throw ()
+  _M_can_compare(const _Safe_iterator_base& __x) const noexcept
   { return _M_sequence == __x._M_sequence; }
 
   __gnu_cxx::__mutex&
   _Safe_iterator_base::
-  _M_get_mutex() throw ()
+  _M_get_mutex() noexcept
   { return _M_sequence->_M_get_mutex(); }
 
   _Safe_unordered_container_base*
@@ -520,11 +532,13 @@ namespace __gnu_debug
 	_M_version = _M_sequence->_M_version;
 	_M_get_container()->_M_attach_local(this, __constant);
       }
+    else
+      _M_version = 0;
   }
 
   void
   _Safe_local_iterator_base::
-  _M_attach_single(_Safe_sequence_base* __cont, bool __constant) throw ()
+  _M_attach_single(_Safe_sequence_base* __cont, bool __constant) noexcept
   {
     _M_detach_single();
 
@@ -535,13 +549,15 @@ namespace __gnu_debug
 	_M_version = _M_sequence->_M_version;
 	_M_get_container()->_M_attach_local_single(this, __constant);
       }
+    else
+      _M_version = 0;
   }
 
   void
   _Safe_local_iterator_base::
   _M_detach()
   {
-    if (auto seq = __atomic_load_n(&_M_sequence, __ATOMIC_ACQUIRE))
+    if (auto seq = acquire_sequence_ptr_for_lock(_M_sequence))
       {
 	__gnu_cxx::__scoped_lock sentry(get_safe_base_mutex(seq));
 	_M_detach_single();
@@ -550,7 +566,7 @@ namespace __gnu_debug
 
   void
   _Safe_local_iterator_base::
-  _M_detach_single() throw ()
+  _M_detach_single() noexcept
   {
     if (_M_sequence)
       {
@@ -592,7 +608,7 @@ namespace __gnu_debug
 
   void
   _Safe_unordered_container_base::
-  _M_attach_local_single(_Safe_iterator_base* __it, bool __constant) throw ()
+  _M_attach_local_single(_Safe_iterator_base* __it, bool __constant) noexcept
   {
     _Safe_iterator_base*& __its =
       __constant ? _M_const_local_iterators : _M_local_iterators;
@@ -613,7 +629,7 @@ namespace __gnu_debug
 
   void
   _Safe_unordered_container_base::
-  _M_detach_local_single(_Safe_iterator_base* __it) throw ()
+  _M_detach_local_single(_Safe_iterator_base* __it) noexcept
   {
     // Remove __it from this container's list
     __it->_M_unlink();
@@ -1217,7 +1233,7 @@ namespace
 namespace __gnu_debug
 {
   _Error_formatter&
-  _Error_formatter::_M_message(_Debug_msg_id __id) const throw ()
+  _Error_formatter::_M_message(_Debug_msg_id __id) const noexcept
   {
     return const_cast<_Error_formatter*>(this)
       ->_M_message(_S_debug_messages[__id]);
@@ -1318,7 +1334,7 @@ namespace __gnu_debug
   template<typename _Tp>
     void
     _Error_formatter::_M_format_word(char*, int, const char*, _Tp)
-    const throw ()
+    const noexcept
     { }
 
   void
@@ -1330,7 +1346,7 @@ namespace __gnu_debug
   { }
 
   void
-  _Error_formatter::_M_get_max_length() const throw ()
+  _Error_formatter::_M_get_max_length() const noexcept
   { }
 
   // Instantiations.

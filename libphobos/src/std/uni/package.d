@@ -7697,6 +7697,21 @@ public:
             static assert(false, "No operation "~op~" defined for Grapheme");
     }
 
+    // This is not a good `opEquals`, but formerly the automatically generated
+    // opEquals was used, which was inferred `@safe` because of bugzilla 20655:
+    // https://issues.dlang.org/show_bug.cgi?id=20655
+    // This `@trusted opEquals` is only here to prevent breakage.
+    bool opEquals(R)(const auto ref R other) const @trusted
+    {
+        return this.tupleof == other.tupleof;
+    }
+
+    // Define a default toHash to allow AA usage
+    size_t toHash() const @trusted
+    {
+        return hashOf(slen_, hashOf(small_));
+    }
+
     /++
         True if this object contains valid extended grapheme cluster.
         Decoding primitives of this module always return a valid `Grapheme`.
@@ -7898,6 +7913,12 @@ static assert(Grapheme.sizeof == size_t.sizeof*4);
     assert(equal(h[], iota(cast(int)'A', cast(int)'Z'+1)));
 }
 
+// ensure Grapheme can be used as an AA key.
+@safe unittest
+{
+    int[Grapheme] aa;
+}
+
 /++
     $(P Does basic case-insensitive comparison of `r1` and `r2`.
     This function uses simpler comparison rule thus achieving better performance
@@ -7995,19 +8016,19 @@ if (isInputRange!S1 && isSomeChar!(ElementEncodingType!S1)
             if (idx2 != EMPTY_CASE_TRIE)
             {// both cased chars
                 // adjust idx --> start of bucket
-                idx = idx - sTable[idx].n;
-                idx2 = idx2 - sTable[idx2].n;
+                idx = idx - sTable(idx).n;
+                idx2 = idx2 - sTable(idx2).n;
                 if (idx == idx2)// one bucket, equivalent chars
                     continue;
                 else//  not the same bucket
-                    diff = sTable[idx].ch - sTable[idx2].ch;
+                    diff = sTable(idx).ch - sTable(idx2).ch;
             }
             else
-                diff = sTable[idx - sTable[idx].n].ch - rhs;
+                diff = sTable(idx - sTable(idx).n).ch - rhs;
         }
         else if (idx2 != EMPTY_CASE_TRIE)
         {
-            diff = lhs - sTable[idx2 - sTable[idx2].n].ch;
+            diff = lhs - sTable(idx2 - sTable(idx2).n).ch;
         }
         // one of chars is not cased at all
         return diff;
@@ -8052,22 +8073,23 @@ private int fullCasedCmp(Range)(dchar lhs, dchar rhs, ref Range rtail)
     // fullCaseTrie is packed index table
     if (idx == EMPTY_CASE_TRIE)
         return lhs;
-    immutable start = idx - fTable[idx].n;
-    immutable end = fTable[idx].size + start;
-    assert(fTable[start].entry_len == 1);
+    immutable start = idx - fTable(idx).n;
+    immutable end = fTable(idx).size + start;
+    assert(fTable(start).entry_len == 1);
     for (idx=start; idx<end; idx++)
     {
-        auto entryLen = fTable[idx].entry_len;
+        const entryLen = fTable(idx).entry_len;
         if (entryLen == 1)
         {
-            if (fTable[idx].seq[0] == rhs)
+            if (fTable(idx).seq[0] == rhs)
             {
                 return 0;
             }
         }
         else
         {// OK it's a long chunk, like 'ss' for German
-            dstring seq = fTable[idx].seq[0 .. entryLen];
+            dchar[3] arr = fTable(idx).seq;
+            const dchar[] seq = arr[0 .. entryLen];
             if (rhs == seq[0]
                 && rtail.skipOver(seq[1..$]))
             {
@@ -8077,7 +8099,7 @@ private int fullCasedCmp(Range)(dchar lhs, dchar rhs, ref Range rtail)
             }
         }
     }
-    return fTable[start].seq[0]; // new remapped character for accurate diffs
+    return fTable(start).seq[0]; // new remapped character for accurate diffs
 }
 
 /++
@@ -8309,7 +8331,7 @@ package(std) auto simpleCaseFoldings(dchar ch) @safe
             {
                 return c;
             }
-            auto ch = sTable[idx].ch;
+            auto ch = sTable(idx).ch;
             return ch;
         }
 
@@ -8345,7 +8367,7 @@ package(std) auto simpleCaseFoldings(dchar ch) @safe
     immutable idx = simpleCaseTrie[ch];
     if (idx == EMPTY_CASE_TRIE)
         return Range(ch);
-    auto entry = sTable[idx];
+    auto entry = sTable(idx);
     immutable start = idx - entry.n;
     return Range(start, entry.size);
 }
@@ -8436,21 +8458,21 @@ public dchar compose(dchar first, dchar second) pure nothrow @safe
 {
     import std.algorithm.iteration : map;
     import std.internal.unicode_comp : compositionTable, composeCntShift, composeIdxMask;
-    import std.range : assumeSorted;
+    import std.range : assumeSorted, stride;
     immutable packed = compositionJumpTrie[first];
     if (packed == ushort.max)
         return dchar.init;
     // unpack offset and length
     immutable idx = packed & composeIdxMask, cnt = packed >> composeCntShift;
     // TODO: optimize this micro binary search (no more then 4-5 steps)
-    auto r = compositionTable[idx .. idx+cnt].map!"a.rhs"().assumeSorted();
+    auto r = compositionTable.stride(2)[idx .. idx+cnt].assumeSorted();
     immutable target = r.lowerBound(second).length;
     if (target == cnt)
         return dchar.init;
-    immutable entry = compositionTable[idx+target];
-    if (entry.rhs != second)
+    immutable entry = compositionTable[(idx+target)*2];
+    if (entry != second)
         return dchar.init;
-    return entry.composed;
+    return compositionTable[(idx+target)*2 + 1];
 }
 
 ///

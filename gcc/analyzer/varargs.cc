@@ -1,5 +1,5 @@
 /* Implementation of <stdarg.h> within analyzer.
-   Copyright (C) 2022-2023 Free Software Foundation, Inc.
+   Copyright (C) 2022-2024 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MEMORY
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "make-unique.h"
@@ -41,7 +42,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/supergraph.h"
 #include "analyzer/diagnostic-manager.h"
 #include "analyzer/exploded-graph.h"
-#include "diagnostic-metadata.h"
 #include "analyzer/call-details.h"
 
 #if ENABLE_ANALYZER
@@ -207,7 +207,7 @@ public:
 
   bool inherited_state_p () const final override { return false; }
 
-  bool on_stmt (sm_context *sm_ctxt,
+  bool on_stmt (sm_context &sm_ctxt,
 		const supernode *node,
 		const gimple *stmt) const final override;
 
@@ -224,15 +224,15 @@ public:
   state_t m_ended;
 
 private:
-  void on_va_start (sm_context *sm_ctxt, const supernode *node,
+  void on_va_start (sm_context &sm_ctxt, const supernode *node,
 		    const gcall *call) const;
-  void on_va_copy (sm_context *sm_ctxt, const supernode *node,
+  void on_va_copy (sm_context &sm_ctxt, const supernode *node,
 		   const gcall *call) const;
-  void on_va_arg (sm_context *sm_ctxt, const supernode *node,
+  void on_va_arg (sm_context &sm_ctxt, const supernode *node,
 		  const gcall *call) const;
-  void on_va_end (sm_context *sm_ctxt, const supernode *node,
+  void on_va_end (sm_context &sm_ctxt, const supernode *node,
 		  const gcall *call) const;
-  void check_for_ended_va_list (sm_context *sm_ctxt,
+  void check_for_ended_va_list (sm_context &sm_ctxt,
 				const supernode *node,
 				const gcall *call,
 				const svalue *arg,
@@ -242,17 +242,17 @@ private:
 /* va_list_state_machine's ctor.  */
 
 va_list_state_machine::va_list_state_machine (logger *logger)
-: state_machine ("va_list", logger)
+: state_machine ("va_list", logger),
+  m_started (add_state ("started")),
+  m_ended (add_state ("ended"))
 {
-  m_started = add_state ("started");
-  m_ended = add_state ("ended");
 }
 
 /* Implementation of the various "va_*" functions for
    va_list_state_machine.  */
 
 bool
-va_list_state_machine::on_stmt (sm_context *sm_ctxt,
+va_list_state_machine::on_stmt (sm_context &sm_ctxt,
 				const supernode *node,
 				const gimple *stmt) const
 {
@@ -265,7 +265,7 @@ va_list_state_machine::on_stmt (sm_context *sm_ctxt,
 	  return false;
 	}
 
-      if (tree callee_fndecl = sm_ctxt->get_fndecl_for_call (call))
+      if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (call))
 	if (fndecl_built_in_p (callee_fndecl, BUILT_IN_NORMAL)
 	    && gimple_builtin_call_types_compatible_p (call, callee_fndecl))
 	  switch (DECL_UNCHECKED_FUNCTION_CODE (callee_fndecl))
@@ -293,13 +293,13 @@ va_list_state_machine::on_stmt (sm_context *sm_ctxt,
    IDX to CALL.  */
 
 static const svalue *
-get_stateful_arg (sm_context *sm_ctxt, const gcall *call, unsigned arg_idx)
+get_stateful_arg (sm_context &sm_ctxt, const gcall *call, unsigned arg_idx)
 {
   tree ap = gimple_call_arg (call, arg_idx);
   if (ap
       && POINTER_TYPE_P (TREE_TYPE (ap)))
     {
-      if (const program_state *new_state = sm_ctxt->get_new_program_state ())
+      if (const program_state *new_state = sm_ctxt.get_new_program_state ())
 	{
 	  const region_model *new_model = new_state->m_region_model;
 	  const svalue *ptr_sval = new_model->get_rvalue (ap, NULL);
@@ -403,11 +403,9 @@ public:
 	    && 0 == strcmp (m_usage_fnname, other.m_usage_fnname));
   }
 
-  bool emit (rich_location *rich_loc, logger *) final override
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    auto_diagnostic_group d;
-    return warning_at (rich_loc, get_controlling_option (),
-		       "%qs after %qs", m_usage_fnname, "va_end");
+    return ctxt.warn ("%qs after %qs", m_usage_fnname, "va_end");
   }
 
   const char *get_kind () const final override
@@ -478,11 +476,9 @@ public:
     return va_list_sm_diagnostic::subclass_equal_p (other);
   }
 
-  bool emit (rich_location *rich_loc, logger *) final override
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    auto_diagnostic_group d;
-    return warning_at (rich_loc, get_controlling_option (),
-		       "missing call to %qs", "va_end");
+    return ctxt.warn ("missing call to %qs", "va_end");
   }
 
   const char *get_kind () const final override { return "va_list_leak"; }
@@ -532,7 +528,7 @@ private:
 /* Update state machine for a "va_start" call.  */
 
 void
-va_list_state_machine::on_va_start (sm_context *sm_ctxt,
+va_list_state_machine::on_va_start (sm_context &sm_ctxt,
 				    const supernode *,
 				    const gcall *call) const
 {
@@ -540,24 +536,24 @@ va_list_state_machine::on_va_start (sm_context *sm_ctxt,
   if (arg)
     {
       /* Transition from start state to "started".  */
-      if (sm_ctxt->get_state (call, arg) == m_start)
-	sm_ctxt->set_next_state (call, arg, m_started);
+      if (sm_ctxt.get_state (call, arg) == m_start)
+	sm_ctxt.set_next_state (call, arg, m_started);
     }
 }
 
 /* Complain if ARG is in the "ended" state.  */
 
 void
-va_list_state_machine::check_for_ended_va_list (sm_context *sm_ctxt,
+va_list_state_machine::check_for_ended_va_list (sm_context &sm_ctxt,
 						const supernode *node,
 						const gcall *call,
 						const svalue *arg,
 						const char *usage_fnname) const
 {
-  if (sm_ctxt->get_state (call, arg) == m_ended)
-    sm_ctxt->warn (node, call, arg,
-		   make_unique<va_list_use_after_va_end>
-		     (*this, arg, NULL_TREE, usage_fnname));
+  if (sm_ctxt.get_state (call, arg) == m_ended)
+    sm_ctxt.warn (node, call, arg,
+		  make_unique<va_list_use_after_va_end>
+		    (*this, arg, NULL_TREE, usage_fnname));
 }
 
 /* Get the svalue with associated va_list_state_machine state for
@@ -565,11 +561,11 @@ va_list_state_machine::check_for_ended_va_list (sm_context *sm_ctxt,
    or NULL otherwise.  */
 
 static const svalue *
-get_stateful_va_copy_arg (sm_context *sm_ctxt,
+get_stateful_va_copy_arg (sm_context &sm_ctxt,
 			  const gcall *call,
 			  unsigned arg_idx)
 {
-  if (const program_state *new_state = sm_ctxt->get_new_program_state ())
+  if (const program_state *new_state = sm_ctxt.get_new_program_state ())
     {
       const region_model *new_model = new_state->m_region_model;
       const svalue *arg = get_va_copy_arg (new_model, NULL, call, arg_idx);
@@ -581,7 +577,7 @@ get_stateful_va_copy_arg (sm_context *sm_ctxt,
 /* Update state machine for a "va_copy" call.  */
 
 void
-va_list_state_machine::on_va_copy (sm_context *sm_ctxt,
+va_list_state_machine::on_va_copy (sm_context &sm_ctxt,
 				   const supernode *node,
 				   const gcall *call) const
 {
@@ -593,15 +589,15 @@ va_list_state_machine::on_va_copy (sm_context *sm_ctxt,
   if (dst_arg)
     {
       /* Transition from start state to "started".  */
-      if (sm_ctxt->get_state (call, dst_arg) == m_start)
-	sm_ctxt->set_next_state (call, dst_arg, m_started);
+      if (sm_ctxt.get_state (call, dst_arg) == m_start)
+	sm_ctxt.set_next_state (call, dst_arg, m_started);
     }
 }
 
 /* Update state machine for a "va_arg" call.  */
 
 void
-va_list_state_machine::on_va_arg (sm_context *sm_ctxt,
+va_list_state_machine::on_va_arg (sm_context &sm_ctxt,
 				  const supernode *node,
 				  const gcall *call) const
 {
@@ -613,17 +609,17 @@ va_list_state_machine::on_va_arg (sm_context *sm_ctxt,
 /* Update state machine for a "va_end" call.  */
 
 void
-va_list_state_machine::on_va_end (sm_context *sm_ctxt,
+va_list_state_machine::on_va_end (sm_context &sm_ctxt,
 				  const supernode *node,
 				  const gcall *call) const
 {
   const svalue *arg = get_stateful_arg (sm_ctxt, call, 0);
   if (arg)
     {
-      state_t s = sm_ctxt->get_state (call, arg);
+      state_t s = sm_ctxt.get_state (call, arg);
       /* Transition from "started" to "ended".  */
       if (s == m_started)
-	sm_ctxt->set_next_state (call, arg, m_ended);
+	sm_ctxt.set_next_state (call, arg, m_ended);
       else if (s == m_ended)
 	check_for_ended_va_list (sm_ctxt, node, call, arg, "va_end");
     }
@@ -635,7 +631,7 @@ va_list_state_machine::on_va_end (sm_context *sm_ctxt,
 std::unique_ptr<pending_diagnostic>
 va_list_state_machine::on_leak (tree var) const
 {
-  return make_unique<va_list_leak> (*this, NULL, var);
+  return make_unique<va_list_leak> (*this, nullptr, var);
 }
 
 } // anonymous namespace
@@ -892,18 +888,15 @@ public:
     return OPT_Wanalyzer_va_arg_type_mismatch;
   }
 
-  bool emit (rich_location *rich_loc, logger *) final override
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    auto_diagnostic_group d;
-    diagnostic_metadata m;
     /* "CWE-686: Function Call With Incorrect Argument Type".  */
-    m.add_cwe (686);
+    ctxt.add_cwe (686);
     bool warned
-      = warning_meta (rich_loc, m, get_controlling_option (),
-		      "%<va_arg%> expected %qT but received %qT"
-		      " for variadic argument %i of %qE",
-		      m_expected_type, m_actual_type,
-		      get_variadic_index_for_diagnostic (), m_va_list_tree);
+      = ctxt.warn ("%<va_arg%> expected %qT but received %qT"
+		   " for variadic argument %i of %qE",
+		   m_expected_type, m_actual_type,
+		   get_variadic_index_for_diagnostic (), m_va_list_tree);
     return warned;
   }
 
@@ -942,15 +935,12 @@ public:
     return OPT_Wanalyzer_va_list_exhausted;
   }
 
-  bool emit (rich_location *rich_loc, logger *) final override
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    auto_diagnostic_group d;
-    diagnostic_metadata m;
     /* CWE-685: Function Call With Incorrect Number of Arguments.  */
-    m.add_cwe (685);
-    bool warned = warning_meta (rich_loc, m, get_controlling_option (),
-				"%qE has no more arguments (%i consumed)",
-				m_va_list_tree, get_num_consumed ());
+    ctxt.add_cwe (685);
+    bool warned = ctxt.warn ("%qE has no more arguments (%i consumed)",
+			     m_va_list_tree, get_num_consumed ());
     return warned;
   }
 
@@ -961,13 +951,43 @@ public:
   }
 };
 
-/* Return true if it's OK to copy a value from ARG_TYPE to LHS_TYPE via
+static bool
+representable_in_integral_type_p (const svalue &sval, const_tree type)
+{
+  gcc_assert (INTEGRAL_TYPE_P (type));
+
+  if (tree cst = sval.maybe_get_constant ())
+    return wi::fits_to_tree_p (wi::to_wide (cst), type);
+
+  return true;
+}
+
+/* Return true if it's OK to copy ARG_SVAL from ARG_TYPE to LHS_TYPE via
    va_arg (where argument promotion has already happened).  */
 
 static bool
-va_arg_compatible_types_p (tree lhs_type, tree arg_type)
+va_arg_compatible_types_p (tree lhs_type, tree arg_type, const svalue &arg_sval)
 {
-  return compat_types_p (arg_type, lhs_type);
+  if (compat_types_p (arg_type, lhs_type))
+    return true;
+
+  /* It's OK if both types are integer types, where one is signed and the
+     other type the corresponding unsigned type, when the value is
+     representable in both types.  */
+  if (INTEGRAL_TYPE_P (lhs_type)
+      && INTEGRAL_TYPE_P (arg_type)
+      && TYPE_UNSIGNED (lhs_type) != TYPE_UNSIGNED (arg_type)
+      && TYPE_PRECISION (lhs_type) == TYPE_PRECISION (arg_type)
+      && representable_in_integral_type_p (arg_sval, lhs_type)
+      && representable_in_integral_type_p (arg_sval, arg_type))
+    return true;
+
+  /* It's OK if one type is a pointer to void and the other is a
+     pointer to a character type.
+     This is handled by compat_types_p.  */
+
+  /* Otherwise the types are not compatible.  */
+  return false;
 }
 
 /* If AP_SVAL is a pointer to a var_arg_region, return that var_arg_region.
@@ -1007,6 +1027,8 @@ kf_va_arg::impl_call_pre (const call_details &cd) const
   tree va_list_tree = get_va_list_diag_arg (cd.get_arg_tree (0));
   ap_sval = model->check_for_poison (ap_sval, va_list_tree, ap_reg, ctxt);
 
+  cd.set_any_lhs_with_defaults ();
+
   if (const region *impl_reg = ap_sval->maybe_get_region ())
     {
       const svalue *old_impl_sval = model->get_store_value (impl_reg, ctxt);
@@ -1031,7 +1053,7 @@ kf_va_arg::impl_call_pre (const call_details &cd) const
 		{
 		  tree lhs_type = cd.get_lhs_type ();
 		  tree arg_type = arg_sval->get_type ();
-		  if (va_arg_compatible_types_p (lhs_type, arg_type))
+		  if (va_arg_compatible_types_p (lhs_type, arg_type, *arg_sval))
 		    cd.maybe_set_lhs (arg_sval);
 		  else
 		    {

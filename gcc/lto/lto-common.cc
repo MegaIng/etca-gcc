@@ -1,5 +1,5 @@
 /* Top-level LTO routines.
-   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+   Copyright (C) 2009-2024 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -37,6 +37,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "stor-layout.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "common.h"
 #include "debug.h"
@@ -63,8 +65,6 @@ along with GCC; see the file COPYING3.  If not see
 static bool type_streaming_finished = false;
 
 GTY(()) tree first_personality_decl;
-
-GTY(()) const unsigned char *lto_mode_identity_table;
 
 /* Returns a hash code for P.  */
 
@@ -2176,6 +2176,13 @@ lto_section_with_id (const char *name, unsigned HOST_WIDE_INT *id)
 
   if (strncmp (name, section_name_prefix, strlen (section_name_prefix)))
     return 0;
+
+  if (flag_ltrans)
+    {
+      *id = 0;
+      return 1;
+    }
+
   s = strrchr (name, '.');
   if (!s)
     return 0;
@@ -2277,7 +2284,7 @@ lto_file_finalize (struct lto_file_decl_data *file_data, lto_file *file,
 #ifdef ACCEL_COMPILER
   lto_input_mode_table (file_data);
 #else
-  file_data->mode_table = lto_mode_identity_table;
+  file_data->mode_table = NULL;
   file_data->mode_bits = ceil_log2 (MAX_MACHINE_MODE);
 #endif
 
@@ -3023,10 +3030,10 @@ print_lto_report_1 (void)
 	   total_scc_size + num_unshared_trees_read);
   if (flag_wpa && tree_scc_hash && num_sccs_read)
     {
-      fprintf (stderr, "[%s] tree SCC table: size %ld, %ld elements, "
-	       "collision ratio: %f\n", pfx,
-	       (long) tree_scc_hash->size (),
-	       (long) tree_scc_hash->elements (),
+      fprintf (stderr, "[%s] tree SCC table: size " HOST_SIZE_T_PRINT_DEC ", "
+	       HOST_SIZE_T_PRINT_DEC " elements, collision ratio: %f\n", pfx,
+	       (fmt_size_t) tree_scc_hash->size (),
+	       (fmt_size_t) tree_scc_hash->elements (),
 	       tree_scc_hash->collisions ());
       hash_table<tree_scc_hasher>::iterator hiter;
       tree_scc *scc, *max_scc = NULL;
@@ -3054,12 +3061,13 @@ print_lto_report_1 (void)
       fprintf (stderr, "[%s] Merged %lu types\n", pfx, num_merged_types);
       fprintf (stderr, "[%s] %lu types prevailed (%lu associated trees)\n",
 	       pfx, num_prevailing_types, num_type_scc_trees);
-      fprintf (stderr, "[%s] GIMPLE canonical type table: size %ld, "
-	       "%ld elements, %ld searches, %ld collisions (ratio: %f)\n", pfx,
-	       (long) htab_size (gimple_canonical_types),
-	       (long) htab_elements (gimple_canonical_types),
-	       (long) gimple_canonical_types->searches,
-	       (long) gimple_canonical_types->collisions,
+      fprintf (stderr, "[%s] GIMPLE canonical type table: size "
+	       HOST_SIZE_T_PRINT_DEC ", " HOST_SIZE_T_PRINT_DEC
+	       " elements, %d searches, %d collisions (ratio: %f)\n", pfx,
+	       (fmt_size_t) htab_size (gimple_canonical_types),
+	       (fmt_size_t) htab_elements (gimple_canonical_types),
+	       gimple_canonical_types->searches,
+	       gimple_canonical_types->collisions,
 	       htab_collisions (gimple_canonical_types));
       fprintf (stderr, "[%s] GIMPLE canonical type pointer-map: "
 	       "%lu elements, %ld searches\n", pfx,
@@ -3118,13 +3126,6 @@ lto_fe_init (void)
   memset (&lto_stats, 0, sizeof (lto_stats));
   bitmap_obstack_initialize (NULL);
   gimple_register_cfg_hooks ();
-#ifndef ACCEL_COMPILER
-  unsigned char *table
-    = ggc_vec_alloc<unsigned char> (MAX_MACHINE_MODE);
-  for (int m = 0; m < MAX_MACHINE_MODE; m++)
-    table[m] = m;
-  lto_mode_identity_table = table;
-#endif
 }
 
 #include "gt-lto-lto-common.h"

@@ -2,6 +2,7 @@
 // { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
 // { dg-timeout-factor 3 }
+// { dg-timeout-factor 5 { target debug_mode } }
 // { dg-require-effective-target tbb_backend }
 
 //===-- set.pass.cpp ------------------------------------------------------===//
@@ -12,7 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Note: This file was derived from set.pass.cc which is part of the upstream
+// Note: This file was derived from set.pass.cpp which is part of the upstream
 // source.
 
 #include "pstl/pstl_test_config.h"

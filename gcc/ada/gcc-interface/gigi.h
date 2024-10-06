@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2023, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2024, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -158,14 +158,14 @@ enum alias_set_op
   ALIAS_SET_SUPERSET
 };
 
-/* Relate the alias sets of GNU_NEW_TYPE and GNU_OLD_TYPE according to OP.
+/* Relate the alias sets of NEW_TYPE and OLD_TYPE according to OP.
    If this is a multi-dimensional array type, do this recursively.
 
    OP may be
    - ALIAS_SET_COPY:     the new set is made a copy of the old one.
    - ALIAS_SET_SUPERSET: the new set is made a superset of the old one.
    - ALIAS_SET_SUBSET:   the new set is made a subset of the old one.  */
-extern void relate_alias_sets (tree gnu_new_type, tree gnu_old_type,
+extern void relate_alias_sets (tree new_type, tree old_type,
 			       enum alias_set_op op);
 
 /* Given GNAT_ENTITY, an object (constant, variable, parameter, exception)
@@ -350,7 +350,7 @@ struct attrib
 };
 
 /* Table of machine-independent internal attributes.  */
-extern const struct attribute_spec gnat_internal_attribute_table[];
+extern const struct scoped_attribute_specs gnat_internal_attribute_table;
 
 /* Define the entries in the standard data array.  */
 enum standard_datatypes
@@ -763,6 +763,12 @@ extern void update_pointer_to (tree old_type, tree new_type);
    minimum (if !MAX_P) possible value of the discriminant.  */
 extern tree max_size (tree exp, bool max_p);
 
+/* Try to compute the maximum (if MAX_P) or minimum (if !MAX_P) value for the
+   expression EXP, for very simple expressions.  Substitute variable references
+   with their respective type's min/max values.  Return the computed value if
+   any, or EXP if no value can be computed. */
+extern tree max_value (tree exp, bool max_p);
+
 /* Remove all conversions that are done in EXP.  This includes converting
    from a padded type or to a left-justified modular type.  If TRUE_ADDRESS
    is true, always return the address of the containing object even if
@@ -900,7 +906,7 @@ extern tree build_call_alloc_dealloc (tree gnu_obj, tree gnu_size,
 				      Entity_Id gnat_pool, Node_Id gnat_node);
 
 /* Build a GCC tree to correspond to allocating an object of TYPE whose
-   initial value if INIT, if INIT is nonzero.  Convert the expression to
+   initial value is INIT, if INIT is nonzero.  Convert the expression to
    RESULT_TYPE, which must be some type of pointer.  Return the tree.
 
    GNAT_PROC and GNAT_POOL optionally give the procedure to call and
@@ -1002,6 +1008,10 @@ extern bool must_pass_by_ref (tree gnu_type);
 /* Return the size of the FP mode with precision PREC.  */
 extern int fp_prec_to_size (int prec);
 
+/* Return the default alignment of a FIELD of TYPE declared in a record or
+   union type as specified by the ABI of the target architecture.  */
+extern unsigned int default_field_alignment (tree field, tree type);
+
 /* Return the precision of the FP mode with size SIZE.  */
 extern int fp_size_to_prec (int size);
 
@@ -1033,6 +1043,11 @@ extern bool simple_constant_p (Entity_Id gnat_entity);
 
 /* Return the size of TYPE, which must be a positive power of 2.  */
 extern unsigned int resolve_atomic_size (tree type);
+
+/* Try to compute the reduction of OP modulo MODULUS in PRECISION bits with a
+   division-free algorithm.  Return NULL_TREE if this is not easily doable.  */
+extern tree fast_modulo_reduction (tree op, tree modulus,
+				   unsigned int precision);
 
 #ifdef __cplusplus
 extern "C" {
@@ -1230,6 +1245,14 @@ static inline tree
 operand_type (tree expr)
 {
   return TREE_TYPE (TREE_OPERAND (expr, 0));
+}
+
+/* Return the second value of a list.  */
+
+static inline tree
+list_second (tree list)
+{
+  return TREE_VALUE (TREE_CHAIN (list));
 }
 
 /* Return the third value of a list.  */

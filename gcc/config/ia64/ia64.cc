@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler.
-   Copyright (C) 1999-2023 Free Software Foundation, Inc.
+   Copyright (C) 1999-2024 Free Software Foundation, Inc.
    Contributed by James E. Wilson <wilson@cygnus.com> and
 		  David Mosberger <davidm@hpl.hp.com>.
 
@@ -313,13 +313,15 @@ static tree ia64_gimplify_va_arg (tree, tree, gimple_seq *, gimple_seq *);
 static bool ia64_scalar_mode_supported_p (scalar_mode mode);
 static bool ia64_vector_mode_supported_p (machine_mode mode);
 static bool ia64_legitimate_constant_p (machine_mode, rtx);
-static bool ia64_legitimate_address_p (machine_mode, rtx, bool);
+static bool ia64_legitimate_address_p (machine_mode, rtx, bool,
+				       code_helper = ERROR_MARK);
 static bool ia64_cannot_force_const_mem (machine_mode, rtx);
 static const char *ia64_mangle_type (const_tree);
 static const char *ia64_invalid_conversion (const_tree, const_tree);
 static const char *ia64_invalid_unary_op (int, const_tree);
 static const char *ia64_invalid_binary_op (int, const_tree, const_tree);
 static machine_mode ia64_c_mode_for_suffix (char);
+static machine_mode ia64_c_mode_for_floating_type (enum tree_index);
 static void ia64_trampoline_init (rtx, tree, rtx);
 static void ia64_override_options_after_change (void);
 static bool ia64_member_type_forces_blk (const_tree, machine_mode);
@@ -357,7 +359,7 @@ static bool ia64_expand_vec_perm_const_1 (struct expand_vec_perm_d *d);
 
 
 /* Table of valid machine attributes.  */
-static const struct attribute_spec ia64_attribute_table[] =
+static const attribute_spec ia64_gnu_attributes[] =
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
        affects_type_identity, handler, exclude } */
@@ -369,8 +371,17 @@ static const struct attribute_spec ia64_attribute_table[] =
     ia64_vms_common_object_attribute, NULL },
 #endif
   { "version_id",      1, 1, true, false, false, false,
-    ia64_handle_version_id_attribute, NULL },
-  { NULL,	       0, 0, false, false, false, false, NULL, NULL }
+    ia64_handle_version_id_attribute, NULL }
+};
+
+static const scoped_attribute_specs ia64_gnu_attribute_table =
+{
+  "gnu", { ia64_gnu_attributes }
+};
+
+static const scoped_attribute_specs *const ia64_attribute_table[] =
+{
+  &ia64_gnu_attribute_table
 };
 
 /* Initialize the GCC target structure.  */
@@ -626,6 +637,9 @@ static const struct attribute_spec ia64_attribute_table[] =
 
 #undef TARGET_C_MODE_FOR_SUFFIX
 #define TARGET_C_MODE_FOR_SUFFIX ia64_c_mode_for_suffix
+
+#undef TARGET_C_MODE_FOR_FLOATING_TYPE
+#define TARGET_C_MODE_FOR_FLOATING_TYPE ia64_c_mode_for_floating_type
 
 #undef TARGET_CAN_ELIMINATE
 #define TARGET_CAN_ELIMINATE ia64_can_eliminate
@@ -1024,8 +1038,8 @@ ia64_legitimate_address_disp (const_rtx reg, const_rtx disp, bool strict)
 /* Implement TARGET_LEGITIMATE_ADDRESS_P.  */
 
 static bool
-ia64_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
-			   rtx x, bool strict)
+ia64_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED, rtx x,
+			   bool strict, code_helper)
 {
   if (ia64_legitimate_address_reg (x, strict))
     return true;
@@ -3886,7 +3900,7 @@ ia64_start_function (FILE *file, const char *fnname,
   fputs ("\t.proc ", file);
   assemble_name (file, fnname);
   fputc ('\n', file);
-  ASM_OUTPUT_LABEL (file, fnname);
+  ASM_OUTPUT_FUNCTION_LABEL (file, fnname, decl);
 }
 
 /* Called after register allocation to add any instructions needed for the
@@ -11317,6 +11331,20 @@ ia64_c_mode_for_suffix (char suffix)
     return XFmode;
 
   return VOIDmode;
+}
+
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return DFmode, XFmode
+   or TFmode for TI_LONG_DOUBLE_TYPE which is for long double type,
+   go with the default one for the others.  */
+
+static machine_mode
+ia64_c_mode_for_floating_type (enum tree_index ti)
+{
+  /* long double is XFmode normally, and TFmode for HPUX.  It should be
+     TFmode for VMS as well but we only support up to DFmode now.  */
+  if (ti == TI_LONG_DOUBLE_TYPE)
+    return TARGET_HPUX ? TFmode : (TARGET_ABI_OPEN_VMS ? DFmode : XFmode);
+  return default_mode_for_floating_type (ti);
 }
 
 static GTY(()) rtx ia64_dconst_0_5_rtx;

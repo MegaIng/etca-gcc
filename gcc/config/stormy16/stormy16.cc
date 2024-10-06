@@ -1,5 +1,5 @@
 /* Xstormy16 target functions.
-   Copyright (C) 1997-2023 Free Software Foundation, Inc.
+   Copyright (C) 1997-2024 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
    This file is part of GCC.
@@ -795,8 +795,8 @@ xstormy16_expand_andqi3 (rtx *operands)
   && (INTVAL (X) + (OFFSET) < 0x100 || INTVAL (X) + (OFFSET) >= 0x7F00))
 
 bool
-xstormy16_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
-				rtx x, bool strict)
+xstormy16_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED, rtx x,
+				bool strict, code_helper)
 {
   if (LEGITIMATE_ADDRESS_CONST_INT_P (x, 0))
     return true;
@@ -2377,7 +2377,7 @@ static tree xstormy16_handle_interrupt_attribute
 static tree xstormy16_handle_below100_attribute
   (tree *, tree, tree, int, bool *);
 
-static const struct attribute_spec xstormy16_attribute_table[] =
+TARGET_GNU_ATTRIBUTES (xstormy16_attribute_table,
 {
   /* name, min_len, max_len, decl_req, type_req, fn_type_req,
      affects_type_identity, handler, exclude.  */
@@ -2386,9 +2386,8 @@ static const struct attribute_spec xstormy16_attribute_table[] =
   { "BELOW100",  0, 0, false, false, false, false,
     xstormy16_handle_below100_attribute, NULL },
   { "below100",  0, 0, false, false, false, false,
-    xstormy16_handle_below100_attribute, NULL },
-  { NULL,        0, 0, false, false, false, false, NULL, NULL }
-};
+    xstormy16_handle_below100_attribute, NULL }
+});
 
 /* Handle an "interrupt" attribute;
    arguments as in struct attribute_spec.handler.  */

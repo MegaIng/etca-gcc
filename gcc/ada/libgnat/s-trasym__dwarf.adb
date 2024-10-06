@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1999-2023, AdaCore                     --
+--                     Copyright (C) 1999-2024, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -357,16 +357,16 @@ package body System.Traceback.Symbolic is
       --  fail opening that downstream, we'll just bail out.
 
       declare
-         Argv0 : constant System.Address
-           := Conv.To_Pointer (Gnat_Argv) (0);
+         Argv0 : constant System.Address :=
+           Conv.To_Pointer (Gnat_Argv) (0);
 
-         Resolved_Argv0 : constant System.Address
-           := locate_exec_on_path (Argv0);
+         Resolved_Argv0 : constant System.Address :=
+           locate_exec_on_path (Argv0);
 
-         Exe_Argv : constant System.Address
-           := (if Resolved_Argv0 /= System.Null_Address
-               then Resolved_Argv0
-               else Argv0);
+         Exe_Argv : constant System.Address :=
+           (if Resolved_Argv0 /= System.Null_Address
+            then Resolved_Argv0
+            else Argv0);
 
          Result : constant String := Value (Exe_Argv);
 

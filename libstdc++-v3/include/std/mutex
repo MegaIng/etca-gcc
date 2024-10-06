@@ -1,6 +1,6 @@
 // <mutex> -*- C++ -*-
 
-// Copyright (C) 2003-2023 Free Software Foundation, Inc.
+// Copyright (C) 2003-2024 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_MUTEX
 #define _GLIBCXX_MUTEX 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/requires_hosted.h> // concurrency
 
@@ -55,6 +57,9 @@
 #if defined _GLIBCXX_HAS_GTHREADS && ! defined _GLIBCXX_HAVE_TLS
 # include <bits/std_function.h>  // std::function
 #endif
+
+#define __glibcxx_want_scoped_lock
+#include <bits/version.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -728,8 +733,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
     }
 
-#if __cplusplus >= 201703L
-#define __cpp_lib_scoped_lock 201703L
+#ifdef __cpp_lib_scoped_lock // C++ >= 17 && hosted && gthread
   /** @brief A scoped lock type for multiple lockable objects.
    *
    * A scoped_lock controls mutex ownership within a scope, releasing
@@ -742,9 +746,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     class scoped_lock
     {
     public:
+
+      [[nodiscard]]
       explicit scoped_lock(_MutexTypes&... __m) : _M_devices(std::tie(__m...))
       { std::lock(__m...); }
 
+      [[nodiscard]]
       explicit scoped_lock(adopt_lock_t, _MutexTypes&... __m) noexcept
       : _M_devices(std::tie(__m...))
       { } // calling thread owns mutex
@@ -777,9 +784,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     public:
       using mutex_type = _Mutex;
 
+      [[nodiscard]]
       explicit scoped_lock(mutex_type& __m) : _M_device(__m)
       { _M_device.lock(); }
 
+      [[nodiscard]]
       explicit scoped_lock(adopt_lock_t, mutex_type& __m) noexcept
       : _M_device(__m)
       { } // calling thread owns mutex
@@ -793,7 +802,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     private:
       mutex_type&  _M_device;
     };
-#endif // C++17
+#endif // __cpp_lib_scoped_lock
 
 #ifdef _GLIBCXX_HAS_GTHREADS
   /// Flag type used by std::call_once

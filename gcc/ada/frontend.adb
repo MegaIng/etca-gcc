@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -158,7 +158,6 @@ begin
       --  intended -gnatg or -gnaty compilations. We also disconnect checking
       --  for maximum line length.
 
-      Opt.Style_Check := False;
       Style_Check := False;
 
       --  Capture current suppress options, which may get modified
@@ -565,6 +564,4 @@ begin
    if Mapping_File_Name /= null then
       Fmap.Update_Mapping_File (Mapping_File_Name.all);
    end if;
-
-   return;
 end Frontend;

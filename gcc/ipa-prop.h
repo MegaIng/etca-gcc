@@ -1,5 +1,5 @@
 /* Interprocedural analyses.
-   Copyright (C) 2005-2023 Free Software Foundation, Inc.
+   Copyright (C) 2005-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -213,6 +213,10 @@ struct GTY(()) ipa_argagg_value
   unsigned index : IPA_PROP_ARG_INDEX_LIMIT_BITS;
   /* Whether the value was passed by reference.  */
   unsigned by_ref : 1;
+  /* Set if the value should not be used after materialization in
+     value_numbering.  It is kept around just so that clone materialization can
+     distinguish a combined IPA-CP and IPA-SRA from a deleted argument.  */
+  unsigned killed : 1;
 };
 
 /* A view into a sorted list of aggregate values in a particular context, be it
@@ -292,18 +296,6 @@ public:
   array_slice<const ipa_argagg_value> m_elts;
 };
 
-/* Information about zero/non-zero bits.  */
-class GTY(()) ipa_bits
-{
-public:
-  /* The propagated value.  */
-  widest_int value;
-  /* Mask corresponding to the value.
-     Similar to ccp_lattice_t, if xth bit of mask is 0,
-     implies xth bit of value is constant.  */
-  widest_int mask;
-};
-
 /* Info about value ranges.  */
 
 class GTY(()) ipa_vr
@@ -314,10 +306,11 @@ public:
   void set_unknown ();
   bool known_p () const { return m_storage != NULL; }
   tree type () const { return m_type; }
-  void get_vrange (Value_Range &) const;
+  void get_vrange (value_range &) const;
   bool equal_p (const vrange &) const;
+  bool equal_p (const ipa_vr &) const;
   const vrange_storage *storage () const { return m_storage; }
-  void streamer_read (lto_input_block *, data_in *);
+  void streamer_read (lto_input_block *, class data_in *);
   void streamer_write (output_block *) const;
   void dump (FILE *) const;
 
@@ -341,11 +334,6 @@ struct GTY (()) ipa_jump_func
   /* Aggregate jump function description.  See struct ipa_agg_jump_function
      and its description.  */
   struct ipa_agg_jump_function agg;
-
-  /* Information about zero/non-zero bits.  The pointed to structure is shared
-     betweed different jump functions.  Use ipa_set_jfunc_bits to set this
-     field.  */
-  class ipa_bits *bits;
 
   /* Information about value range, containing valid data only when vr_known is
      true.  The pointed to structure is shared betweed different jump
@@ -533,7 +521,7 @@ public:
   auto_vec<ipa_argagg_value, 32> m_known_aggs;
 
   /* Vector describing known value ranges of arguments.  */
-  auto_vec<Value_Range, 32> m_known_value_ranges;
+  auto_vec<value_range, 32> m_known_value_ranges;
 };
 
 inline
@@ -585,7 +573,7 @@ public:
   vec<ipa_argagg_value> m_known_aggs = vNULL;
 
   /* Vector describing known value ranges of arguments.  */
-  vec<Value_Range> m_known_value_ranges = vNULL;
+  vec<value_range> m_known_value_ranges = vNULL;
 };
 
 inline
@@ -640,7 +628,7 @@ public:
   vec<ipa_param_descriptor, va_gc> *descriptors;
   /* Pointer to an array of structures describing individual formal
      parameters.  */
-  class ipcp_param_lattices * GTY((skip)) lattices;
+  vec<ipcp_param_lattices> GTY((skip)) lattices;
   /* Only for versioned nodes this field would not be NULL,
      it points to the node that IPA cp cloned from.  */
   struct cgraph_node * GTY((skip)) ipcp_orig_node;
@@ -675,7 +663,7 @@ public:
 
 inline
 ipa_node_params::ipa_node_params ()
-: descriptors (NULL), lattices (NULL), ipcp_orig_node (NULL),
+: descriptors (NULL), lattices (vNULL), ipcp_orig_node (NULL),
   known_csts (vNULL), known_contexts (vNULL), analysis_done (0),
   node_enqueued (0), do_clone_for_all_contexts (0), is_all_contexts_clone (0),
   node_dead (0), node_within_scc (0), node_is_self_scc (0),
@@ -686,8 +674,8 @@ ipa_node_params::ipa_node_params ()
 inline
 ipa_node_params::~ipa_node_params ()
 {
-  free (lattices);
   vec_free (descriptors);
+  lattices.release ();
   known_csts.release ();
   known_contexts.release ();
 }
@@ -940,15 +928,13 @@ struct GTY(()) ipcp_transformation
 {
   /* Default constructor.  */
   ipcp_transformation ()
-    : m_agg_values (nullptr), bits (nullptr), m_vr (nullptr),
-    m_uid_to_idx (nullptr)
+    : m_agg_values (nullptr), m_vr (nullptr), m_uid_to_idx (nullptr)
   { }
 
   /* Default destructor.  */
   ~ipcp_transformation ()
   {
     vec_free (m_agg_values);
-    vec_free (bits);
     vec_free (m_vr);
   }
 
@@ -966,10 +952,41 @@ struct GTY(()) ipcp_transformation
 
   void maybe_create_parm_idx_map (tree fndecl);
 
+  /* Remove all elements in m_agg_values on which PREDICATE returns true.  */
+
+  template<typename pred_function>
+  void remove_argaggs_if (pred_function &&predicate)
+  {
+    unsigned ts_len = vec_safe_length (m_agg_values);
+    if (ts_len == 0)
+      return;
+
+    bool removed_item = false;
+    unsigned dst_index = 0;
+
+    for (unsigned i = 0; i < ts_len; i++)
+      {
+	ipa_argagg_value *v = &(*m_agg_values)[i];
+	if (!predicate (*v))
+	  {
+	    if (removed_item)
+	      (*m_agg_values)[dst_index] = *v;
+	    dst_index++;
+	  }
+	else
+	  removed_item = true;
+      }
+    if (dst_index == 0)
+      {
+	ggc_free (m_agg_values);
+	m_agg_values = NULL;
+      }
+    else if (removed_item)
+      m_agg_values->truncate (dst_index);
+  }
+
   /* Known aggregate values.  */
   vec<ipa_argagg_value, va_gc>  *m_agg_values;
-  /* Known bits information.  */
-  vec<ipa_bits *, va_gc> *bits;
   /* Value range information.  */
   vec<ipa_vr, va_gc> *m_vr;
   /* If there are many parameters, this is a vector sorted by their DECL_UIDs
@@ -1172,8 +1189,6 @@ tree ipa_get_indirect_edge_target (struct cgraph_edge *ie,
 struct cgraph_edge *ipa_make_edge_direct_to_target (struct cgraph_edge *, tree,
 						    bool speculative = false);
 tree ipa_impossible_devirt_target (struct cgraph_edge *, tree);
-ipa_bits *ipa_get_ipa_bits_for_value (const widest_int &value,
-				      const widest_int &mask);
 
 
 /* Functions related to both.  */
@@ -1235,8 +1250,13 @@ void ipa_dump_param (FILE *, class ipa_node_params *info, int i);
 void ipa_release_body_info (struct ipa_func_body_info *);
 tree ipa_get_callee_param_type (struct cgraph_edge *e, int i);
 bool ipcp_get_parm_bits (tree, tree *, widest_int *);
+tree ipcp_get_aggregate_const (struct function *func, tree parm, bool by_ref,
+			       HOST_WIDE_INT bit_offset,
+			       HOST_WIDE_INT bit_size);
 bool unadjusted_ptr_and_unit_offset (tree op, tree *ret,
 				     poly_int64 *offset_ret);
+
+void ipa_prop_cc_finalize (void);
 
 /* From tree-sra.cc:  */
 tree build_ref_for_offset (location_t, tree, poly_int64, bool, tree,
@@ -1256,5 +1276,10 @@ ipa_range_set_and_normalize (vrange &r, tree val)
   else
     r.set (val, val);
 }
+
+bool ipa_return_value_range (value_range &range, tree decl);
+void ipa_record_return_value_range (value_range val);
+bool ipa_jump_functions_equivalent_p (ipa_jump_func *jf1, ipa_jump_func *jf2);
+
 
 #endif /* IPA_PROP_H */

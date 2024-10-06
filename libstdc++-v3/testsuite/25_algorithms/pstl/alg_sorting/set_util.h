@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Note: This file was derived from set.pass.cc which is part of the upstream
+// Note: This file was derived from set.pass.cpp which is part of the upstream
 // source.
 
 #ifndef __PSTL_TEST_SET_UTIL_H
@@ -51,7 +51,11 @@ namespace TestUtils
     void
     test_set_op(Compare compare)
     {
+#ifdef _GLIBCXX_DEBUG
+        const std::size_t n_max = 1000;
+#else
         const std::size_t n_max = 100000;
+#endif
 
         // The rand()%(2*n+1) encourages generation of some duplicates.
         std::srand(4200);

@@ -1,5 +1,5 @@
 /* Loop header copying on trees.
-   Copyright (C) 2004-2023 Free Software Foundation, Inc.
+   Copyright (C) 2004-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -40,6 +40,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple-range-path.h"
 #include "gimple-pretty-print.h"
 #include "cfganal.h"
+#include "tree-ssa-loop-manip.h"
+#include "tree-ssa-loop-niter.h"
+#include "tree-scalar-evolution.h"
 
 /* Return path query insteance for testing ranges of statements
    in headers of LOOP contained in basic block BB.
@@ -112,13 +115,13 @@ loop_static_stmt_p (class loop *loop,
 		    gimple *stmt)
 {
   tree type = gimple_range_type (stmt);
-  if (!type || !Value_Range::supports_type_p (type))
+  if (!type || !value_range::supports_type_p (type))
     return false;
 
   if (!query)
     query = get_range_query (loop, gimple_bb (stmt), ranger);
 
-  Value_Range r (gimple_range_type (stmt));
+  value_range r (gimple_range_type (stmt));
   if (!query->range_of_stmt (r, stmt))
     return false;
   return r.singleton_p ();
@@ -176,7 +179,7 @@ enum ch_decision
   ch_impossible,
   /* We can copy it if it enables wins.  */
   ch_possible,
-  /* We can "cop" it if it enables wins and doing
+  /* We can "copy" it if it enables wins and doing
      so will introduce no new code.  */
   ch_possible_zero_cost,
   /* We want to copy.  */
@@ -464,7 +467,7 @@ should_duplicate_loop_header_p (basic_block header, class loop *loop,
      TODO: Even if duplication costs some size we may opt to do so in case
      exit probability is significant enough (do partial peeling).  */
   if (static_exit)
-    return code_size_cost ? ch_possible_zero_cost : ch_win;
+    return !code_size_cost ? ch_possible_zero_cost : ch_possible;
 
   /* We was not able to prove that conditional will be eliminated.  */
   int insns = estimate_num_insns (last, &eni_size_weights);
@@ -565,7 +568,7 @@ do_while_loop_p (class loop *loop)
 	       <body>
        // region start
      loop_header:
-	       if (cond1)   <- we need to update probabbility here
+	       if (cond1)   <- we need to update probability here
 		 goto loop_exit;
 	       if (cond2)   <- and determine scaling factor here.
 			       moreover cond2 is now always true
@@ -756,6 +759,21 @@ protected:
   bool process_loop_p (class loop *loop) final override;
 }; // class pass_ch_vect
 
+/* Sort comparator to order loops after the specified order.  */
+
+static int
+ch_order_loops (const void *a_, const void *b_, void *order_)
+{
+  int *order = (int *)order_;
+  const class loop *a = *(const class loop * const *)a_;
+  const class loop *b = *(const class loop * const *)b_;
+  if (a->num == b->num)
+    return 0;
+  if (order[a->num] < order[b->num])
+    return -1;
+  return 1;
+}
+
 /* For all loops, copy the condition at the end of the loop body in front
    of the loop.  This is beneficial since it increases efficiency of
    code motion optimizations.  It also saves one jump on entry to the loop.  */
@@ -796,7 +814,16 @@ ch_base::copy_headers (function *fun)
 	fprintf (dump_file,
 		 "Analyzing loop %i\n", loop->num);
 
+      /* If the loop is already a do-while style one (either because it was
+	 written as such, or because jump threading transformed it into one),
+	 we might be in fact peeling the first iteration of the loop.  This
+	 in general is not a good idea.  Also avoid touching infinite loops.  */
+      if (!loop_has_exit_edges (loop)
+	  || !process_loop_p (loop))
+	continue;
+
       basic_block header = loop->header;
+      estimate_numbers_of_iterations (loop);
       if (!get_max_loop_iterations_int (loop))
 	{
 	  if (dump_file && (dump_flags & TDF_DETAILS))
@@ -807,23 +834,16 @@ ch_base::copy_headers (function *fun)
 	  continue;
 	}
 
-      /* If the loop is already a do-while style one (either because it was
-	 written as such, or because jump threading transformed it into one),
-	 we might be in fact peeling the first iteration of the loop.  This
-	 in general is not a good idea.  Also avoid touching infinite loops.  */
-      if (!loop_has_exit_edges (loop)
-	  || !process_loop_p (loop))
-	continue;
-
       /* Iterate the header copying up to limit; this takes care of the cases
 	 like while (a && b) {...}, where we want to have both of the conditions
 	 copied.  TODO -- handle while (a || b) - like cases, by not requiring
 	 the header to have just a single successor and copying up to
 	 postdominator.  */
-      int nheaders = 0;
-      int last_win_nheaders = 0;
+      unsigned int nheaders = 0;
+      unsigned int last_win_nheaders = 0;
       bool last_win_invariant_exit = false;
       ch_decision ret;
+      auto_vec <ch_decision, 32> decision;
       hash_set <edge> *invariant_exits = new hash_set <edge>;
       hash_set <edge> *static_exits = new hash_set <edge>;
       while ((ret = should_duplicate_loop_header_p (header, loop, ranger,
@@ -833,26 +853,13 @@ ch_base::copy_headers (function *fun)
 	     != ch_impossible)
 	{
 	  nheaders++;
+	  decision.safe_push (ret);
 	  if (ret >= ch_win)
 	    {
 	      last_win_nheaders = nheaders;
 	      last_win_invariant_exit = (ret == ch_win_invariant_exit);
 	      if (dump_file && (dump_flags & TDF_DETAILS))
 		fprintf (dump_file, "    Duplicating bb %i is a win\n",
-			 header->index);
-	    }
-	  /* Duplicate BB if has zero cost but be sure it will not
-	     imply duplication of other BBs.  */
-	  else if (ret == ch_possible_zero_cost
-		   && (last_win_nheaders == nheaders - 1
-		       || (last_win_nheaders == nheaders - 2
-			   && last_win_invariant_exit)))
-	    {
-	      last_win_nheaders = nheaders;
-	      last_win_invariant_exit = false;
-	      if (dump_file && (dump_flags & TDF_DETAILS))
-		fprintf (dump_file,
-			 "    Duplicating bb %i is a win; it has zero cost\n",
 			 header->index);
 	    }
 	  else
@@ -883,6 +890,16 @@ ch_base::copy_headers (function *fun)
 	  if (dump_file && (dump_flags & TDF_DETAILS))
 	    fprintf (dump_file,
 		     "    Duplicating header BB to obtain do-while loop\n");
+	}
+      /* "Duplicate" all BBs with zero cost following last basic blocks we
+	 decided to copy.  */
+      while (last_win_nheaders < decision.length ()
+	     && decision[last_win_nheaders] == ch_possible_zero_cost)
+	{
+	  if (dump_file && (dump_flags & TDF_DETAILS))
+	    fprintf (dump_file,
+		     "    Duplicating extra bb is a win; it has zero cost\n");
+	  last_win_nheaders++;
 	}
 
       if (last_win_nheaders)
@@ -955,7 +972,7 @@ ch_base::copy_headers (function *fun)
 
       edge entry = loop_preheader_edge (loop);
 
-      propagate_threaded_block_debug_into (exit->dest, entry->dest);
+      propagate_threaded_block_debug_into (nonexit->dest, entry->dest);
       if (!gimple_duplicate_seme_region (entry, exit, bbs, n_bbs, copied_bbs,
 					 true))
 	{
@@ -1047,7 +1064,7 @@ ch_base::copy_headers (function *fun)
 	  fprintf (dump_file, "\n");
 	}
 
-      /* We possibly decreased number of itrations by 1.  */
+      /* We possibly decreased number of iterations by 1.  */
       auto_vec<edge> exits = get_loop_exit_edges (loop);
       bool precise = (nexits == (int) exits.length ());
       /* Check that loop may not terminate in other way than via
@@ -1150,8 +1167,24 @@ ch_base::copy_headers (function *fun)
     }
   if (!loops_to_unloop.is_empty ())
     {
+      /* Make sure loops are ordered inner to outer for unlooping.  */
+      if (loops_to_unloop.length () != 1)
+	{
+	  auto_vec<int, 8> order;
+	  order.safe_grow (number_of_loops (cfun), true);
+	  int i = 0;
+	  for (auto loop : loops_list (cfun, LI_FROM_INNERMOST))
+	    order[loop->num] = i++;
+	  loops_to_unloop.sort (ch_order_loops, order.address ());
+	}
       bool irred_invalidated;
-      unloop_loops (loops_to_unloop, loops_to_unloop_nunroll, NULL, &irred_invalidated);
+      auto_bitmap lc_invalidated;
+      auto_vec<edge> edges_to_remove;
+      unloop_loops (loops_to_unloop, loops_to_unloop_nunroll, edges_to_remove,
+		    lc_invalidated, &irred_invalidated);
+      if (loops_state_satisfies_p (fun, LOOP_CLOSED_SSA)
+	  && !bitmap_empty_p (lc_invalidated))
+	rewrite_into_loop_closed_ssa (NULL, 0);
       changed = true;
     }
   free (bbs);
@@ -1165,12 +1198,12 @@ ch_base::copy_headers (function *fun)
 unsigned int
 pass_ch::execute (function *fun)
 {
-  loop_optimizer_init (LOOPS_HAVE_PREHEADERS
-		       | LOOPS_HAVE_SIMPLE_LATCHES
-		       | LOOPS_HAVE_RECORDED_EXITS);
+  loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
+  scev_initialize ();
 
   unsigned int res = copy_headers (fun);
 
+  scev_finalize ();
   loop_optimizer_finalize ();
   return res;
 }

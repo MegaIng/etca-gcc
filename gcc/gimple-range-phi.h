@@ -1,5 +1,5 @@
 /* Header file for gimple range phi analysis.
-   Copyright (C) 2023 Free Software Foundation, Inc.
+   Copyright (C) 2023-2024 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>.
 
 This file is part of GCC.
@@ -50,23 +50,20 @@ along with GCC; see the file COPYING3.  If not see
 class phi_group
 {
 public:
-  phi_group (bitmap bm, tree init_val, edge e, gimple *mod, range_query *q);
+  phi_group (bitmap bm, irange &init_range, gimple *mod, range_query *q);
   phi_group (const phi_group &g);
   const_bitmap group () const { return m_group; }
   const vrange &range () const { return m_vr; }
-  tree initial_value () const { return m_initial_value; }
   gimple *modifier_stmt () const { return m_modifier; }
   void dump (FILE *);
 protected:
   bool calculate_using_modifier (range_query *q);
-  bool refine_using_relation (relation_kind k, range_query *q);
+  bool refine_using_relation (relation_kind k);
   static unsigned is_modifier_p (gimple *s, const bitmap bm);
   bitmap m_group;
-  tree m_initial_value;   // Name or constant.
-  edge m_initial_edge;    // Edge of initial value.
   gimple *m_modifier;     // Single stmt which modifies phi group.
   unsigned m_modifier_op; // Operand of group member in modifier stmt.
-  int_range<3> m_vr;
+  int_range_max m_vr;
   friend class phi_analyzer;
 };
 
@@ -90,6 +87,7 @@ protected:
 
   bitmap m_simple;       // Processed, not part of a group.
   bitmap m_current;	 // Potential group currently being analyzed.
+  vec<phi_group *> m_phi_groups;
   vec<phi_group *> m_tab;
   bitmap_obstack m_bitmaps;
 };

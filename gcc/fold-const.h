@@ -1,5 +1,5 @@
 /* Fold a constant sub-tree into a single node for C-compiler
-   Copyright (C) 1987-2023 Free Software Foundation, Inc.
+   Copyright (C) 1987-2024 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -126,6 +126,9 @@ extern tree fold_vec_perm (tree, tree, tree, const vec_perm_indices &);
 extern bool wide_int_binop (wide_int &res, enum tree_code,
 			    const wide_int &arg1, const wide_int &arg2,
 			    signop, wi::overflow_type *);
+extern bool poly_int_binop (poly_wide_int &res, enum tree_code,
+			    const_tree, const_tree, signop,
+			    wi::overflow_type *);
 extern tree int_const_binop (enum tree_code, const_tree, const_tree, int = 1);
 #define build_fold_addr_expr(T)\
         build_fold_addr_expr_loc (UNKNOWN_LOCATION, (T))
@@ -151,7 +154,7 @@ extern tree div_if_zero_remainder (const_tree, const_tree);
 extern bool tree_swap_operands_p (const_tree, const_tree);
 extern enum tree_code swap_tree_comparison (enum tree_code);
 
-extern bool ptr_difference_const (tree, tree, poly_int64_pod *);
+extern bool ptr_difference_const (tree, tree, poly_int64 *);
 extern enum tree_code invert_tree_comparison (enum tree_code, bool);
 extern bool inverse_conditions_p (const_tree, const_tree);
 
@@ -218,6 +221,8 @@ extern bool simple_condition_p (tree);
 extern tree exact_inverse (tree, tree);
 extern bool expr_not_equal_to (tree t, const wide_int &);
 extern tree const_unop (enum tree_code, tree, tree);
+extern tree vector_const_binop (enum tree_code, tree, tree,
+				tree (*) (enum tree_code, tree, tree));
 extern tree const_binop (enum tree_code, tree, tree, tree);
 extern bool negate_mathfn_p (combined_fn);
 extern const char *getbyterep (tree, unsigned HOST_WIDE_INT *);

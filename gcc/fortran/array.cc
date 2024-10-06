@@ -1,5 +1,5 @@
 /* Array things
-   Copyright (C) 2000-2023 Free Software Foundation, Inc.
+   Copyright (C) 2000-2024 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -203,6 +203,12 @@ gfc_match_array_ref (gfc_array_ref *ar, gfc_array_spec *as, int init,
     {
       ar->type = AR_FULL;
       ar->dimen = 0;
+      if (corank != 0)
+	{
+	  for (int i = 0; i < GFC_MAX_DIMENSIONS; ++i)
+	    ar->dimen_type[i] = DIMEN_THIS_IMAGE;
+	  ar->codimen = corank;
+	}
       return MATCH_YES;
     }
 
@@ -238,7 +244,15 @@ coarray:
   if (!matched_bracket && gfc_match_char ('[') != MATCH_YES)
     {
       if (ar->dimen > 0)
-	return MATCH_YES;
+	{
+	  if (corank != 0)
+	    {
+	      for (int i = ar->dimen; i < GFC_MAX_DIMENSIONS; ++i)
+		ar->dimen_type[i] = DIMEN_THIS_IMAGE;
+	      ar->codimen = corank;
+	    }
+	  return MATCH_YES;
+	}
       else
 	return MATCH_ERROR;
     }
@@ -1015,6 +1029,9 @@ gfc_compare_array_spec (gfc_array_spec *as1, gfc_array_spec *as2)
     return 1;
 
   if (as1->type != as2->type)
+    return 0;
+
+  if (as1->cotype != as2->cotype)
     return 0;
 
   if (as1->type == AS_EXPLICIT)
@@ -2124,6 +2141,19 @@ resolve_array_list (gfc_constructor_base base)
 		     "polymorphic [F2008: C4106]", &c->expr->where);
 	  t = false;
 	}
+
+      /* F2018:C7114 The declared type of an ac-value shall not be abstract.  */
+      if (c->expr->ts.type == BT_CLASS
+	  && c->expr->ts.u.derived
+	  && c->expr->ts.u.derived->attr.abstract
+	  && CLASS_DATA (c->expr))
+	{
+	  gfc_error ("Array constructor value %qs at %L is of the ABSTRACT "
+		     "type %qs", c->expr->symtree->name, &c->expr->where,
+		     CLASS_DATA (c->expr)->ts.u.derived->name);
+	  t = false;
+	}
+
     }
 
   return t;
@@ -2212,9 +2242,9 @@ got_charlen:
 	    found_length = current_length;
 	  else if (found_length != current_length)
 	    {
-	      gfc_error ("Different CHARACTER lengths (%ld/%ld) in array"
-			 " constructor at %L", (long) found_length,
-			 (long) current_length, &p->expr->where);
+	      gfc_error ("Different CHARACTER lengths (%wd/%wd) in array"
+			 " constructor at %L", found_length,
+			 current_length, &p->expr->where);
 	      return false;
 	    }
 
@@ -2308,10 +2338,7 @@ gfc_copy_iterator (gfc_iterator *src)
   dest->start = gfc_copy_expr (src->start);
   dest->end = gfc_copy_expr (src->end);
   dest->step = gfc_copy_expr (src->step);
-  dest->unroll = src->unroll;
-  dest->ivdep = src->ivdep;
-  dest->vector = src->vector;
-  dest->novector = src->novector;
+  dest->annot = src->annot;
 
   return dest;
 }
@@ -2600,6 +2627,13 @@ gfc_array_dimen_size (gfc_expr *array, int dimen, mpz_t *result)
     case EXPR_FUNCTION:
       for (ref = array->ref; ref; ref = ref->next)
 	{
+	  /* Ultimate component is a procedure pointer.  */
+	  if (ref->type == REF_COMPONENT
+	      && !ref->next
+	      && ref->u.c.component->attr.function
+	      && IS_PROC_POINTER (ref->u.c.component))
+	    return false;
+
 	  if (ref->type != REF_ARRAY)
 	    continue;
 

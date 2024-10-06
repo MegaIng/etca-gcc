@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1993-2023, Free Software Foundation, Inc.         --
+--          Copyright (C) 1993-2024, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -36,8 +36,8 @@
 --  Preconditions in this unit are meant for analysis only, not for run-time
 --  checking, so that the expected exceptions are raised. This is enforced by
 --  setting the corresponding assertion policy to Ignore. These preconditions
---  protect from Dereference_Error and Update_Error, but not from
---  Storage_Error.
+--  protect from Constraint_Error, Dereference_Error and Update_Error, but not
+--  from Storage_Error.
 
 pragma Assertion_Policy (Pre => Ignore);
 
@@ -95,7 +95,7 @@ is
      (Item   : chars_ptr;
       Length : size_t) return char_array
    with
-     Pre    => Item /= Null_Ptr,
+     Pre    => Item /= Null_Ptr and then Length /= 0,
      Global => (Input => C_Memory);
 
    function Value (Item : chars_ptr) return String with
@@ -106,7 +106,7 @@ is
      (Item   : chars_ptr;
       Length : size_t) return String
    with
-     Pre    => Item /= Null_Ptr,
+     Pre    => Item /= Null_Ptr and then Length /= 0,
      Global => (Input => C_Memory);
 
    function Strlen (Item : chars_ptr) return size_t with
@@ -121,8 +121,9 @@ is
    with
      Pre    =>
        Item /= Null_Ptr
-         and then Strlen (Item) <= size_t'Last - Offset
-         and then Strlen (Item) + Offset <= Chars'Length,
+         and then (Chars'First /= 0 or else Chars'Last /= size_t'Last)
+         and then Chars'Length <= size_t'Last - Offset
+         and then Chars'Length + Offset <= Strlen (Item),
      Global => (In_Out => C_Memory);
 
    procedure Update
@@ -133,8 +134,8 @@ is
    with
      Pre    =>
        Item /= Null_Ptr
-         and then Strlen (Item) <= size_t'Last - Offset
-         and then Strlen (Item) + Offset <= Str'Length,
+         and then Str'Length <= size_t'Last - Offset
+         and then Str'Length + Offset <= Strlen (Item),
      Global => (In_Out => C_Memory);
 
    Update_Error : exception;

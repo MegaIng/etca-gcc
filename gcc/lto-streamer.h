@@ -1,7 +1,7 @@
 /* Data structures and declarations used for reading and writing
    GIMPLE to a file stream.
 
-   Copyright (C) 2009-2023 Free Software Foundation, Inc.
+   Copyright (C) 2009-2024 Free Software Foundation, Inc.
    Contributed by Doug Kwan <dougkwan@google.com>
 
 This file is part of GCC.
@@ -125,10 +125,6 @@ along with GCC; see the file COPYING3.  If not see
 #define LTO_minor_version 0
 
 typedef unsigned char	lto_decl_flags_t;
-
-/* Stream additional data to LTO object files to make it easier to debug
-   streaming code.  This changes object files.  */
-static const bool streamer_debugging = false;
 
 /* Tags representing the various IL objects written to the bytecode file
    (GIMPLE statements, basic blocks, EH regions, tree nodes, etc).
@@ -535,6 +531,9 @@ struct lto_out_decl_state
 
   /* True if decl state is compressed.  */
   bool compressed;
+
+  /* True if offload tables should be output. */
+  bool output_offload_tables_p;
 };
 
 typedef struct lto_out_decl_state *lto_out_decl_state_ptr;

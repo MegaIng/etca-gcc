@@ -1,5 +1,5 @@
 /* Implementation of subroutines for the GNU C++ pretty-printer.
-   Copyright (C) 2003-2023 Free Software Foundation, Inc.
+   Copyright (C) 2003-2024 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -49,7 +49,7 @@ pp_cxx_nonconsecutive_character (cxx_pretty_printer *pp, int c)
   if (p != NULL && *p == c)
     pp_cxx_whitespace (pp);
   pp_character (pp, c);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 #define pp_cxx_expression_list(PP, T)    \
@@ -65,7 +65,7 @@ void
 pp_cxx_colon_colon (cxx_pretty_printer *pp)
 {
   pp_colon_colon (pp);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 void
@@ -84,7 +84,7 @@ void
 pp_cxx_separate_with (cxx_pretty_printer *pp, int c)
 {
   pp_separate_with (pp, c);
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 }
 
 /* Expressions.  */
@@ -418,6 +418,8 @@ pp_cxx_userdef_literal (cxx_pretty_printer *pp, tree t)
      __builtin_offsetof ( type-id, offsetof-expression )
      __builtin_addressof ( expression )
 
+     __builtin_is_virtual_base_of ( type-id , type-id )
+
      __has_nothrow_assign ( type-id )   
      __has_nothrow_constructor ( type-id )
      __has_nothrow_copy ( type-id )
@@ -553,7 +555,7 @@ cxx_pretty_printer::postfix_expression (tree t)
 	   instantiation time.  */
 	if (TREE_CODE (fun) != FUNCTION_DECL)
 	  ;
-	else if (DECL_NONSTATIC_MEMBER_FUNCTION_P (fun))
+	else if (DECL_OBJECT_MEMBER_FUNCTION_P (fun))
 	  {
 	    tree object = (code == AGGR_INIT_EXPR
 			   ? (AGGR_INIT_VIA_CTOR_P (t)
@@ -1121,6 +1123,15 @@ cxx_pretty_printer::expression (tree t)
       t = OVL_FIRST (t);
       /* FALLTHRU */
     case VAR_DECL:
+      if (DECL_NTTP_OBJECT_P (t))
+	{
+	  /* Print the type followed by the CONSTRUCTOR value of the
+	     NTTP object.  */
+	  simple_type_specifier (cv_unqualified (TREE_TYPE (t)));
+	  expression (DECL_INITIAL (t));
+	  break;
+	}
+      /* FALLTHRU */
     case PARM_DECL:
     case FIELD_DECL:
     case CONST_DECL:
@@ -1198,7 +1209,6 @@ cxx_pretty_printer::expression (tree t)
       assignment_expression (t);
       break;
 
-    case NON_DEPENDENT_EXPR:
     case MUST_NOT_THROW_EXPR:
       expression (TREE_OPERAND (t, 0));
       break;
@@ -1249,7 +1259,6 @@ cxx_pretty_printer::expression (tree t)
       break;
 
     case ATOMIC_CONSTR:
-    case CHECK_CONSTR:
     case CONJ_CONSTR:
     case DISJ_CONSTR:
       pp_cxx_constraint (this, t);
@@ -1261,6 +1270,14 @@ cxx_pretty_printer::expression (tree t)
       pp_cxx_right_paren (this);
       break;
 
+    case VIEW_CONVERT_EXPR:
+      if (TREE_CODE (TREE_OPERAND (t, 0)) == TEMPLATE_PARM_INDEX)
+	{
+	  /* Strip const VIEW_CONVERT_EXPR wrappers for class NTTPs.  */
+	  expression (TREE_OPERAND (t, 0));
+	  break;
+	}
+      /* FALLTHRU */
     default:
       c_pretty_printer::expression (t);
       break;
@@ -1326,7 +1343,7 @@ cxx_pretty_printer::declaration_specifiers (tree t)
 	 do not have a type-specifier in their return types.  */
       if (DECL_CONSTRUCTOR_P (t) || DECL_CONV_FN_P (t))
 	function_specifier (t);
-      else if (DECL_NONSTATIC_MEMBER_FUNCTION_P (t))
+      else if (DECL_IOBJ_MEMBER_FUNCTION_P (t))
 	declaration_specifiers (TREE_TYPE (TREE_TYPE (t)));
       else
         c_pretty_printer::declaration_specifiers (t);
@@ -1684,9 +1701,9 @@ cxx_pretty_printer::direct_declarator (tree t)
       expression (t);
       pp_cxx_parameter_declaration_clause (this, t);
 
-      if (DECL_NONSTATIC_MEMBER_FUNCTION_P (t))
+      if (DECL_IOBJ_MEMBER_FUNCTION_P (t))
 	{
-	  padding = pp_before;
+	  set_padding (pp_before);
 	  pp_cxx_cv_qualifier_seq (this, pp_cxx_implicit_parameter_type (t));
 	}
 
@@ -1843,7 +1860,7 @@ cxx_pretty_printer::direct_abstract_declarator (tree t)
       direct_abstract_declarator (TREE_TYPE (t));
       if (TREE_CODE (t) == METHOD_TYPE)
 	{
-	  padding = pp_before;
+	  set_padding (pp_before);
 	  pp_cxx_cv_qualifier_seq (this, class_of_this_parm (t));
 	}
       pp_cxx_exception_specification (this, t);
@@ -1966,8 +1983,6 @@ pp_cxx_template_argument_list (cxx_pretty_printer *pp, tree t)
 	  if (TYPE_P (arg) || (TREE_CODE (arg) == TEMPLATE_DECL
 			       && TYPE_P (DECL_TEMPLATE_RESULT (arg))))
 	    pp->type_id (arg);
-	  else if (VAR_P (arg) && DECL_NTTP_OBJECT_P (arg))
-	    pp->expression (DECL_INITIAL (arg));
 	  else
 	    pp->expression (arg);
 	}
@@ -2671,7 +2686,7 @@ pp_cxx_requires_clause (cxx_pretty_printer *pp, tree t)
 {
   if (!t)
     return;
-  pp->padding = pp_before;
+  pp->set_padding (pp_before);
   pp_cxx_ws_string (pp, "requires");
   pp_space (pp);
   pp->expression (t);
@@ -2801,29 +2816,6 @@ pp_cxx_nested_requirement (cxx_pretty_printer *pp, tree t)
   pp_cxx_semicolon (pp);
 }
 
-void
-pp_cxx_check_constraint (cxx_pretty_printer *pp, tree t)
-{
-  tree decl = CHECK_CONSTR_CONCEPT (t);
-  tree tmpl = DECL_TI_TEMPLATE (decl);
-  tree args = CHECK_CONSTR_ARGS (t);
-  tree id = build_nt (TEMPLATE_ID_EXPR, tmpl, args);
-
-  if (TREE_CODE (decl) == CONCEPT_DECL)
-    pp->expression (id);
-  else if (VAR_P (decl))
-    pp->expression (id);
-  else if (TREE_CODE (decl) == FUNCTION_DECL)
-    {
-      tree call = build_vl_exp (CALL_EXPR, 2);
-      TREE_OPERAND (call, 0) = integer_two_node;
-      TREE_OPERAND (call, 1) = id;
-      pp->expression (call);
-    }
-  else
-    gcc_unreachable ();
-}
-
 /* Output the "[with ...]" clause for a parameter mapping of an atomic
    constraint.   */
 
@@ -2901,10 +2893,6 @@ pp_cxx_constraint (cxx_pretty_printer *pp, tree t)
     {
     case ATOMIC_CONSTR:
       pp_cxx_atomic_constraint (pp, t);
-      break;
-
-    case CHECK_CONSTR:
-      pp_cxx_check_constraint (pp, t);
       break;
 
     case CONJ_CONSTR:

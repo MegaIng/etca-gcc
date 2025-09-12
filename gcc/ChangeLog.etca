@@ -5,3 +5,7 @@
 	* config/etca/t-etca: Created.
 	* config/etca/etca.md: Created.
     * config.gcc: Add etca support.
+
+2025-09-11 Shivam Patel <shivam.patel@mail.mcgill.ca>
+
+	* No changes yet, just testing

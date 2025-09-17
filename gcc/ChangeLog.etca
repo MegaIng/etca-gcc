@@ -8,4 +8,17 @@
 
 2025-09-11 Shivam Patel <shivam.patel@mail.mcgill.ca>
 
-	* No changes yet, just testing
+	* No changes yet, just testing.
+
+2025-09-16 Shivam Patel <shivam.patel@mail.mcgill.ca>
+
+	* Been testing optimizations (-O1, -O2, -O3) on test programs.
+	* For -O2 & -O3: During extract_insn, GCC could not find matching
+						 			 insn pattern which causes error in recog.cc for a 
+									 simple fib program I am testing. Other small programs
+									 seem to work though.
+	* Some resources I've been reading:
+		- RTL representation: https://gcc.gnu.org/onlinedocs/gccint/RTL.html
+		- Machine Descriptions: https://gcc.gnu.org/onlinedocs/gccint/Machine-Desc.html
+		- GCC low-level IR: https://kristerw.blogspot.com/2017/08/gcc-low-level-ir-and-basic-code.html
+

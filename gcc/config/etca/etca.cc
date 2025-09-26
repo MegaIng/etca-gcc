@@ -448,12 +448,10 @@ etca_handle_fndecl_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
 bool
 etca_can_use_simple_return_p (void)
 {
-  // only use simple return for naked functions
   uint32_t ft = etca_get_function_type();
     /* The md 'return' expander (and the 'returner' insn) should be used
-         for ordinary functions. Naked functions are expected to manage
-         their own return sequence, so do not claim we can use the simple
-         return in that case. */
+         for ordinary functions. Naked functions manage
+         their own return sequence*/
     return !IS_NAKED(ft);
 }
 

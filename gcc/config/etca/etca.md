@@ -172,14 +172,21 @@
 }
 ")
 
+
 (define_expand "return"
   [(simple_return)]
-  "reload_completed & !reload_completed"
+  "etca_can_use_simple_return_p ()"
 {
 })
 
+
 (define_insn "returner"
   [(return)]
+  ""
+  "ret")
+
+(define_insn "returner_simple"
+  [(simple_return)]
   ""
   "ret")
 

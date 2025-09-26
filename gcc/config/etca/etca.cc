@@ -96,13 +96,22 @@ etca_print_operand (FILE *file, rtx x, int code)
 {
     rtx operand = x;
     if (!(code == 0 || code == 'h' || code == 'x' || code == 'd' || code == 'q')) {
-	debug_rtx (x);
-	output_operand_lossage ("invalid operand modifier code: '%c'", code);
-	return;
+        /* Debug: print what modifier and operand we received */
+        fprintf (stderr, "etca_print_operand: invalid modifier code '%c' - operand GET_CODE=%d\n",
+                 code, (int) GET_CODE (x));
+        debug_rtx (x);
+        fflush (stderr);
+        output_operand_lossage ("invalid operand modifier code: '%c'", code);
+        return;
     }
 
     switch (GET_CODE (operand))
     {
+    case RETURN:
+    case SIMPLE_RETURN:
+        fprintf (file, "ret");
+        return;
+
 	case REG: {
 	    if (REGNO(operand) > ETCA_R15)
 		internal_error("internal error: bad register: %d", REGNO(operand));
@@ -129,16 +138,21 @@ etca_print_operand (FILE *file, rtx x, int code)
 	    output_address (GET_MODE (XEXP (operand, 0)), XEXP (operand, 0));
 	    return;
 
-	default:
-	    if (CONSTANT_P (operand))
-	    {
-		output_addr_const (file, operand);
-		return;
-	    }
+        
+    default:
+        if (CONSTANT_P (operand))
+        {
+        output_addr_const (file, operand);
+        return;
+        }
 
-	    debug_rtx (operand);
-	    output_operand_lossage ("unexpected operand");
-	    return;
+        /* Debug: show the exact RTL that the final printer couldn't handle. */
+        fprintf (stderr, "etca_print_operand: unexpected operand (code='%c') GET_CODE=%d\n",
+                 code, (int) GET_CODE (operand));
+        debug_rtx (operand);
+        fflush (stderr);
+        output_operand_lossage ("unexpected operand");
+        return;
     }
 }
 
@@ -345,11 +359,29 @@ etca_expand_prologue (void) {
     }
     /* Allocated memory for the local variables */
     if (cfun->machine->local_vars_size) {
-	insn = emit_insn (gen_subhi3 (
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
-	RTX_FRAME_RELATED_P (insn) = 1;
+        HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
+        
+        if (frame_size >= -16 && frame_size <= 15) {
+            // use direct subtraction for small immediates
+            insn = emit_insn (gen_subhi3 (
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_int_mode (frame_size, Pmode)));
+        } else {
+            // for large immediates, use t0 as temp reg
+            rtx temp_reg = gen_rtx_REG (Pmode, ETCA_R8); 
+            
+            // load the large immediate into temp register
+            insn = emit_insn (gen_movhi (temp_reg, gen_int_mode (frame_size, Pmode)));
+            RTX_FRAME_RELATED_P (insn) = 1;
+            
+            // subtract using the temp reg
+            insn = emit_insn (gen_subhi3 (
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_rtx_REG (Pmode, ETCA_SP),
+                temp_reg));
+        }
+        RTX_FRAME_RELATED_P (insn) = 1;
     }
 }
 
@@ -365,10 +397,24 @@ etca_expand_epilogue ()
 	return;
     }
     if(cfun->machine->local_vars_size) {
-	insn = emit_insn (gen_addhi3 (
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
+        HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
+        
+        if (frame_size >= -16 && frame_size <= 15) {
+            // use direct addition for small immediates
+            insn = emit_insn (gen_addhi3 (
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_int_mode (frame_size, Pmode)));
+        } else {
+            rtx temp_reg = gen_rtx_REG (Pmode, ETCA_R8);
+            insn = emit_insn (gen_movhi (temp_reg, gen_int_mode (frame_size, Pmode)));
+
+            // add using the temp reg
+            insn = emit_insn (gen_addhi3 (
+                gen_rtx_REG (Pmode, ETCA_SP),
+                gen_rtx_REG (Pmode, ETCA_SP),
+                temp_reg));
+        }
     }
     for (regno = ETCA_R15; regno >= 0; regno--) {
 	if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
@@ -379,7 +425,7 @@ etca_expand_epilogue ()
     if(MUST_SAVE_FRAME_POINTER) {
 	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
     }
-    emit_insn (gen_returner());
+    emit_jump_insn (gen_returner());
 }
 
 
@@ -397,6 +443,18 @@ etca_handle_fndecl_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
     }
 
     return NULL_TREE;
+}
+
+bool
+etca_can_use_simple_return_p (void)
+{
+  // only use simple return for naked functions
+  uint32_t ft = etca_get_function_type();
+    /* The md 'return' expander (and the 'returner' insn) should be used
+         for ordinary functions. Naked functions are expected to manage
+         their own return sequence, so do not claim we can use the simple
+         return in that case. */
+    return !IS_NAKED(ft);
 }
 
 /* Table of machine attributes.  */

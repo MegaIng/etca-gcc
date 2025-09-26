@@ -5,6 +5,10 @@
 #ifndef GCC_ETCA_H
 #define GCC_ETCA_H
 
+/* Experiment (maybe remove later)*/
+
+#include "etca-protos.h"
+
  /* Memory model Specification */
 
 #define BITS_BIG_ENDIAN 0
@@ -200,7 +204,7 @@ enum reg_class
 
 
 #undef  ASM_SPEC
-#define ASM_SPEC "-mextensions=SAF,BYTE,DW,QW" /*TODO: We shouldn't depend on all these being present to generate valid assembly (only SAF should be an unconditional requirement)*/
+#define ASM_SPEC "-mextensions=SAF,BYTE,DW,QW,REX" /*TODO: We shouldn't depend on all these being present to generate valid assembly (only SAF should be an unconditional requirement)*/
 
 #define ASM_COMMENT_START ";"
 #define ASM_APP_ON ""
@@ -216,6 +220,8 @@ enum reg_class
 	fprintf (STREAM, "\t.p2align\t%d\n", POWER);
 
 #define GLOBAL_ASM_OP "\t.global\t"
+
+
 
 /* Run-time Target Specification */
 

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Other Attributes (The GNU D Compiler)</title>
+
+<meta name="description" content="Other Attributes (The GNU D Compiler)">
+<meta name="keywords" content="Other Attributes (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Attributes.html" rel="up" title="Attributes">
+<link href="Target-Attributes.html" rel="next" title="Target Attributes">
+<link href="Common-Attributes.html" rel="prev" title="Common Attributes">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Other-Attributes">
+<div class="nav-panel">
+<p>
+Next: <a href="Target-Attributes.html" accesskey="n" rel="next">Target-specific Attributes</a>, Previous: <a href="Common-Attributes.html" accesskey="p" rel="prev">Common Attributes</a>, Up: <a href="Attributes.html" accesskey="u" rel="up">Attributes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Other-Attributes-1"><span>2.1.3 Other Attributes<a class="copiable-link" href="#Other-Attributes-1"> &para;</a></span></h4>
+
+<p>The following attributes are defined for compatibility with other compilers.
+</p>
+<dl class="table">
+<dt><a id="index-allocSize-function-attribute"></a><span><code class="code">@(gcc.attributes.allocSize (<var class="var">sizeArgIdx</var>))</code><a class="copiable-link" href="#index-allocSize-function-attribute"> &para;</a></span></dt>
+<dt><code class="code">@(gcc.attributes.allocSize (<var class="var">sizeArgIdx</var>, <var class="var">numArgIdx</var>))</code></dt>
+<dt><code class="code">@(gcc.attributes.allocSize (<var class="var">sizeArgIdx</var>))</code></dt>
+<dd>
+<p>These attributes are a synonym for
+<code class="code">@alloc_size(<var class="var">sizeArgIdx</var>, <var class="var">numArgIdx</var>, true)</code>.
+Unlike <code class="code">@alloc_size</code>, it uses 0-based index of the function arguments.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-assumeUsed-variable-attribute"></a>
+<a id="index-assumeUsed-function-attribute"></a><span><code class="code">@(gcc.attributes.assumeUsed)</code><a class="copiable-link" href="#index-assumeUsed-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@used</code>.
+</p>
+</dd>
+<dt><a id="index-dynamicCompile-function-attribute"></a><span><code class="code">@(gcc.attributes.dynamicCompile)</code><a class="copiable-link" href="#index-dynamicCompile-function-attribute"> &para;</a></span></dt>
+<dt><code class="code">@(gcc.attributes.dynamicCompileConst)</code></dt>
+<dt><code class="code">@(gcc.attributes.dynamicCompileEmit)</code></dt>
+<dd>
+<p>These attributes are accepted, but have no effect.
+</p>
+</dd>
+<dt><a id="index-fastmath-function-attribute"></a><span><code class="code">@(gcc.attributes.fastmath)</code><a class="copiable-link" href="#index-fastmath-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@optimize(&quot;Ofast&quot;)</code>.  Explicitly sets
+&quot;fast-math&quot; for a function, enabling aggressive math optimizations.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-hidden-variable-attribute"></a>
+<a id="index-hidden-function-attribute"></a><span><code class="code">@(gcc.attributes.hidden)</code><a class="copiable-link" href="#index-hidden-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@visibility(&quot;hidden&quot;)</code>.  Sets the
+visibility of a function or global variable to &quot;hidden&quot;.
+</p>
+</dd>
+<dt><a id="index-naked-function-attribute"></a><span><code class="code">@(gcc.attributes.naked)</code><a class="copiable-link" href="#index-naked-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@attribute(&quot;naked&quot;)</code>.  Adds GCC&rsquo;s
+&quot;naked&quot; attribute to a function, disabling function prologue / epilogue
+emission.  Intended to be used in combination with basic <code class="code">asm</code> statements.
+While using extended <code class="code">asm</code> or a mixture of basic <code class="code">asm</code> and D code may
+appear to work, they cannot be depended upon to work reliably and are not
+supported.
+</p>
+</dd>
+<dt><a id="index-noSanitize-function-attribute"></a><span><code class="code">@(gcc.attributes.noSanitize (&quot;<var class="var">sanitize_option</var>&quot;))</code><a class="copiable-link" href="#index-noSanitize-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@no_sanitize(&quot;sanitize_option&quot;)</code>.
+</p>
+
+</dd>
+<dt><a id="index-optStrategy-function-attribute"></a><span><code class="code">@(gcc.attributes.optStrategy (&quot;<var class="var">strategy</var>&quot;))</code><a class="copiable-link" href="#index-optStrategy-function-attribute"> &para;</a></span></dt>
+<dd>
+<p>This attribute is a synonym for <code class="code">@optimize(&quot;O0&quot;)</code> and
+<code class="code">@optimize(&quot;Os&quot;)</code>.  Sets the optimization strategy for a function.  Valid
+strategies are &quot;none&quot;, &quot;optsize&quot;, &quot;minsize&quot;.  The strategies are mutually
+exclusive.
+</p>
+</dd>
+<dt><code class="code">@(gcc.attributes.polly)</code></dt>
+<dd>
+<p>This attribute is a synonym for
+<code class="code">@optimize(&quot;loop-parallelize-all&quot;, &quot;loop-nest-optimize&quot;)</code>.
+Only effective when GDC was built with ISL included.
+</p>
+</dd>
+</dl>
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Target-Attributes.html">Target-specific Attributes</a>, Previous: <a href="Common-Attributes.html">Common Attributes</a>, Up: <a href="Attributes.html">Attributes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

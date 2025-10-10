@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Simple Constraints (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="Simple Constraints (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="Simple Constraints (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Constraints.html" rel="up" title="Constraints">
+<link href="Multi_002dAlternative.html" rel="next" title="Multi-Alternative">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsubsection-level-extent" id="Simple-Constraints">
+<div class="nav-panel">
+<p>
+Next: <a href="Multi_002dAlternative.html" accesskey="n" rel="next">Multiple Alternative Constraints</a>, Up: <a href="Constraints.html" accesskey="u" rel="up">Constraints for <code class="code">asm</code> Operands</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsubsection subsection-level-set-subsubsection" id="Simple-Constraints-1"><span>6.50.3.1 Simple Constraints<a class="copiable-link" href="#Simple-Constraints-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-simple-constraints"></a>
+
+<p>The simplest kind of constraint is a string full of letters, each of
+which describes one kind of operand that is permitted.  Here are
+the letters that are allowed:
+</p>
+<dl class="table">
+<dt>whitespace</dt>
+<dd><p>Whitespace characters are ignored and can be inserted at any position
+except the first.  This enables each alternative for different operands to
+be visually aligned in the machine description even if they have different
+number of constraints and modifiers.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-memory-references-in-constraints"></a>
+<a id="index-m-in-constraint"></a><span>&lsquo;<samp class="samp">m</samp>&rsquo;<a class="copiable-link" href="#index-m-in-constraint"> &para;</a></span></dt>
+<dd><p>A memory operand is allowed, with any kind of address that the machine
+supports in general.
+Note that the letter used for the general memory constraint can be
+re-defined by a back end using the <code class="code">TARGET_MEM_CONSTRAINT</code> macro.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-o-in-constraint"></a>
+<a id="index-offsettable-address"></a><span>&lsquo;<samp class="samp">o</samp>&rsquo;<a class="copiable-link" href="#index-offsettable-address"> &para;</a></span></dt>
+<dd><p>A memory operand is allowed, but only if the address is
+<em class="dfn">offsettable</em>.  This means that adding a small integer (actually,
+the width in bytes of the operand, as determined by its machine mode)
+may be added to the address and the result is also a valid memory
+address.
+</p>
+<a class="index-entry-id" id="index-autoincrement_002fdecrement-addressing"></a>
+<p>For example, an address which is constant is offsettable; so is an
+address that is the sum of a register and a constant (as long as a
+slightly larger constant is also within the range of address-offsets
+supported by the machine); but an autoincrement or autodecrement
+address is not offsettable.  More complicated indirect/indexed
+addresses may or may not be offsettable depending on the other
+addressing modes that the machine supports.
+</p>
+<p>Note that in an output operand which can be matched by another
+operand, the constraint letter &lsquo;<samp class="samp">o</samp>&rsquo; is valid only when accompanied
+by both &lsquo;<samp class="samp">&lt;</samp>&rsquo; (if the target machine has predecrement addressing)
+and &lsquo;<samp class="samp">&gt;</samp>&rsquo; (if the target machine has preincrement addressing).
+</p>
+</dd>
+<dt><a id="index-V-in-constraint"></a><span>&lsquo;<samp class="samp">V</samp>&rsquo;<a class="copiable-link" href="#index-V-in-constraint"> &para;</a></span></dt>
+<dd><p>A memory operand that is not offsettable.  In other words, anything that
+would fit the &lsquo;<samp class="samp">m</samp>&rsquo; constraint but not the &lsquo;<samp class="samp">o</samp>&rsquo; constraint.
+</p>
+</dd>
+<dt><a id="index-_003c-in-constraint"></a><span>&lsquo;<samp class="samp">&lt;</samp>&rsquo;<a class="copiable-link" href="#index-_003c-in-constraint"> &para;</a></span></dt>
+<dd><p>A memory operand with autodecrement addressing (either predecrement or
+postdecrement) is allowed.  In inline <code class="code">asm</code> this constraint is only
+allowed if the operand is used exactly once in an instruction that can
+handle the side effects.  Not using an operand with &lsquo;<samp class="samp">&lt;</samp>&rsquo; in constraint
+string in the inline <code class="code">asm</code> pattern at all or using it in multiple
+instructions isn&rsquo;t valid, because the side effects wouldn&rsquo;t be performed
+or would be performed more than once.  Furthermore, on some targets
+the operand with &lsquo;<samp class="samp">&lt;</samp>&rsquo; in constraint string must be accompanied by
+special instruction suffixes like <code class="code">%U0</code> instruction suffix on PowerPC
+or <code class="code">%P0</code> on IA-64.
+</p>
+</dd>
+<dt><a id="index-_003e-in-constraint"></a><span>&lsquo;<samp class="samp">&gt;</samp>&rsquo;<a class="copiable-link" href="#index-_003e-in-constraint"> &para;</a></span></dt>
+<dd><p>A memory operand with autoincrement addressing (either preincrement or
+postincrement) is allowed.  In inline <code class="code">asm</code> the same restrictions
+as for &lsquo;<samp class="samp">&lt;</samp>&rsquo; apply.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-registers-in-constraints"></a>
+<a id="index-r-in-constraint"></a><span>&lsquo;<samp class="samp">r</samp>&rsquo;<a class="copiable-link" href="#index-r-in-constraint"> &para;</a></span></dt>
+<dd><p>A register operand is allowed provided that it is in a general
+register.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-i-in-constraint"></a>
+<a id="index-constants-in-constraints"></a><span>&lsquo;<samp class="samp">i</samp>&rsquo;<a class="copiable-link" href="#index-constants-in-constraints"> &para;</a></span></dt>
+<dd><p>An immediate integer operand (one with constant value) is allowed.
+This includes symbolic constants whose values will be known only at
+assembly time or later.
+</p>
+</dd>
+<dt><a id="index-n-in-constraint"></a><span>&lsquo;<samp class="samp">n</samp>&rsquo;<a class="copiable-link" href="#index-n-in-constraint"> &para;</a></span></dt>
+<dd><p>An immediate integer operand with a known numeric value is allowed.
+Many systems cannot support assembly-time constants for operands less
+than a word wide.  Constraints for these operands should use &lsquo;<samp class="samp">n</samp>&rsquo;
+rather than &lsquo;<samp class="samp">i</samp>&rsquo;.
+</p>
+</dd>
+<dt><a id="index-I-in-constraint"></a><span>&lsquo;<samp class="samp">I</samp>&rsquo;, &lsquo;<samp class="samp">J</samp>&rsquo;, &lsquo;<samp class="samp">K</samp>&rsquo;, &hellip; &lsquo;<samp class="samp">P</samp>&rsquo;<a class="copiable-link" href="#index-I-in-constraint"> &para;</a></span></dt>
+<dd><p>Other letters in the range &lsquo;<samp class="samp">I</samp>&rsquo; through &lsquo;<samp class="samp">P</samp>&rsquo; may be defined in
+a machine-dependent fashion to permit immediate integer operands with
+explicit integer values in specified ranges.  For example, on the
+68000, &lsquo;<samp class="samp">I</samp>&rsquo; is defined to stand for the range of values 1 to 8.
+This is the range permitted as a shift count in the shift
+instructions.
+</p>
+</dd>
+<dt><a id="index-E-in-constraint"></a><span>&lsquo;<samp class="samp">E</samp>&rsquo;<a class="copiable-link" href="#index-E-in-constraint"> &para;</a></span></dt>
+<dd><p>An immediate floating operand (expression code <code class="code">const_double</code>) is
+allowed, but only if the target floating point format is the same as
+that of the host machine (on which the compiler is running).
+</p>
+</dd>
+<dt><a id="index-F-in-constraint"></a><span>&lsquo;<samp class="samp">F</samp>&rsquo;<a class="copiable-link" href="#index-F-in-constraint"> &para;</a></span></dt>
+<dd><p>An immediate floating operand (expression code <code class="code">const_double</code> or
+<code class="code">const_vector</code>) is allowed.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-H-in-constraint"></a>
+<a id="index-G-in-constraint"></a><span>&lsquo;<samp class="samp">G</samp>&rsquo;, &lsquo;<samp class="samp">H</samp>&rsquo;<a class="copiable-link" href="#index-G-in-constraint"> &para;</a></span></dt>
+<dd><p>&lsquo;<samp class="samp">G</samp>&rsquo; and &lsquo;<samp class="samp">H</samp>&rsquo; may be defined in a machine-dependent fashion to
+permit immediate floating operands in particular ranges of values.
+</p>
+</dd>
+<dt><a id="index-s-in-constraint"></a><span>&lsquo;<samp class="samp">s</samp>&rsquo;<a class="copiable-link" href="#index-s-in-constraint"> &para;</a></span></dt>
+<dd><p>An immediate integer operand whose value is not an explicit integer is
+allowed.
+</p>
+<p>This might appear strange; if an insn allows a constant operand with a
+value not known at compile time, it certainly must allow any known
+value.  So why use &lsquo;<samp class="samp">s</samp>&rsquo; instead of &lsquo;<samp class="samp">i</samp>&rsquo;?  Sometimes it allows
+better code to be generated.
+</p>
+<p>For example, on the 68000 in a fullword instruction it is possible to
+use an immediate operand; but if the immediate value is between &minus;128
+and 127, better code results from loading the value into a register and
+using the register.  This is because the load into the register can be
+done with a &lsquo;<samp class="samp">moveq</samp>&rsquo; instruction.  We arrange for this to happen
+by defining the letter &lsquo;<samp class="samp">K</samp>&rsquo; to mean &ldquo;any integer outside the
+range &minus;128 to 127&rdquo;, and then specifying &lsquo;<samp class="samp">Ks</samp>&rsquo; in the operand
+constraints.
+</p>
+</dd>
+<dt><a id="index-g-in-constraint"></a><span>&lsquo;<samp class="samp">g</samp>&rsquo;<a class="copiable-link" href="#index-g-in-constraint"> &para;</a></span></dt>
+<dd><p>Any register, memory or immediate integer operand is allowed, except for
+registers that are not general registers.
+</p>
+</dd>
+<dt><a id="index-X-in-constraint"></a><span>&lsquo;<samp class="samp">X</samp>&rsquo;<a class="copiable-link" href="#index-X-in-constraint"> &para;</a></span></dt>
+<dd><p>Any operand whatsoever is allowed.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-digits-in-constraint"></a>
+<a id="index-0-in-constraint"></a><span>&lsquo;<samp class="samp">0</samp>&rsquo;, &lsquo;<samp class="samp">1</samp>&rsquo;, &lsquo;<samp class="samp">2</samp>&rsquo;, &hellip; &lsquo;<samp class="samp">9</samp>&rsquo;<a class="copiable-link" href="#index-0-in-constraint"> &para;</a></span></dt>
+<dd><p>An operand that matches the specified operand number is allowed.  If a
+digit is used together with letters within the same alternative, the
+digit should come last.
+</p>
+<p>This number is allowed to be more than a single digit.  If multiple
+digits are encountered consecutively, they are interpreted as a single
+decimal integer.  There is scant chance for ambiguity, since to-date
+it has never been desirable that &lsquo;<samp class="samp">10</samp>&rsquo; be interpreted as matching
+either operand 1 <em class="emph">or</em> operand 0.  Should this be desired, one
+can use multiple alternatives instead.
+</p>
+<a class="index-entry-id" id="index-matching-constraint"></a>
+<a class="index-entry-id" id="index-constraint_002c-matching"></a>
+<p>This is called a <em class="dfn">matching constraint</em> and what it really means is
+that the assembler has only a single operand that fills two roles
+which <code class="code">asm</code> distinguishes.  For example, an add instruction uses
+two input operands and an output operand, but on most CISC
+machines an add instruction really has only two operands, one of them an
+input-output operand:
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">addl #35,r12
+</pre></div>
+
+<p>Matching constraints are used in these circumstances.
+More precisely, the two operands that match must include one input-only
+operand and one output-only operand.  Moreover, the digit must be a
+smaller number than the number of the operand that uses it in the
+constraint.
+</p>
+
+</dd>
+<dt><a class="index-entry-id" id="index-push-address-instruction"></a>
+<a class="index-entry-id" id="index-address-constraints"></a>
+<a class="index-entry-id" id="index-p-in-constraint"></a>
+<a id="index-load-address-instruction"></a><span>&lsquo;<samp class="samp">p</samp>&rsquo;<a class="copiable-link" href="#index-load-address-instruction"> &para;</a></span></dt>
+<dd><p>An operand that is a valid memory address is allowed.  This is
+for &ldquo;load address&rdquo; and &ldquo;push address&rdquo; instructions.
+</p>
+<a class="index-entry-id" id="index-address_005foperand"></a>
+<p>&lsquo;<samp class="samp">p</samp>&rsquo; in the constraint must be accompanied by <code class="code">address_operand</code>
+as the predicate in the <code class="code">match_operand</code>.  This predicate interprets
+the mode specified in the <code class="code">match_operand</code> as the mode of the memory
+reference for which the address would be valid.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-extensible-constraints"></a>
+<a id="index-other-register-constraints"></a><span><var class="var">other-letters</var><a class="copiable-link" href="#index-other-register-constraints"> &para;</a></span></dt>
+<dd><p>Other letters can be defined in machine-dependent fashion to stand for
+particular classes of registers or other arbitrary operand types.
+&lsquo;<samp class="samp">d</samp>&rsquo;, &lsquo;<samp class="samp">a</samp>&rsquo; and &lsquo;<samp class="samp">f</samp>&rsquo; are defined on the 68000/68020 to stand
+for data, address and floating point registers.
+</p></dd>
+</dl>
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Multi_002dAlternative.html">Multiple Alternative Constraints</a>, Up: <a href="Constraints.html">Constraints for <code class="code">asm</code> Operands</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

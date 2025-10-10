@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Special Enums (The GNU D Compiler)</title>
+
+<meta name="description" content="Special Enums (The GNU D Compiler)">
+<meta name="keywords" content="Special Enums (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="D-Implementation.html" rel="up" title="D Implementation">
+<link href="Traits.html" rel="next" title="Traits">
+<link href="Predefined-Versions.html" rel="prev" title="Predefined Versions">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Special-Enums">
+<div class="nav-panel">
+<p>
+Next: <a href="Traits.html" accesskey="n" rel="next">Traits</a>, Previous: <a href="Predefined-Versions.html" accesskey="p" rel="prev">Predefined Versions</a>, Up: <a href="D-Implementation.html" accesskey="u" rel="up">Language Reference</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Special-Enums-1"><span>2.8 Special Enums<a class="copiable-link" href="#Special-Enums-1"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-special-enums"></a>
+
+<p>Special <code class="code">enum</code> names are used to represent types that do not have an
+equivalent basic D type.  For example, C++ types used by the C++ name mangler.
+</p>
+<p>Special enums are declared opaque, with a base type explicitly set.  Unlike
+regular opaque enums, special enums can be used as any other value type.  They
+have a default <code class="code">.init</code> value, as well as other enum properties available
+(<code class="code">.min</code>, <code class="code">.max</code>).  Special enums can be declared in any module, and
+will be recognized by the compiler.
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">import gcc.builtins;
+enum __c_long : __builtin_clong;
+__c_long var = 0x800A;
+</pre></div>
+
+<p>The following identifiers are recognized by GNU D.
+</p>
+<dl class="table">
+<dt><code class="code">__c_complex_double</code></dt>
+<dd><p>C <code class="code">_Complex double</code> type.
+</p></dd>
+<dt><code class="code">__c_complex_float</code></dt>
+<dd><p>C <code class="code">_Complex float</code> type.
+</p></dd>
+<dt><code class="code">__c_complex_real</code></dt>
+<dd><p>C <code class="code">_Complex long double</code> type.
+</p></dd>
+<dt><code class="code">__c_long</code></dt>
+<dd><p>C++ <code class="code">long</code> type.
+</p></dd>
+<dt><code class="code">__c_longlong</code></dt>
+<dd><p>C++ <code class="code">long long</code> type.
+</p></dd>
+<dt><code class="code">__c_long_double</code></dt>
+<dd><p>C <code class="code">long double</code> type.
+</p></dd>
+<dt><code class="code">__c_ulong</code></dt>
+<dd><p>C++ <code class="code">unsigned long</code> type.
+</p></dd>
+<dt><code class="code">__c_ulonglong</code></dt>
+<dd><p>C++ <code class="code">unsigned long long</code> type.
+</p></dd>
+<dt><code class="code">__c_wchar_t</code></dt>
+<dd><p>C++ <code class="code">wchar_t</code> type.
+</p></dd>
+</dl>
+
+<p>The <code class="code">core.stdc.config</code> module declares the following shorthand alias types
+for convenience: <code class="code">c_complex_double</code>, <code class="code">c_complex_float</code>,
+<code class="code">c_complex_real</code>, <code class="code">cpp_long</code>, <code class="code">cpp_longlong</code>,
+<code class="code">c_long_double</code>, <code class="code">cpp_ulong</code>, <code class="code">cpp_ulonglong</code>.
+</p>
+<p>It may cause undefined behavior at runtime if a special enum is declared with a
+base type that has a different size to the target C/C++ type it is
+representing.  The GNU D compiler will catch such declarations and emit a
+warning when the <samp class="option">-Wmismatched-special-enum</samp> option is seen on the
+command-line.
+</p>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Traits.html">Traits</a>, Previous: <a href="Predefined-Versions.html">Predefined Versions</a>, Up: <a href="D-Implementation.html">Language Reference</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

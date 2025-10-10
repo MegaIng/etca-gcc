@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>HOSTNM (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="HOSTNM (The GNU Fortran Compiler)">
+<meta name="keywords" content="HOSTNM (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="HUGE.html" rel="next" title="HUGE">
+<link href="GMTIME.html" rel="prev" title="GMTIME">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="HOSTNM">
+<div class="nav-panel">
+<p>
+Next: <a href="HUGE.html" accesskey="n" rel="next"><code class="code">HUGE</code> &mdash; Largest number of a kind</a>, Previous: <a href="GMTIME.html" accesskey="p" rel="prev"><code class="code">GMTIME</code> &mdash; Convert time to GMT info</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="HOSTNM-_002d_002d_002d-Get-system-host-name"><span>8.132 <code class="code">HOSTNM</code> &mdash; Get system host name<a class="copiable-link" href="#HOSTNM-_002d_002d_002d-Get-system-host-name"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-HOSTNM"></a>
+<a class="index-entry-id" id="index-system_002c-host-name"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p>Retrieves the host name of the system on which the program is running.
+</p>
+<p>This intrinsic is provided in both subroutine and function forms; however,
+only one form can be used in any given program unit.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>GNU extension
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Subroutine, function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="80%"><code class="code">CALL HOSTNM(C [, STATUS])</code></td></tr>
+<tr><td width="80%"><code class="code">STATUS = HOSTNM(NAME)</code></td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">C</var></td><td width="70%">Shall of type <code class="code">CHARACTER</code> and of default kind.</td></tr>
+<tr><td width="15%"><var class="var">STATUS</var></td><td width="70%">(Optional) status flag of type <code class="code">INTEGER</code>.
+Returns 0 on success, or a system specific error code otherwise.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>In either syntax, <var class="var">NAME</var> is set to the current hostname if it can
+be obtained, or to a blank string otherwise.
+</p>
+</dd>
+</dl>
+
+
+
+</div>
+
+
+
+</body>
+</html>

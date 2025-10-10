@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Predefined Pragmas (The GNU D Compiler)</title>
+
+<meta name="description" content="Predefined Pragmas (The GNU D Compiler)">
+<meta name="keywords" content="Predefined Pragmas (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="D-Implementation.html" rel="up" title="D Implementation">
+<link href="Predefined-Versions.html" rel="next" title="Predefined Versions">
+<link href="Intrinsics.html" rel="prev" title="Intrinsics">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Predefined-Pragmas">
+<div class="nav-panel">
+<p>
+Next: <a href="Predefined-Versions.html" accesskey="n" rel="next">Predefined Versions</a>, Previous: <a href="Intrinsics.html" accesskey="p" rel="prev">Intrinsics</a>, Up: <a href="D-Implementation.html" accesskey="u" rel="up">Language Reference</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Predefined-Pragmas-1"><span>2.6 Predefined Pragmas<a class="copiable-link" href="#Predefined-Pragmas-1"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-predefined-pragmas"></a>
+<a class="index-entry-id" id="index-pragma"></a>
+
+<p>The <code class="code">pragma<!-- /@w --></code> operator is used as a way to pass special information to the
+implementation and allow the addition of vendor specific extensions.  The
+standard predefined pragmas are documented by the D language specification
+hosted at <a class="uref" href="https://dlang.org/spec/pragma.html#predefined-pragmas">https://dlang.org/spec/pragma.html#predefined-pragmas</a>.  A D
+compiler must recognize, but is free to ignore any pragma in this list.
+</p>
+<p>Where a pragma is ignored, the GNU D compiler will emit a warning when the
+<samp class="option">-Wunknown-pragmas</samp> option is seen on the command-line.
+</p>
+<dl class="table">
+<dt><code class="code">pragma(crt_constructor)</code></dt>
+<dd><p><code class="code">pragma(crt_constructor)</code> annotates a function so it is run after the C
+runtime library is initialized and before the D runtime library is initialized.
+Functions with this pragma must return <code class="code">void</code>.
+</p><div class="example smallexample">
+<pre class="example-preformatted">pragma(crt_constructor) void init() { }
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(crt_destructor)</code></dt>
+<dd><p><code class="code">pragma(crt_destructor)</code> annotates a function so it is run after the D
+runtime library is terminated and before the C runtime library is terminated.
+Calling <code class="code">exit</code> function also causes the annotated functions to run.
+Functions with this pragma must return <code class="code">void</code>.
+</p><div class="example smallexample">
+<pre class="example-preformatted">pragma(crt_destructor) void init() { }
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(inline)</code></dt>
+<dt><code class="code">pragma(inline, false)</code></dt>
+<dt><code class="code">pragma(inline, true)</code></dt>
+<dd><p><code class="code">pragma(inline)</code> affects whether functions are declared inlined or not.
+The pragma takes two forms.  In the first form, inlining is controlled by the
+command-line options for inlining.
+</p>
+<p>Functions annotated with <code class="code">pragma(inline, false)</code> are marked uninlinable.
+Functions annotated with <code class="code">pragma(inline, true)</code> are always inlined.
+</p>
+</dd>
+<dt><code class="code">pragma(lib)</code></dt>
+<dd><p>This pragma is accepted, but has no effect.
+</p><div class="example smallexample">
+<pre class="example-preformatted">pragma(lib, &quot;advapi32&quot;);
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(linkerDirective)</code></dt>
+<dd><p>This pragma is accepted, but has no effect.
+</p><div class="example smallexample">
+<pre class="example-preformatted">pragma(linkerDirective, &quot;/FAILIFMISMATCH:_ITERATOR_DEBUG_LEVEL=2&quot;);
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(mangle)</code></dt>
+<dd><p><code class="code">pragma(mangle, &quot;symbol_name&quot;)</code> overrides the default mangling for a
+function or variable symbol.  The symbol name can be any expression that must
+evaluate at compile time to a string literal.  This enables linking to a symbol
+which is a D keyword, since an identifier cannot be a keyword.
+</p>
+<p>Targets are free to apply a prefix to the user label of the symbol name in
+assembly.  For example, on <code class="code">x86_64-apple-darwin</code>, &lsquo;<samp class="samp">symbol_name</samp>&rsquo; would
+produce &lsquo;<samp class="samp">_symbol_name</samp>&rsquo;.  If the mangle string begins with &lsquo;<samp class="samp">*</samp>&rsquo;, then
+<code class="code">pragma(mangle)</code> will output the rest of the string unchanged.
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">pragma(mangle, &quot;body&quot;)
+extern(C) void body_func();
+
+pragma(mangle, &quot;function&quot;)
+extern(C++) struct _function {}
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(msg)</code></dt>
+<dd><p><code class="code">pragma(msg, &quot;message&quot;)</code> causes the compiler to print an informational
+message with the text &lsquo;<samp class="samp">message</samp>&rsquo;.  The pragma accepts multiple arguments,
+each to which is evaluated at compile time and then all are combined into one
+concatenated message.
+</p><div class="example smallexample">
+<pre class="example-preformatted">pragma(msg, &quot;compiling...&quot;, 6, 1.0); // prints &quot;compiling...61.0&quot;
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(printf)</code></dt>
+<dt><code class="code">pragma(scanf)</code></dt>
+<dd>
+<p><code class="code">pragma(printf)</code> and <code class="code">pragma(scanf)</code> specifies that a function
+declaration with <code class="code">printf</code> or <code class="code">scanf</code> style arguments that should be
+type-checked against a format string. 
+</p>
+<p>A printf-like or scanf-like function can either be an <code class="code">extern(C)</code> or
+<code class="code">extern(C++)</code> function with a <var class="var">format</var> parameter accepting a pointer
+to a 0-terminated <code class="code">char</code> string, immediately followed by either a
+<code class="code">...</code> variadic argument list or a parameter of type <code class="code">va_list</code> as the
+last parameter.
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">extern(C):
+pragma(printf)
+int printf(scope const char* format, scope const ...);
+
+pragma(scanf)
+int vscanf(scope const char* format, va_list arg);
+</pre></div>
+
+</dd>
+<dt><code class="code">pragma(startaddress)</code></dt>
+<dd><p>This pragma is accepted, but has no effect.
+</p><div class="example smallexample">
+<pre class="example-preformatted">void foo() { }
+pragma(startaddress, foo);
+</pre></div>
+
+</dd>
+</dl>
+
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Predefined-Versions.html">Predefined Versions</a>, Previous: <a href="Intrinsics.html">Intrinsics</a>, Up: <a href="D-Implementation.html">Language Reference</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

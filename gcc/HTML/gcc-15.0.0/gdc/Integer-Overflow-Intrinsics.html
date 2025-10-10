@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Integer Overflow Intrinsics (The GNU D Compiler)</title>
+
+<meta name="description" content="Integer Overflow Intrinsics (The GNU D Compiler)">
+<meta name="keywords" content="Integer Overflow Intrinsics (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsics.html" rel="up" title="Intrinsics">
+<link href="Math-Intrinsics.html" rel="next" title="Math Intrinsics">
+<link href="Bit-Operation-Intrinsics.html" rel="prev" title="Bit Operation Intrinsics">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Integer-Overflow-Intrinsics">
+<div class="nav-panel">
+<p>
+Next: <a href="Math-Intrinsics.html" accesskey="n" rel="next">Math Intrinsics</a>, Previous: <a href="Bit-Operation-Intrinsics.html" accesskey="p" rel="prev">Bit Operation Intrinsics</a>, Up: <a href="Intrinsics.html" accesskey="u" rel="up">Intrinsics</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Integer-Overflow-Intrinsics-1"><span>2.5.2 Integer Overflow Intrinsics<a class="copiable-link" href="#Integer-Overflow-Intrinsics-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-intrinsics_002c-checkedint"></a>
+
+<p>The following functions are a collection of intrinsics that implement integral
+arithmetic primitives that check for out-of-range results, available by
+importing the <code class="code">core.checkedint</code> module.
+</p>
+<p>In all intrinsics, the overflow is sticky, meaning a sequence of operations can
+be done and overflow need only be checked at the end.
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002eadds"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.adds</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002eadds"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002eadds-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.adds</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002eadds-1"> &para;</a></span></dt>
+<dd>
+<p>Add two signed integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_sadd_overflow</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002eaddu"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.addu</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002eaddu"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002eaddu-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.addu</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002eaddu-1"> &para;</a></span></dt>
+<dd>
+<p>Add two unsigned integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_uadd_overflow</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002emuls"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.muls</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002emuls"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002emuls-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.muls</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002emuls-1"> &para;</a></span></dt>
+<dd>
+<p>Multiply two signed integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_smul_overflow</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002emulu"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.mulu</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002emulu"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002emulu-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.mulu</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002emulu-1"> &para;</a></span></dt>
+<dd>
+<p>Multiply two unsigned integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_umul_overflow</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002enegs"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.negs</strong> <code class="def-code-arguments">(int <var class="var">x</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002enegs"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002enegs-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.negs</strong> <code class="def-code-arguments">(long <var class="var">x</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002enegs-1"> &para;</a></span></dt>
+<dd>
+<p>Negates an integer.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">result = __builtin_ssub (0, x, overflow);
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002esubs"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.subs</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002esubs"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002esubs-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.subs</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002esubs-1"> &para;</a></span></dt>
+<dd>
+<p>Substract two signed integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_ssub_overflow</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002echeckedint_002esubu"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.checkedint.subu</strong> <code class="def-code-arguments">(int <var class="var">x</var>, int <var class="var">y</var>,                                                   ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002esubu"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002echeckedint_002esubu-1"><span class="category-def">Function: </span><span><code class="def-type">long</code> <strong class="def-name">core.checkedint.subu</strong> <code class="def-code-arguments">(long <var class="var">x</var>, long <var class="var">y</var>,                                                     ref bool <var class="var">overflow</var>)</code><a class="copiable-link" href="#index-core_002echeckedint_002esubu-1"> &para;</a></span></dt>
+<dd>
+<p>Substract two unsigned integers, checking for overflow.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_usub_overflow</code>.
+</p></dd></dl>
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Math-Intrinsics.html">Math Intrinsics</a>, Previous: <a href="Bit-Operation-Intrinsics.html">Bit Operation Intrinsics</a>, Up: <a href="Intrinsics.html">Intrinsics</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

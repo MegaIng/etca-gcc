@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>IARGC (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="IARGC (The GNU Fortran Compiler)">
+<meta name="keywords" content="IARGC (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="IBCLR.html" rel="next" title="IBCLR">
+<link href="IANY.html" rel="prev" title="IANY">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="IARGC">
+<div class="nav-panel">
+<p>
+Next: <a href="IBCLR.html" accesskey="n" rel="next"><code class="code">IBCLR</code> &mdash; Clear bit</a>, Previous: <a href="IANY.html" accesskey="p" rel="prev"><code class="code">IANY</code> &mdash; Bitwise OR of array elements</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="IARGC-_002d_002d_002d-Get-the-number-of-command-line-arguments"><span>8.139 <code class="code">IARGC</code> &mdash; Get the number of command line arguments<a class="copiable-link" href="#IARGC-_002d_002d_002d-Get-the-number-of-command-line-arguments"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-IARGC"></a>
+<a class="index-entry-id" id="index-command_002dline-arguments-4"></a>
+<a class="index-entry-id" id="index-command_002dline-arguments_002c-number-of-1"></a>
+<a class="index-entry-id" id="index-arguments_002c-to-program-4"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p><code class="code">IARGC</code> returns the number of arguments passed on the
+command line when the containing program was invoked.
+</p>
+<p>This intrinsic routine is provided for backwards compatibility with 
+GNU Fortran 77.  In new code, programmers should consider the use of 
+the <a class="ref" href="COMMAND_005fARGUMENT_005fCOUNT.html"><code class="code">COMMAND_ARGUMENT_COUNT</code> &mdash; Get number of command line arguments</a> intrinsic defined by the Fortran 2003 
+standard.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>GNU extension
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = IARGC()</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><p>None
+</p>
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>The number of command line arguments, type <code class="code">INTEGER(4)</code>.
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><p>See <a class="ref" href="GETARG.html"><code class="code">GETARG</code> &mdash; Get command line arguments</a>
+</p>
+</dd>
+<dt><em class="emph">See also</em>:</dt>
+<dd><p>GNU Fortran 77 compatibility subroutine: <br>
+<a class="ref" href="GETARG.html"><code class="code">GETARG</code> &mdash; Get command line arguments</a> <br>
+Fortran 2003 functions and subroutines: <br>
+<a class="ref" href="GET_005fCOMMAND.html"><code class="code">GET_COMMAND</code> &mdash; Get the entire command line</a>, <br>
+<a class="ref" href="GET_005fCOMMAND_005fARGUMENT.html"><code class="code">GET_COMMAND_ARGUMENT</code> &mdash; Get command line arguments</a>, <br>
+<a class="ref" href="COMMAND_005fARGUMENT_005fCOUNT.html"><code class="code">COMMAND_ARGUMENT_COUNT</code> &mdash; Get number of command line arguments</a>
+</p></dd>
+</dl>
+
+
+
+</div>
+
+
+
+</body>
+</html>

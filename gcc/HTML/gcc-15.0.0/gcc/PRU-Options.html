@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>PRU Options (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="PRU Options (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="PRU Options (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Submodel-Options.html" rel="up" title="Submodel Options">
+<link href="RISC_002dV-Options.html" rel="next" title="RISC-V Options">
+<link href="PowerPC-Options.html" rel="prev" title="PowerPC Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="PRU-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="RISC_002dV-Options.html" accesskey="n" rel="next">RISC-V Options</a>, Previous: <a href="PowerPC-Options.html" accesskey="p" rel="prev">PowerPC Options</a>, Up: <a href="Submodel-Options.html" accesskey="u" rel="up">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="PRU-Options-1"><span>3.19.39 PRU Options<a class="copiable-link" href="#PRU-Options-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-PRU-Options"></a>
+
+<p>These command-line options are defined for PRU target:
+</p>
+<dl class="table">
+<dt><a id="index-minrt-1"></a><span><code class="code">-minrt</code><a class="copiable-link" href="#index-minrt-1"> &para;</a></span></dt>
+<dd><p>Link with a minimum runtime environment.  This can significantly reduce
+the size of the final ELF binary, but some standard C runtime features
+are removed.
+</p>
+<p>This option disables support for static initializers and constructors.
+Beware that the compiler could still generate code with static initializers
+and constructors.  It is up to the programmer to ensure that the source
+program will not use those features.
+</p>
+<p>The minimal startup code would not pass <code class="code">argc</code> and <code class="code">argv</code> arguments
+to <code class="code">main</code>, so the latter must be declared as <code class="code">int main (void)</code>.
+This is already the norm for most firmware projects.
+</p>
+</dd>
+<dt><a id="index-mmcu-2"></a><span><code class="code">-mmcu=<var class="var">mcu</var></code><a class="copiable-link" href="#index-mmcu-2"> &para;</a></span></dt>
+<dd><p>Specify the PRU hardware variant to use.  A correspondingly named
+spec file would be loaded, passing the memory region sizes to
+the linker and defining hardware-specific C macros.
+</p>
+<p>Newlib provides only the <code class="code">sim</code> spec, intended for running
+regression tests using a simulator.  Specs for real hardware can be
+obtained by installing the
+<a class="uref" href="https://github.com/dinuxbg/gnuprumcu/">GnuPruMcu</a><!-- /@w --> package.
+</p>
+</dd>
+<dt><a id="index-mno_002drelax-1"></a><span><code class="code">-mno-relax</code><a class="copiable-link" href="#index-mno_002drelax-1"> &para;</a></span></dt>
+<dd><p>Make GCC pass the <samp class="option">--no-relax</samp> command-line option to the linker
+instead of the <samp class="option">--relax</samp> option.
+</p>
+</dd>
+<dt><a id="index-mloop"></a><span><code class="code">-mloop</code><a class="copiable-link" href="#index-mloop"> &para;</a></span></dt>
+<dd><p>Allow (or do not allow) GCC to use the LOOP instruction.
+</p>
+</dd>
+<dt><a id="index-mabi-4"></a><span><code class="code">-mabi=<var class="var">variant</var></code><a class="copiable-link" href="#index-mabi-4"> &para;</a></span></dt>
+<dd><p>Specify the ABI variant to output code for.  <samp class="option">-mabi=ti</samp> selects the
+unmodified TI ABI while <samp class="option">-mabi=gnu</samp> selects a GNU variant that copes
+more naturally with certain GCC assumptions.  These are the differences:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">Function Pointer Size</samp>&rsquo;</dt>
+<dd><p>TI ABI specifies that function (code) pointers are 16-bit, whereas GNU
+supports only 32-bit data and code pointers.
+</p>
+</dd>
+<dt>&lsquo;<samp class="samp">Optional Return Value Pointer</samp>&rsquo;</dt>
+<dd><p>Function return values larger than 64 bits are passed by using a hidden
+pointer as the first argument of the function.  TI ABI, though, mandates that
+the pointer can be NULL in case the caller is not using the returned value.
+GNU always passes and expects a valid return value pointer.
+</p>
+</dd>
+</dl>
+
+<p>The current <samp class="option">-mabi=ti</samp> implementation simply raises a compile error
+when any of the above code constructs is detected.  As a consequence
+the standard C library cannot be built and it is omitted when linking with
+<samp class="option">-mabi=ti</samp>.
+</p>
+<p>Relaxation is a GNU feature and for safety reasons is disabled when using
+<samp class="option">-mabi=ti</samp>.  The TI toolchain does not emit relocations for QBBx
+instructions, so the GNU linker cannot adjust them when shortening adjacent
+LDI32 pseudo instructions.
+</p>
+</dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="RISC_002dV-Options.html">RISC-V Options</a>, Previous: <a href="PowerPC-Options.html">PowerPC Options</a>, Up: <a href="Submodel-Options.html">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

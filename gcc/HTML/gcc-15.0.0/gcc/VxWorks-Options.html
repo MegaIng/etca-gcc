@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>VxWorks Options (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="VxWorks Options (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="VxWorks Options (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Submodel-Options.html" rel="up" title="Submodel Options">
+<link href="x86-Options.html" rel="next" title="x86 Options">
+<link href="VMS-Options.html" rel="prev" title="VMS Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="VxWorks-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="x86-Options.html" accesskey="n" rel="next">x86 Options</a>, Previous: <a href="VMS-Options.html" accesskey="p" rel="prev">VMS Options</a>, Up: <a href="Submodel-Options.html" accesskey="u" rel="up">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="VxWorks-Options-1"><span>3.19.53 VxWorks Options<a class="copiable-link" href="#VxWorks-Options-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-VxWorks-Options"></a>
+
+<p>The options in this section are defined for all VxWorks targets.
+Options specific to the target hardware are listed with the other
+options for that target.
+</p>
+<dl class="table">
+<dt><a id="index-mrtp"></a><span><code class="code">-mrtp</code><a class="copiable-link" href="#index-mrtp"> &para;</a></span></dt>
+<dd><p>GCC can generate code for both VxWorks kernels and real time processes
+(RTPs).  This option switches from the former to the latter.  It also
+defines the preprocessor macro <code class="code">__RTP__</code>.
+</p>
+</dd>
+<dt><a id="index-msmp"></a><span><code class="code">-msmp</code><a class="copiable-link" href="#index-msmp"> &para;</a></span></dt>
+<dd><p>Select SMP runtimes for linking.  Not available on architectures other
+than PowerPC, nor on VxWorks version 7 or later, in which the selection
+is part of the VxWorks build configuration and the library paths are the
+same for either choice.
+</p>
+</dd>
+<dt><a id="index-non_002dstatic"></a><span><code class="code">-non-static</code><a class="copiable-link" href="#index-non_002dstatic"> &para;</a></span></dt>
+<dd><p>Link an RTP executable against shared libraries rather than static
+libraries.  The options <samp class="option">-static</samp> and <samp class="option">-shared</samp> can
+also be used for RTPs (see <a class="pxref" href="Link-Options.html">Options for Linking</a>); <samp class="option">-static</samp>
+is the default.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-Bdynamic"></a>
+<a id="index-Bstatic"></a><span><code class="code">-Bstatic</code><a class="copiable-link" href="#index-Bstatic"> &para;</a></span></dt>
+<dt><code class="code">-Bdynamic</code></dt>
+<dd><p>These options are passed down to the linker.  They are defined for
+compatibility with Diab.
+</p>
+</dd>
+<dt><a id="index-Xbind_002dlazy"></a><span><code class="code">-Xbind-lazy</code><a class="copiable-link" href="#index-Xbind_002dlazy"> &para;</a></span></dt>
+<dd><p>Enable lazy binding of function calls.  This option is equivalent to
+<samp class="option">-Wl,-z,now</samp> and is defined for compatibility with Diab.
+</p>
+</dd>
+<dt><a id="index-Xbind_002dnow"></a><span><code class="code">-Xbind-now</code><a class="copiable-link" href="#index-Xbind_002dnow"> &para;</a></span></dt>
+<dd><p>Disable lazy binding of function calls.  This option is the default and
+is defined for compatibility with Diab.
+</p></dd>
+</dl>
+
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Intrinsic Types (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Intrinsic Types (The GNU Fortran Compiler)">
+<meta name="keywords" content="Intrinsic Types (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Interoperability-with-C.html" rel="up" title="Interoperability with C">
+<link href="Derived-Types-and-struct.html" rel="next" title="Derived Types and struct">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Intrinsic-Types">
+<div class="nav-panel">
+<p>
+Next: <a href="Derived-Types-and-struct.html" accesskey="n" rel="next">Derived Types and struct</a>, Up: <a href="Interoperability-with-C.html" accesskey="u" rel="up">Interoperability with C</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Intrinsic-Types-1"><span>6.1.1 Intrinsic Types<a class="copiable-link" href="#Intrinsic-Types-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-C-intrinsic-type-interoperability"></a>
+<a class="index-entry-id" id="index-intrinsic-type-interoperability-with-C"></a>
+<a class="index-entry-id" id="index-interoperability_002c-intrinsic-type"></a>
+
+<p>In order to ensure that exactly the same variable type and kind is used
+in C and Fortran, you should use the named constants for kind parameters
+that are defined in the <code class="code">ISO_C_BINDING</code> intrinsic module.
+That module contains named constants of character type representing
+the escaped special characters in C, such as newline.
+For a list of the constants, see <a class="ref" href="ISO_005fC_005fBINDING.html"><code class="code">ISO_C_BINDING</code></a>.
+</p>
+<p>For logical types, please note that the Fortran standard only guarantees
+interoperability between C99&rsquo;s <code class="code">_Bool</code> and Fortran&rsquo;s <code class="code">C_Bool</code>-kind
+logicals and C99 defines that <code class="code">true</code> has the value 1 and <code class="code">false</code>
+the value 0.  Using any other integer value with GNU Fortran&rsquo;s <code class="code">LOGICAL</code>
+(with any kind parameter) gives an undefined result.  (Passing other integer
+values than 0 and 1 to GCC&rsquo;s <code class="code">_Bool</code> is also undefined, unless the
+integer is explicitly or implicitly casted to <code class="code">_Bool</code>.)
+</p>
+</div>
+
+
+
+</body>
+</html>

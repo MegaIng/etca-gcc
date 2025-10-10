@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>C++ Concepts (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="C++ Concepts (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="C++ Concepts (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="C_002b_002b-Extensions.html" rel="up" title="C++ Extensions">
+<link href="Deprecated-Features.html" rel="next" title="Deprecated Features">
+<link href="Type-Traits.html" rel="prev" title="Type Traits">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="section-level-extent" id="C_002b_002b-Concepts">
+<div class="nav-panel">
+<p>
+Next: <a href="Deprecated-Features.html" accesskey="n" rel="next">Deprecated Features</a>, Previous: <a href="Type-Traits.html" accesskey="p" rel="prev">Type Traits</a>, Up: <a href="C_002b_002b-Extensions.html" accesskey="u" rel="up">Extensions to the C++ Language</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="C_002b_002b-Concepts-1"><span>7.10 C++ Concepts<a class="copiable-link" href="#C_002b_002b-Concepts-1"> &para;</a></span></h3>
+
+<p>C++ concepts provide much-improved support for generic programming. In
+particular, they allow the specification of constraints on template arguments.
+The constraints are used to extend the usual overloading and partial
+specialization capabilities of the language, allowing generic data structures
+and algorithms to be &ldquo;refined&rdquo; based on their properties rather than their
+type names.
+</p>
+<p>The following keywords are reserved for concepts.
+</p>
+<dl class="table">
+<dt><a id="index-assumes"></a><span><code class="code">assumes</code><a class="copiable-link" href="#index-assumes"> &para;</a></span></dt>
+<dd><p>States an expression as an assumption, and if possible, verifies that the
+assumption is valid. For example, <code class="code">assume(n &gt; 0)</code>.
+</p>
+</dd>
+<dt><a id="index-axiom"></a><span><code class="code">axiom</code><a class="copiable-link" href="#index-axiom"> &para;</a></span></dt>
+<dd><p>Introduces an axiom definition. Axioms introduce requirements on values.
+</p>
+</dd>
+<dt><a id="index-forall"></a><span><code class="code">forall</code><a class="copiable-link" href="#index-forall"> &para;</a></span></dt>
+<dd><p>Introduces a universally quantified object in an axiom. For example,
+<code class="code">forall (int n) n + 0 == n</code>.
+</p>
+</dd>
+<dt><a id="index-concept"></a><span><code class="code">concept</code><a class="copiable-link" href="#index-concept"> &para;</a></span></dt>
+<dd><p>Introduces a concept definition. Concepts are sets of syntactic and semantic
+requirements on types and their values.
+</p>
+</dd>
+<dt><a id="index-requires"></a><span><code class="code">requires</code><a class="copiable-link" href="#index-requires"> &para;</a></span></dt>
+<dd><p>Introduces constraints on template arguments or requirements for a member
+function of a class template.
+</p></dd>
+</dl>
+
+<p>The front end also exposes a number of internal mechanism that can be used
+to simplify the writing of type traits. Note that some of these traits are
+likely to be removed in the future.
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fis_005fsame"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__is_same</strong> <code class="def-code-arguments">(<var class="var">type1</var>, <var class="var">type2</var>)</code><a class="copiable-link" href="#index-_005f_005fis_005fsame"> &para;</a></span></dt>
+<dd><p>A binary type trait: <code class="code">true</code> whenever the <var class="var">type1</var> and
+<var class="var">type2</var> refer to the same type.
+</p></dd></dl>
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Deprecated-Features.html">Deprecated Features</a>, Previous: <a href="Type-Traits.html">Type Traits</a>, Up: <a href="C_002b_002b-Extensions.html">Extensions to the C++ Language</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

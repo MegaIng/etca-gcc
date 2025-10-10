@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>NDS32 Built-in Functions (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="NDS32 Built-in Functions (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="NDS32 Built-in Functions (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Target-Builtins.html" rel="up" title="Target Builtins">
+<link href="Nvidia-PTX-Built_002din-Functions.html" rel="next" title="Nvidia PTX Built-in Functions">
+<link href="MSP430-Built_002din-Functions.html" rel="prev" title="MSP430 Built-in Functions">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="NDS32-Built_002din-Functions">
+<div class="nav-panel">
+<p>
+Next: <a href="Nvidia-PTX-Built_002din-Functions.html" accesskey="n" rel="next">Nvidia PTX Built-in Functions</a>, Previous: <a href="MSP430-Built_002din-Functions.html" accesskey="p" rel="prev">MSP430 Built-in Functions</a>, Up: <a href="Target-Builtins.html" accesskey="u" rel="up">Built-in Functions Specific to Particular Target Machines</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="NDS32-Built_002din-Functions-1"><span>6.64.23 NDS32 Built-in Functions<a class="copiable-link" href="#NDS32-Built_002din-Functions-1"> &para;</a></span></h4>
+
+<p>These built-in functions are available for the NDS32 target:
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fisync"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_isync</strong> <code class="def-code-arguments">(int *<var class="var">addr</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fisync"> &para;</a></span></dt>
+<dd><p>Insert an ISYNC instruction into the instruction stream where
+<var class="var">addr</var> is an instruction address for serialization.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fisb"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_isb</strong> <code class="def-code-arguments">(void)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fisb"> &para;</a></span></dt>
+<dd><p>Insert an ISB instruction into the instruction stream.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fmfsr"><span class="category-def">Built-in Function: </span><span><code class="def-type">int</code> <strong class="def-name">__builtin_nds32_mfsr</strong> <code class="def-code-arguments">(int <var class="var">sr</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fmfsr"> &para;</a></span></dt>
+<dd><p>Return the content of a system register which is mapped by <var class="var">sr</var>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fmfusr"><span class="category-def">Built-in Function: </span><span><code class="def-type">int</code> <strong class="def-name">__builtin_nds32_mfusr</strong> <code class="def-code-arguments">(int <var class="var">usr</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fmfusr"> &para;</a></span></dt>
+<dd><p>Return the content of a user space register which is mapped by <var class="var">usr</var>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fmtsr"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_mtsr</strong> <code class="def-code-arguments">(int <var class="var">value</var>, int <var class="var">sr</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fmtsr"> &para;</a></span></dt>
+<dd><p>Move the <var class="var">value</var> to a system register which is mapped by <var class="var">sr</var>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fmtusr"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_mtusr</strong> <code class="def-code-arguments">(int <var class="var">value</var>, int <var class="var">usr</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fmtusr"> &para;</a></span></dt>
+<dd><p>Move the <var class="var">value</var> to a user space register which is mapped by <var class="var">usr</var>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fsetgie_005fen"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_setgie_en</strong> <code class="def-code-arguments">(void)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fsetgie_005fen"> &para;</a></span></dt>
+<dd><p>Enable global interrupt.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fnds32_005fsetgie_005fdis"><span class="category-def">Built-in Function: </span><span><code class="def-type">void</code> <strong class="def-name">__builtin_nds32_setgie_dis</strong> <code class="def-code-arguments">(void)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fnds32_005fsetgie_005fdis"> &para;</a></span></dt>
+<dd><p>Disable global interrupt.
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Nvidia-PTX-Built_002din-Functions.html">Nvidia PTX Built-in Functions</a>, Previous: <a href="MSP430-Built_002din-Functions.html">MSP430 Built-in Functions</a>, Up: <a href="Target-Builtins.html">Built-in Functions Specific to Particular Target Machines</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

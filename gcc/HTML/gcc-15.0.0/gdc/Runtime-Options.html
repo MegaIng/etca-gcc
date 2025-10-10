@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Runtime Options (The GNU D Compiler)</title>
+
+<meta name="description" content="Runtime Options (The GNU D Compiler)">
+<meta name="keywords" content="Runtime Options (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Invoking-gdc.html" rel="up" title="Invoking gdc">
+<link href="Directory-Options.html" rel="next" title="Directory Options">
+<link href="Input-and-Output-files.html" rel="prev" title="Input and Output files">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Runtime-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="Directory-Options.html" accesskey="n" rel="next">Options for Directory Search</a>, Previous: <a href="Input-and-Output-files.html" accesskey="p" rel="prev">Input and Output files</a>, Up: <a href="Invoking-gdc.html" accesskey="u" rel="up">Invoking gdc</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Runtime-Options-1"><span>1.2 Runtime Options<a class="copiable-link" href="#Runtime-Options-1"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-options_002c-runtime"></a>
+
+<p>These options affect the runtime behavior of programs compiled with
+<code class="command">gdc</code>.
+</p>
+<dl class="table">
+<dt><a class="index-entry-id" id="index-fno_002dall_002dinstantiations"></a>
+<a id="index-fall_002dinstantiations"></a><span><code class="code">-fall-instantiations</code><a class="copiable-link" href="#index-fall_002dinstantiations"> &para;</a></span></dt>
+<dd><p>Generate code for all template instantiations.  The default template emission
+strategy is to not generate code for declarations that were either
+instantiated speculatively, such as from <code class="code">__traits(compiles, ...)</code>, or
+that come from an imported module not being compiled.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dassert"></a>
+<a id="index-fassert"></a><span><code class="code">-fno-assert</code><a class="copiable-link" href="#index-fassert"> &para;</a></span></dt>
+<dd><p>Turn off code generation for <code class="code">assert</code> contracts.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dbounds_002dcheck"></a>
+<a id="index-fbounds_002dcheck"></a><span><code class="code">-fno-bounds-check</code><a class="copiable-link" href="#index-fbounds_002dcheck"> &para;</a></span></dt>
+<dd><p>Turns off array bounds checking for all functions, which can improve
+performance for code that uses arrays extensively.  Note that this
+can result in unpredictable behavior if the code in question actually
+does violate array bounds constraints.  It is safe to use this option
+if you are sure that your code never throws a <code class="code">RangeError</code>.
+</p>
+</dd>
+<dt><a id="index-fbounds_002dcheck_003d"></a><span><code class="code">-fbounds-check=<var class="var">value</var></code><a class="copiable-link" href="#index-fbounds_002dcheck_003d"> &para;</a></span></dt>
+<dd><p>An alternative to <samp class="option">-fbounds-check</samp> that allows more control
+as to where bounds checking is turned on or off.  The following values
+are supported:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">on</samp>&rsquo;</dt>
+<dd><p>Turns on array bounds checking for all functions.
+</p></dd>
+<dt>&lsquo;<samp class="samp">safeonly</samp>&rsquo;</dt>
+<dd><p>Turns on array bounds checking only for <code class="code">@safe</code> functions.
+</p></dd>
+<dt>&lsquo;<samp class="samp">off</samp>&rsquo;</dt>
+<dd><p>Turns off array bounds checking completely.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dbuiltin"></a>
+<a id="index-fbuiltin"></a><span><code class="code">-fno-builtin</code><a class="copiable-link" href="#index-fbuiltin"> &para;</a></span></dt>
+<dd><p>Don&rsquo;t recognize built-in functions unless they begin with the prefix
+&lsquo;<samp class="samp">__builtin_</samp>&rsquo;.  By default, the compiler will recognize when a
+function in the <code class="code">core.stdc</code> package is a built-in function.
+</p>
+</dd>
+<dt><a id="index-fcheckaction"></a><span><code class="code">-fcheckaction=<var class="var">value</var></code><a class="copiable-link" href="#index-fcheckaction"> &para;</a></span></dt>
+<dd><p>This option controls what code is generated on an assertion, bounds check, or
+final switch failure.  The following values are supported:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">context</samp>&rsquo;</dt>
+<dd><p>Throw an <code class="code">AssertError</code> with extra context information.
+</p></dd>
+<dt>&lsquo;<samp class="samp">halt</samp>&rsquo;</dt>
+<dd><p>Halt the program execution.
+</p></dd>
+<dt>&lsquo;<samp class="samp">throw</samp>&rsquo;</dt>
+<dd><p>Throw an <code class="code">AssertError</code> (the default).
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002ddebug"></a>
+<a id="index-fdebug"></a><span><code class="code">-fdebug</code><a class="copiable-link" href="#index-fdebug"> &para;</a></span></dt>
+<dt><code class="code">-fdebug=<var class="var">value</var></code></dt>
+<dd><p>Turn on compilation of conditional <code class="code">debug</code> code into the program.
+The <samp class="option">-fdebug</samp> option itself sets the debug level to <code class="code">1</code>,
+while <samp class="option">-fdebug=</samp> enables <code class="code">debug</code> code that are identified
+by any of the following values:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">ident</samp>&rsquo;</dt>
+<dd><p>Turns on compilation of any <code class="code">debug</code> code identified by <var class="var">ident</var>.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002ddruntime"></a>
+<a id="index-fdruntime"></a><span><code class="code">-fno-druntime</code><a class="copiable-link" href="#index-fdruntime"> &para;</a></span></dt>
+<dd><p>Implements <a class="uref" href="https://dlang.org/spec/betterc.html">https://dlang.org/spec/betterc.html</a>.  Assumes that
+compilation targets an environment without a D runtime library.
+</p>
+<p>This is equivalent to compiling with the following options:
+</p>
+<div class="example">
+<pre class="example-preformatted">gdc -nophoboslib -fno-exceptions -fno-moduleinfo -fno-rtti
+</pre></div>
+
+</dd>
+<dt><a id="index-fextern_002dstd"></a><span><code class="code">-fextern-std=<var class="var">standard</var></code><a class="copiable-link" href="#index-fextern_002dstd"> &para;</a></span></dt>
+<dd><p>Sets the C++ name mangling compatibility to the version identified by
+<var class="var">standard</var>.  The following values are supported:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">c++98</samp>&rsquo;</dt>
+<dt>&lsquo;<samp class="samp">c++03</samp>&rsquo;</dt>
+<dd><p>Sets <code class="code">__traits(getTargetInfo, &quot;cppStd&quot;)</code> to <code class="code">199711</code>.
+</p></dd>
+<dt>&lsquo;<samp class="samp">c++11</samp>&rsquo;</dt>
+<dd><p>Sets <code class="code">__traits(getTargetInfo, &quot;cppStd&quot;)</code> to <code class="code">201103</code>.
+</p></dd>
+<dt>&lsquo;<samp class="samp">c++14</samp>&rsquo;</dt>
+<dd><p>Sets <code class="code">__traits(getTargetInfo, &quot;cppStd&quot;)</code> to <code class="code">201402</code>.
+</p></dd>
+<dt>&lsquo;<samp class="samp">c++17</samp>&rsquo;</dt>
+<dd><p>Sets <code class="code">__traits(getTargetInfo, &quot;cppStd&quot;)</code> to <code class="code">201703</code>.
+This is the default.
+</p></dd>
+<dt>&lsquo;<samp class="samp">c++20</samp>&rsquo;</dt>
+<dd><p>Sets <code class="code">__traits(getTargetInfo, &quot;cppStd&quot;)</code> to <code class="code">202002</code>.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dinvariants"></a>
+<a id="index-finvariants"></a><span><code class="code">-fno-invariants</code><a class="copiable-link" href="#index-finvariants"> &para;</a></span></dt>
+<dd><p>Turns off code generation for class <code class="code">invariant</code> contracts.
+</p>
+</dd>
+<dt><a id="index-fmain"></a><span><code class="code">-fmain</code><a class="copiable-link" href="#index-fmain"> &para;</a></span></dt>
+<dd><p>Generates a default <code class="code">main()</code> function when compiling.  This is useful when
+unittesting a library, as it enables running the unittests in a library without
+having to manually define an entry-point function.  This option does nothing
+when <code class="code">main</code> is already defined in user code.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dmoduleinfo"></a>
+<a id="index-fmoduleinfo"></a><span><code class="code">-fno-moduleinfo</code><a class="copiable-link" href="#index-fmoduleinfo"> &para;</a></span></dt>
+<dd><p>Turns off generation of the <code class="code">ModuleInfo</code> and related functions
+that would become unreferenced without it, which may allow linking
+to programs not written in D.  Functions that are not be generated
+include module constructors and destructors (<code class="code">static this</code> and
+<code class="code">static ~this</code>), <code class="code">unittest</code> code, and <code class="code">DSO</code> registry
+functions for dynamically linked code.
+</p>
+</dd>
+<dt><a id="index-fonly"></a><span><code class="code">-fonly=<var class="var">filename</var></code><a class="copiable-link" href="#index-fonly"> &para;</a></span></dt>
+<dd><p>Tells the compiler to parse and run semantic analysis on all modules
+on the command line, but only generate code for the module specified
+by <var class="var">filename</var>.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dpostconditions"></a>
+<a id="index-fpostconditions"></a><span><code class="code">-fno-postconditions</code><a class="copiable-link" href="#index-fpostconditions"> &para;</a></span></dt>
+<dd><p>Turns off code generation for postcondition <code class="code">out</code> contracts.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dpreconditions"></a>
+<a id="index-fpreconditions"></a><span><code class="code">-fno-preconditions</code><a class="copiable-link" href="#index-fpreconditions"> &para;</a></span></dt>
+<dd><p>Turns off code generation for precondition <code class="code">in</code> contracts.
+</p>
+</dd>
+<dt><a id="index-fpreview"></a><span><code class="code">-fpreview=<var class="var">id</var></code><a class="copiable-link" href="#index-fpreview"> &para;</a></span></dt>
+<dd><p>Turns on an upcoming D language change identified by <var class="var">id</var>.  The following
+values are supported:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">all</samp>&rsquo;</dt>
+<dd><p>Turns on all upcoming D language features.
+</p></dd>
+<dt>&lsquo;<samp class="samp">bitfields</samp>&rsquo;</dt>
+<dd><p>Implements bit-fields in D.
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip1000</samp>&rsquo;</dt>
+<dd><p>Implements <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1000.md">https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1000.md</a>
+(Scoped pointers).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip1008</samp>&rsquo;</dt>
+<dd><p>Implements <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1008.md">https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1008.md</a>
+(Allow exceptions in <code class="code">@nogc</code> code).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip1021</samp>&rsquo;</dt>
+<dd><p>Implements <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/accepted/DIP1021.md">https://github.com/dlang/DIPs/blob/master/DIPs/accepted/DIP1021.md</a>
+(Mutable function arguments).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip25</samp>&rsquo;</dt>
+<dd><p>Implements <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/archive/DIP25.md">https://github.com/dlang/DIPs/blob/master/DIPs/archive/DIP25.md</a>
+(Sealed references).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dtorfields</samp>&rsquo;</dt>
+<dd><p>Turns on generation for destructing fields of partially constructed objects.
+</p></dd>
+<dt>&lsquo;<samp class="samp">fieldwise</samp>&rsquo;</dt>
+<dd><p>Turns on generation of struct equality to use field-wise comparisons.
+</p></dd>
+<dt>&lsquo;<samp class="samp">fixaliasthis</samp>&rsquo;</dt>
+<dd><p>Implements new lookup rules that check the current scope for <code class="code">alias this</code>
+before searching in upper scopes.
+</p></dd>
+<dt>&lsquo;<samp class="samp">fiximmutableconv</samp>&rsquo;</dt>
+<dd><p>Disallows unsound immutable conversions that were formerly incorrectly
+permitted.
+</p></dd>
+<dt>&lsquo;<samp class="samp">in</samp>&rsquo;</dt>
+<dd><p>Implements <code class="code">in</code> parameters to mean <code class="code">scope const [ref]</code> and accepts
+rvalues.
+</p></dd>
+<dt>&lsquo;<samp class="samp">inclusiveincontracts</samp>&rsquo;</dt>
+<dd><p>Implements <code class="code">in</code> contracts of overridden methods to be a superset of parent
+contract.
+</p></dd>
+<dt>&lsquo;<samp class="samp">nosharedaccess</samp>&rsquo;</dt>
+<dd><p>Turns off and disallows all access to shared memory objects.
+</p></dd>
+<dt>&lsquo;<samp class="samp">rvaluerefparam</samp>&rsquo;</dt>
+<dd><p>Implements rvalue arguments to <code class="code">ref</code> parameters.
+</p></dd>
+<dt>&lsquo;<samp class="samp">systemvariables</samp>&rsquo;</dt>
+<dd><p>Disables access to variables marked <code class="code">@system</code> from <code class="code">@safe</code> code.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002drelease"></a>
+<a id="index-frelease"></a><span><code class="code">-frelease</code><a class="copiable-link" href="#index-frelease"> &para;</a></span></dt>
+<dd><p>Turns on compiling in release mode, which means not emitting runtime
+checks for contracts and asserts.  Array bounds checking is not done
+for <code class="code">@system</code> and <code class="code">@trusted</code> functions, and assertion
+failures are undefined behavior.
+</p>
+<p>This is equivalent to compiling with the following options:
+</p>
+<div class="example">
+<pre class="example-preformatted">gdc -fno-assert -fbounds-check=safe -fno-invariants \
+    -fno-postconditions -fno-preconditions -fno-switch-errors
+</pre></div>
+
+</dd>
+<dt><a id="index-frevert"></a><span><code class="code">-frevert=</code><a class="copiable-link" href="#index-frevert"> &para;</a></span></dt>
+<dd><p>Turns off a D language feature identified by <var class="var">id</var>.  The following values
+are supported:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">all</samp>&rsquo;</dt>
+<dd><p>Turns off all revertable D language features.
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip1000</samp>&rsquo;</dt>
+<dd><p>Reverts <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1000.md">https://github.com/dlang/DIPs/blob/master/DIPs/other/DIP1000.md</a>
+(Scoped pointers).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dip25</samp>&rsquo;</dt>
+<dd><p>Reverts <a class="uref" href="https://github.com/dlang/DIPs/blob/master/DIPs/archive/DIP25.md">https://github.com/dlang/DIPs/blob/master/DIPs/archive/DIP25.md</a>
+(Sealed references).
+</p></dd>
+<dt>&lsquo;<samp class="samp">dtorfields</samp>&rsquo;</dt>
+<dd><p>Turns off generation for destructing fields of partially constructed objects.
+</p></dd>
+<dt>&lsquo;<samp class="samp">intpromote</samp>&rsquo;</dt>
+<dd><p>Turns off C-style integral promotion for unary <code class="code">+</code>, <code class="code">-</code> and <code class="code">~</code>
+expressions.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002drtti"></a>
+<a id="index-frtti"></a><span><code class="code">-fno-rtti</code><a class="copiable-link" href="#index-frtti"> &para;</a></span></dt>
+<dd><p>Turns off generation of run-time type information for all user defined types.
+Any code that uses features of the language that require access to this
+information will result in an error.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dswitch_002derrors"></a>
+<a id="index-fswitch_002derrors"></a><span><code class="code">-fno-switch-errors</code><a class="copiable-link" href="#index-fswitch_002derrors"> &para;</a></span></dt>
+<dd><p>This option controls what code is generated when no case is matched
+in a <code class="code">final switch</code> statement.  The default run time behavior
+is to throw a <code class="code">SwitchError</code>.  Turning off <samp class="option">-fswitch-errors</samp>
+means that instead the execution of the program is immediately halted.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dunittest"></a>
+<a id="index-funittest"></a><span><code class="code">-funittest</code><a class="copiable-link" href="#index-funittest"> &para;</a></span></dt>
+<dd><p>Turns on compilation of <code class="code">unittest</code> code, and turns on the
+<code class="code">version(unittest)</code> identifier.  This implies <samp class="option">-fassert</samp>.
+</p>
+</dd>
+<dt><a id="index-fversion"></a><span><code class="code">-fversion=<var class="var">value</var></code><a class="copiable-link" href="#index-fversion"> &para;</a></span></dt>
+<dd><p>Turns on compilation of conditional <code class="code">version</code> code into the program
+identified by any of the following values:
+</p>
+<dl class="table">
+<dt>&lsquo;<samp class="samp">ident</samp>&rsquo;</dt>
+<dd><p>Turns on compilation of <code class="code">version</code> code identified by <var class="var">ident</var>.
+</p></dd>
+</dl>
+
+</dd>
+<dt><a class="index-entry-id" id="index-fno_002dweak_002dtemplates"></a>
+<a id="index-fweak_002dtemplates"></a><span><code class="code">-fno-weak-templates</code><a class="copiable-link" href="#index-fweak_002dtemplates"> &para;</a></span></dt>
+<dd><p>Turns off emission of declarations that can be defined in multiple objects as
+weak symbols.  The default is to emit all public symbols as weak, unless the
+target lacks support for weak symbols.  Disabling this option means that common
+symbols are instead put in COMDAT or become private.
+</p>
+</dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Directory-Options.html">Options for Directory Search</a>, Previous: <a href="Input-and-Output-files.html">Input and Output files</a>, Up: <a href="Invoking-gdc.html">Invoking gdc</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

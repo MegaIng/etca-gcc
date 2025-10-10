@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Directory Options (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Directory Options (The GNU Fortran Compiler)">
+<meta name="keywords" content="Directory Options (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Invoking-GNU-Fortran.html" rel="up" title="Invoking GNU Fortran">
+<link href="Link-Options.html" rel="next" title="Link Options">
+<link href="Debugging-Options.html" rel="prev" title="Debugging Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Directory-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="Link-Options.html" accesskey="n" rel="next">Influencing the linking step</a>, Previous: <a href="Debugging-Options.html" accesskey="p" rel="prev">Options for debugging your program</a>, Up: <a href="Invoking-GNU-Fortran.html" accesskey="u" rel="up">GNU Fortran Command Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Options-for-directory-search"><span>2.6 Options for directory search<a class="copiable-link" href="#Options-for-directory-search"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-directory_002c-options"></a>
+<a class="index-entry-id" id="index-options_002c-directory-search"></a>
+<a class="index-entry-id" id="index-search-path"></a>
+<a class="index-entry-id" id="index-INCLUDE-directive"></a>
+<a class="index-entry-id" id="index-directive_002c-INCLUDE"></a>
+<p>These options affect how GNU Fortran searches
+for files specified by the <code class="code">INCLUDE</code> directive and where it searches
+for previously compiled modules.
+</p>
+<p>It also affects the search paths used by <code class="command">cpp</code> when used to preprocess
+Fortran source.
+</p>
+<dl class="table">
+<dt><a class="index-entry-id" id="index-directory_002c-search-paths-for-inclusion"></a>
+<a class="index-entry-id" id="index-inclusion_002c-directory-search-paths-for"></a>
+<a class="index-entry-id" id="index-search-paths_002c-for-included-files"></a>
+<a class="index-entry-id" id="index-paths_002c-search"></a>
+<a class="index-entry-id" id="index-module-search-path"></a>
+<a id="index-Idir"></a><span><code class="code">-I<var class="var">dir</var></code><a class="copiable-link" href="#index-Idir"> &para;</a></span></dt>
+<dd><p>These affect interpretation of the <code class="code">INCLUDE</code> directive
+(as well as of the <code class="code">#include</code> directive of the <code class="command">cpp</code>
+preprocessor).
+</p>
+<p>Also note that the general behavior of <samp class="option">-I</samp> and
+<code class="code">INCLUDE</code> is pretty much the same as of <samp class="option">-I</samp> with
+<code class="code">#include</code> in the <code class="command">cpp</code> preprocessor, with regard to
+looking for <samp class="file">header.gcc</samp> files and other such things.
+</p>
+<p>This path is also used to search for <samp class="file">.mod</samp> files when previously
+compiled modules are required by a <code class="code">USE</code> statement.
+</p>
+<p>See <a data-manual="gcc" href="https://gcc.gnu.org/onlinedocs/gcc/Directory-Options.html#Directory-Options">Options for Directory Search</a> in <cite class="cite">Using the GNU Compiler Collection (GCC)</cite>, for information on the
+<samp class="option">-I</samp> option.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-paths_002c-search-1"></a>
+<a class="index-entry-id" id="index-module-search-path-1"></a>
+<a id="index-Jdir"></a><span><code class="code">-J<var class="var">dir</var></code><a class="copiable-link" href="#index-Jdir"> &para;</a></span></dt>
+<dd><p>This option specifies where to put <samp class="file">.mod</samp> files for compiled modules.
+It is also added to the list of directories to searched by an <code class="code">USE</code>
+statement.
+</p>
+<p>The default is the current directory.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-paths_002c-search-2"></a>
+<a class="index-entry-id" id="index-module-search-path-2"></a>
+<a id="index-fintrinsic_002dmodules_002dpath"></a><span><code class="code">-fintrinsic-modules-path <var class="var">dir</var></code><a class="copiable-link" href="#index-fintrinsic_002dmodules_002dpath"> &para;</a></span></dt>
+<dd><p>This option specifies the location of pre-compiled intrinsic modules, if
+they are not in the default location expected by the compiler.
+</p></dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Link-Options.html">Influencing the linking step</a>, Previous: <a href="Debugging-Options.html">Options for debugging your program</a>, Up: <a href="Invoking-GNU-Fortran.html">GNU Fortran Command Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

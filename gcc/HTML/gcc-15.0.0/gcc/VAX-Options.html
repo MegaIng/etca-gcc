@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>VAX Options (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="VAX Options (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="VAX Options (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Submodel-Options.html" rel="up" title="Submodel Options">
+<link href="Visium-Options.html" rel="next" title="Visium Options">
+<link href="V850-Options.html" rel="prev" title="V850 Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="VAX-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="Visium-Options.html" accesskey="n" rel="next">Visium Options</a>, Previous: <a href="V850-Options.html" accesskey="p" rel="prev">V850 Options</a>, Up: <a href="Submodel-Options.html" accesskey="u" rel="up">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="VAX-Options-1"><span>3.19.50 VAX Options<a class="copiable-link" href="#VAX-Options-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-VAX-options"></a>
+
+<p>These &lsquo;<samp class="samp">-m</samp>&rsquo; options are defined for the VAX:
+</p>
+<dl class="table">
+<dt><a id="index-munix"></a><span><code class="code">-munix</code><a class="copiable-link" href="#index-munix"> &para;</a></span></dt>
+<dd><p>Do not output certain jump instructions (<code class="code">aobleq</code> and so on)
+that the Unix assembler for the VAX cannot handle across long
+ranges.
+</p>
+</dd>
+<dt><a id="index-mgnu"></a><span><code class="code">-mgnu</code><a class="copiable-link" href="#index-mgnu"> &para;</a></span></dt>
+<dd><p>Do output those jump instructions, on the assumption that the
+GNU assembler is being used.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-md_002dfloat"></a>
+<a id="index-md"></a><span><code class="code">-md</code><a class="copiable-link" href="#index-md"> &para;</a></span></dt>
+<dt><code class="code">-md-float</code></dt>
+<dd><p>Use the D_floating data format for double-precision floating-point numbers
+instead of G_floating.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mg_002dfloat"></a>
+<a id="index-mg"></a><span><code class="code">-mg</code><a class="copiable-link" href="#index-mg"> &para;</a></span></dt>
+<dt><code class="code">-mg-float</code></dt>
+<dd><p>Use the G_floating data format for double-precision floating-point numbers
+instead of D_floating.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mno_002dlra-1"></a>
+<a id="index-mlra-4"></a><span><code class="code">-mlra</code><a class="copiable-link" href="#index-mlra-4"> &para;</a></span></dt>
+<dt><code class="code">-mno-lra</code></dt>
+<dd><p>Enable Local Register Allocation.  This is still experimental for the VAX,
+so by default the compiler uses standard reload.
+</p></dd>
+</dl>
+
+</div>
+
+
+
+</body>
+</html>

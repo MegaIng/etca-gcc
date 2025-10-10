@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Debugging Options (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Debugging Options (The GNU Fortran Compiler)">
+<meta name="keywords" content="Debugging Options (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Invoking-GNU-Fortran.html" rel="up" title="Invoking GNU Fortran">
+<link href="Directory-Options.html" rel="next" title="Directory Options">
+<link href="Error-and-Warning-Options.html" rel="prev" title="Error and Warning Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Debugging-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="Directory-Options.html" accesskey="n" rel="next">Options for directory search</a>, Previous: <a href="Error-and-Warning-Options.html" accesskey="p" rel="prev">Options to request or suppress errors and warnings</a>, Up: <a href="Invoking-GNU-Fortran.html" accesskey="u" rel="up">GNU Fortran Command Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Options-for-debugging-your-program"><span>2.5 Options for debugging your program<a class="copiable-link" href="#Options-for-debugging-your-program"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-options_002c-debugging"></a>
+<a class="index-entry-id" id="index-debugging-information-options"></a>
+
+<p>GNU Fortran has various special options that are used for debugging
+your program.
+</p>
+<dl class="table">
+<dt><a id="index-fdebug_002daux_002dvars"></a><span><code class="code">-fdebug-aux-vars</code><a class="copiable-link" href="#index-fdebug_002daux_002dvars"> &para;</a></span></dt>
+<dd><p>Renames internal variables created by the gfortran front end and makes
+them accessible to a debugger.  The name of the internal variables then
+start with upper-case letters followed by an underscore.  This option is
+useful for debugging the compiler&rsquo;s code generation together with
+<code class="code">-fdump-tree-original</code> and enabling debugging of the executable
+program by using <code class="code">-g</code> or <code class="code">-ggdb3</code>.
+</p>
+</dd>
+<dt><a id="index-ffpe_002dtrap_003dlist"></a><span><code class="code">-ffpe-trap=<var class="var">list</var></code><a class="copiable-link" href="#index-ffpe_002dtrap_003dlist"> &para;</a></span></dt>
+<dd><p>Specify a list of floating point exception traps to enable.  On most
+systems, if a floating point exception occurs and the trap for that
+exception is enabled, a SIGFPE signal will be sent and the program
+being aborted, producing a core file useful for debugging.  <var class="var">list</var>
+is a (possibly empty) comma-separated list of either &lsquo;<samp class="samp">none</samp>&rsquo; (to
+clear the set of exceptions to be trapped), or of the following
+exceptions: &lsquo;<samp class="samp">invalid</samp>&rsquo; (invalid floating point operation, such as
+<code class="code">SQRT(-1.0)</code>), &lsquo;<samp class="samp">zero</samp>&rsquo; (division by zero), &lsquo;<samp class="samp">overflow</samp>&rsquo;
+(overflow in a floating point operation), &lsquo;<samp class="samp">underflow</samp>&rsquo; (underflow
+in a floating point operation), &lsquo;<samp class="samp">inexact</samp>&rsquo; (loss of precision
+during operation), and &lsquo;<samp class="samp">denormal</samp>&rsquo; (operation performed on a
+denormal value).  The first five exceptions correspond to the five
+IEEE 754 exceptions, whereas the last one (&lsquo;<samp class="samp">denormal</samp>&rsquo;) is not
+part of the IEEE 754 standard but is available on some common
+architectures such as x86.
+</p>
+<p>The first three exceptions (&lsquo;<samp class="samp">invalid</samp>&rsquo;, &lsquo;<samp class="samp">zero</samp>&rsquo;, and
+&lsquo;<samp class="samp">overflow</samp>&rsquo;) often indicate serious errors, and unless the program
+has provisions for dealing with these exceptions, enabling traps for
+these three exceptions is probably a good idea.
+</p>
+<p>If the option is used more than once in the command line, the lists will
+be joined: &rsquo;<code class="code">ffpe-trap=</code><var class="var">list1</var> <code class="code">ffpe-trap=</code><var class="var">list2</var>&rsquo;
+is equivalent to <code class="code">ffpe-trap=</code><var class="var">list1</var>,<var class="var">list2</var>.
+</p>
+<p>Note that once enabled an exception cannot be disabled (no negative form),
+except by clearing all traps by specifying &lsquo;<samp class="samp">none</samp>&rsquo;.
+</p>
+<p>Many, if not most, floating point operations incur loss of precision
+due to rounding, and hence the <code class="code">ffpe-trap=inexact</code> is likely to
+be uninteresting in practice.
+</p>
+<p>By default no exception traps are enabled.
+</p>
+</dd>
+<dt><a id="index-ffpe_002dsummary_003dlist"></a><span><code class="code">-ffpe-summary=<var class="var">list</var></code><a class="copiable-link" href="#index-ffpe_002dsummary_003dlist"> &para;</a></span></dt>
+<dd><p>Specify a list of floating-point exceptions, whose flag status is printed
+to <code class="code">ERROR_UNIT</code> when invoking <code class="code">STOP</code> and <code class="code">ERROR STOP</code>.
+<var class="var">list</var> can be either &lsquo;<samp class="samp">none</samp>&rsquo;, &lsquo;<samp class="samp">all</samp>&rsquo; or a comma-separated list
+of the following exceptions: &lsquo;<samp class="samp">invalid</samp>&rsquo;, &lsquo;<samp class="samp">zero</samp>&rsquo;, &lsquo;<samp class="samp">overflow</samp>&rsquo;,
+&lsquo;<samp class="samp">underflow</samp>&rsquo;, &lsquo;<samp class="samp">inexact</samp>&rsquo; and &lsquo;<samp class="samp">denormal</samp>&rsquo;. (See
+<samp class="option">-ffpe-trap</samp> for a description of the exceptions.)
+</p>
+<p>If the option is used more than once in the command line, only the
+last one will be used.
+</p>
+<p>By default, a summary for all exceptions but &lsquo;<samp class="samp">inexact</samp>&rsquo; is shown.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-backtrace"></a>
+<a class="index-entry-id" id="index-trace"></a>
+<a id="index-fno_002dbacktrace"></a><span><code class="code">-fno-backtrace</code><a class="copiable-link" href="#index-fno_002dbacktrace"> &para;</a></span></dt>
+<dd><p>When a serious runtime error is encountered or a deadly signal is
+emitted (segmentation fault, illegal instruction, bus error,
+floating-point exception, and the other POSIX signals that have the
+action &lsquo;<samp class="samp">core</samp>&rsquo;), the Fortran runtime library tries to output a
+backtrace of the error. <code class="code">-fno-backtrace</code> disables the backtrace
+generation. This option only has influence for compilation of the
+Fortran main program.
+</p>
+</dd>
+</dl>
+
+<p>See <a data-manual="gcc" href="https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html#Debugging-Options">Options for Debugging Your Program or GCC</a> in <cite class="cite">Using the GNU Compiler Collection (GCC)</cite>, for more information on
+debugging options.
+</p>
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Directory-Options.html">Options for directory search</a>, Previous: <a href="Error-and-Warning-Options.html">Options to request or suppress errors and warnings</a>, Up: <a href="Invoking-GNU-Fortran.html">GNU Fortran Command Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

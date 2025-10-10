@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>RAND (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="RAND (The GNU Fortran Compiler)">
+<meta name="keywords" content="RAND (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="RANDOM_005fINIT.html" rel="next" title="RANDOM_INIT">
+<link href="RAN.html" rel="prev" title="RAN">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="RAND">
+<div class="nav-panel">
+<p>
+Next: <a href="RANDOM_005fINIT.html" accesskey="n" rel="next"><code class="code">RANDOM_INIT</code> &mdash; Initialize a pseudo-random number generator</a>, Previous: <a href="RAN.html" accesskey="p" rel="prev"><code class="code">RAN</code> &mdash; Real pseudo-random number</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="RAND-_002d_002d_002d-Real-pseudo_002drandom-number"><span>8.222 <code class="code">RAND</code> &mdash; Real pseudo-random number<a class="copiable-link" href="#RAND-_002d_002d_002d-Real-pseudo_002drandom-number"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-RAND"></a>
+<a class="index-entry-id" id="index-random-number-generation-2"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p><code class="code">RAND(FLAG)</code> returns a pseudo-random number from a uniform
+distribution between 0 and 1. If <var class="var">FLAG</var> is 0, the next number
+in the current sequence is returned; if <var class="var">FLAG</var> is 1, the generator
+is restarted by <code class="code">CALL SRAND(0)</code>; if <var class="var">FLAG</var> has any other value,
+it is used as a new seed with <code class="code">SRAND</code>.
+</p>
+<p>This intrinsic routine is provided for backwards compatibility with
+GNU Fortran 77. It implements a simple modulo generator as provided 
+by <code class="command">g77</code>. For new code, one should consider the use of 
+<a class="ref" href="RANDOM_005fNUMBER.html"><code class="code">RANDOM_NUMBER</code> &mdash; Pseudo-random number</a> as it implements a superior algorithm.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>GNU extension
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = RAND(I)</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">I</var></td><td width="70%">Shall be a scalar <code class="code">INTEGER</code> of kind 4.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>The return value is of <code class="code">REAL</code> type and the default kind.
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">program test_rand
+  integer,parameter :: seed = 86456
+  
+  call srand(seed)
+  print *, rand(), rand(), rand(), rand()
+  print *, rand(seed), rand(), rand(), rand()
+end program test_rand
+</pre></div>
+
+</dd>
+<dt><em class="emph">See also</em>:</dt>
+<dd><p><a class="ref" href="SRAND.html"><code class="code">SRAND</code> &mdash; Reinitialize the random number generator</a>, <br>
+<a class="ref" href="RANDOM_005fNUMBER.html"><code class="code">RANDOM_NUMBER</code> &mdash; Pseudo-random number</a>
+</p>
+</dd>
+</dl>
+
+
+</div>
+
+
+
+</body>
+</html>

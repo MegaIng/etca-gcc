@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Explicit Register Variables (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="Explicit Register Variables (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="Explicit Register Variables (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Using-Assembly-Language-with-C.html" rel="up" title="Using Assembly Language with C">
+<link href="Size-of-an-asm.html" rel="next" title="Size of an asm">
+<link href="Asm-Labels.html" rel="prev" title="Asm Labels">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="Explicit-Register-Variables">
+<div class="nav-panel">
+<p>
+Next: <a href="Size-of-an-asm.html" accesskey="n" rel="next">Size of an <code class="code">asm</code></a>, Previous: <a href="Asm-Labels.html" accesskey="p" rel="prev">Controlling Names Used in Assembler Code</a>, Up: <a href="Using-Assembly-Language-with-C.html" accesskey="u" rel="up">How to Use Inline Assembly Language in C Code</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Variables-in-Specified-Registers"><span>6.50.5 Variables in Specified Registers<a class="copiable-link" href="#Variables-in-Specified-Registers"> &para;</a></span></h4>
+<a class="anchor" id="Explicit-Reg-Vars"></a><a class="index-entry-id" id="index-explicit-register-variables"></a>
+<a class="index-entry-id" id="index-variables-in-specified-registers"></a>
+<a class="index-entry-id" id="index-specified-registers"></a>
+
+<p>GNU C allows you to associate specific hardware registers with C 
+variables.  In almost all cases, allowing the compiler to assign
+registers produces the best code.  However under certain unusual
+circumstances, more precise control over the variable storage is 
+required.
+</p>
+<p>Both global and local variables can be associated with a register.  The
+consequences of performing this association are very different between
+the two, as explained in the sections below.
+</p>
+
+<ul class="mini-toc">
+<li><a href="Global-Register-Variables.html" accesskey="1">Defining Global Register Variables</a></li>
+<li><a href="Local-Register-Variables.html" accesskey="2">Specifying Registers for Local Variables</a></li>
+</ul>
+</div>
+
+
+
+</body>
+</html>

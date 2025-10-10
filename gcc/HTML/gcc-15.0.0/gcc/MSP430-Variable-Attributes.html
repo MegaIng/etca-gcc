@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>MSP430 Variable Attributes (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="MSP430 Variable Attributes (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="MSP430 Variable Attributes (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Variable-Attributes.html" rel="up" title="Variable Attributes">
+<link href="Nvidia-PTX-Variable-Attributes.html" rel="next" title="Nvidia PTX Variable Attributes">
+<link href="Microsoft-Windows-Variable-Attributes.html" rel="prev" title="Microsoft Windows Variable Attributes">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="MSP430-Variable-Attributes">
+<div class="nav-panel">
+<p>
+Next: <a href="Nvidia-PTX-Variable-Attributes.html" accesskey="n" rel="next">Nvidia PTX Variable Attributes</a>, Previous: <a href="Microsoft-Windows-Variable-Attributes.html" accesskey="p" rel="prev">Microsoft Windows Variable Attributes</a>, Up: <a href="Variable-Attributes.html" accesskey="u" rel="up">Specifying Attributes of Variables</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="MSP430-Variable-Attributes-1"><span>6.36.10 MSP430 Variable Attributes<a class="copiable-link" href="#MSP430-Variable-Attributes-1"> &para;</a></span></h4>
+
+<dl class="table">
+<dt><a class="index-entry-id" id="index-either-variable-attribute_002c-MSP430"></a>
+<a id="index-upper-variable-attribute_002c-MSP430"></a><span><code class="code">upper</code><a class="copiable-link" href="#index-upper-variable-attribute_002c-MSP430"> &para;</a></span></dt>
+<dt><code class="code">either</code></dt>
+<dd><p>These attributes are the same as the MSP430 function attributes of the
+same name (see <a class="pxref" href="MSP430-Function-Attributes.html">MSP430 Function Attributes</a>).  
+</p>
+</dd>
+<dt><a id="index-lower-variable-attribute_002c-MSP430"></a><span><code class="code">lower</code><a class="copiable-link" href="#index-lower-variable-attribute_002c-MSP430"> &para;</a></span></dt>
+<dd><p>This option behaves mostly the same as the MSP430 function attribute of the
+same name (see <a class="pxref" href="MSP430-Function-Attributes.html">MSP430 Function Attributes</a>), but it has some additional
+functionality.
+</p>
+<p>If <samp class="option">-mdata-region=</samp>{<code class="code">upper,either,none</code>} has been passed, or
+the <code class="code">section</code> attribute is applied to a variable, the compiler will
+generate 430X instructions to handle it.  This is because the compiler has
+to assume that the variable could get placed in the upper memory region
+(above address 0xFFFF).  Marking the variable with the <code class="code">lower</code> attribute
+informs the compiler that the variable will be placed in lower memory so it
+is safe to use 430 instructions to handle it.
+</p>
+<p>In the case of the <code class="code">section</code> attribute, the section name given
+will be used, and the <code class="code">.lower</code> prefix will not be added.
+</p>
+</dd>
+</dl>
+
+</div>
+
+
+
+</body>
+</html>

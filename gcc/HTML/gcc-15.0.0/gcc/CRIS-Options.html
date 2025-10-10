@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>CRIS Options (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="CRIS Options (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="CRIS Options (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Submodel-Options.html" rel="up" title="Submodel Options">
+<link href="C_002dSKY-Options.html" rel="next" title="C-SKY Options">
+<link href="C6X-Options.html" rel="prev" title="C6X Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="CRIS-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="C_002dSKY-Options.html" accesskey="n" rel="next">C-SKY Options</a>, Previous: <a href="C6X-Options.html" accesskey="p" rel="prev">C6X Options</a>, Up: <a href="Submodel-Options.html" accesskey="u" rel="up">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="CRIS-Options-1"><span>3.19.9 CRIS Options<a class="copiable-link" href="#CRIS-Options-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-CRIS-Options"></a>
+
+<p>These options are defined specifically for the CRIS ports.
+</p>
+<dl class="table">
+<dt><a class="index-entry-id" id="index-mcpu-3"></a>
+<a id="index-march-4"></a><span><code class="code">-march=<var class="var">architecture-type</var></code><a class="copiable-link" href="#index-march-4"> &para;</a></span></dt>
+<dt><code class="code">-mcpu=<var class="var">architecture-type</var></code></dt>
+<dd><p>Generate code for the specified architecture.  The choices for
+<var class="var">architecture-type</var> are &lsquo;<samp class="samp">v3</samp>&rsquo;, &lsquo;<samp class="samp">v8</samp>&rsquo; and &lsquo;<samp class="samp">v10</samp>&rsquo; for
+respectively ETRAX&nbsp;<!-- /@w -->4, ETRAX&nbsp;<!-- /@w -->100, and ETRAX&nbsp;<!-- /@w -->100&nbsp;<!-- /@w -->LX.
+Default is &lsquo;<samp class="samp">v0</samp>&rsquo;.
+</p>
+</dd>
+<dt><a id="index-mtune-5"></a><span><code class="code">-mtune=<var class="var">architecture-type</var></code><a class="copiable-link" href="#index-mtune-5"> &para;</a></span></dt>
+<dd><p>Tune to <var class="var">architecture-type</var> everything applicable about the generated
+code, except for the ABI and the set of available instructions.  The
+choices for <var class="var">architecture-type</var> are the same as for
+<samp class="option">-march=<var class="var">architecture-type</var></samp>.
+</p>
+</dd>
+<dt><a id="index-mmax_002dstack_002dframe"></a><span><code class="code">-mmax-stack-frame=<var class="var">n</var></code><a class="copiable-link" href="#index-mmax_002dstack_002dframe"> &para;</a></span></dt>
+<dd><p>Warn when the stack frame of a function exceeds <var class="var">n</var> bytes.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-metrax100"></a>
+<a id="index-metrax4"></a><span><code class="code">-metrax4</code><a class="copiable-link" href="#index-metrax4"> &para;</a></span></dt>
+<dt><code class="code">-metrax100</code></dt>
+<dd><p>The options <samp class="option">-metrax4</samp> and <samp class="option">-metrax100</samp> are synonyms for
+<samp class="option">-march=v3</samp> and <samp class="option">-march=v8</samp> respectively.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mno_002dmul_002dbug_002dworkaround"></a>
+<a id="index-mmul_002dbug_002dworkaround"></a><span><code class="code">-mmul-bug-workaround</code><a class="copiable-link" href="#index-mmul_002dbug_002dworkaround"> &para;</a></span></dt>
+<dt><code class="code">-mno-mul-bug-workaround</code></dt>
+<dd><p>Work around a bug in the <code class="code">muls</code> and <code class="code">mulu</code> instructions for CPU
+models where it applies.  This option is disabled by default.
+</p>
+</dd>
+<dt><a id="index-mpdebug"></a><span><code class="code">-mpdebug</code><a class="copiable-link" href="#index-mpdebug"> &para;</a></span></dt>
+<dd><p>Enable CRIS-specific verbose debug-related information in the assembly
+code.  This option also has the effect of turning off the &lsquo;<samp class="samp">#NO_APP</samp>&rsquo;
+formatted-code indicator to the assembler at the beginning of the
+assembly file.
+</p>
+</dd>
+<dt><a id="index-mcc_002dinit"></a><span><code class="code">-mcc-init</code><a class="copiable-link" href="#index-mcc_002dinit"> &para;</a></span></dt>
+<dd><p>Do not use condition-code results from previous instruction; always emit
+compare and test instructions before use of condition codes.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mside_002deffects"></a>
+<a id="index-mno_002dside_002deffects"></a><span><code class="code">-mno-side-effects</code><a class="copiable-link" href="#index-mno_002dside_002deffects"> &para;</a></span></dt>
+<dd><p>Do not emit instructions with side effects in addressing modes other than
+post-increment.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mno_002dstack_002dalign"></a>
+<a class="index-entry-id" id="index-mdata_002dalign"></a>
+<a class="index-entry-id" id="index-mno_002ddata_002dalign"></a>
+<a class="index-entry-id" id="index-mconst_002dalign"></a>
+<a class="index-entry-id" id="index-mno_002dconst_002dalign"></a>
+<a id="index-mstack_002dalign"></a><span><code class="code">-mstack-align</code><a class="copiable-link" href="#index-mstack_002dalign"> &para;</a></span></dt>
+<dt><code class="code">-mno-stack-align</code></dt>
+<dt><code class="code">-mdata-align</code></dt>
+<dt><code class="code">-mno-data-align</code></dt>
+<dt><code class="code">-mconst-align</code></dt>
+<dt><code class="code">-mno-const-align</code></dt>
+<dd><p>These options (&lsquo;<samp class="samp">no-</samp>&rsquo; options) arrange (eliminate arrangements) for the
+stack frame, individual data and constants to be aligned for the maximum
+single data access size for the chosen CPU model.  The default is to
+arrange for 32-bit alignment.  ABI details such as structure layout are
+not affected by these options.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-m16_002dbit"></a>
+<a class="index-entry-id" id="index-m8_002dbit"></a>
+<a id="index-m32_002dbit"></a><span><code class="code">-m32-bit</code><a class="copiable-link" href="#index-m32_002dbit"> &para;</a></span></dt>
+<dt><code class="code">-m16-bit</code></dt>
+<dt><code class="code">-m8-bit</code></dt>
+<dd><p>Similar to the stack- data- and const-align options above, these options
+arrange for stack frame, writable data and constants to all be 32-bit,
+16-bit or 8-bit aligned.  The default is 32-bit alignment.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mprologue_002depilogue"></a>
+<a id="index-mno_002dprologue_002depilogue"></a><span><code class="code">-mno-prologue-epilogue</code><a class="copiable-link" href="#index-mno_002dprologue_002depilogue"> &para;</a></span></dt>
+<dt><code class="code">-mprologue-epilogue</code></dt>
+<dd><p>With <samp class="option">-mno-prologue-epilogue</samp>, the normal function prologue and
+epilogue which set up the stack frame are omitted and no return
+instructions or return sequences are generated in the code.  Use this
+option only together with visual inspection of the compiled code: no
+warnings or errors are generated when call-saved registers must be saved,
+or storage for local variables needs to be allocated.
+</p>
+</dd>
+<dt><a id="index-melf"></a><span><code class="code">-melf</code><a class="copiable-link" href="#index-melf"> &para;</a></span></dt>
+<dd><p>Legacy no-op option.
+</p>
+</dd>
+<dt><a id="index-sim"></a><span><code class="code">-sim</code><a class="copiable-link" href="#index-sim"> &para;</a></span></dt>
+<dd><p>This option arranges
+to link with input-output functions from a simulator library.  Code,
+initialized data and zero-initialized data are allocated consecutively.
+</p>
+</dd>
+<dt><a id="index-sim2"></a><span><code class="code">-sim2</code><a class="copiable-link" href="#index-sim2"> &para;</a></span></dt>
+<dd><p>Like <samp class="option">-sim</samp>, but pass linker options to locate initialized data at
+0x40000000 and zero-initialized data at 0x80000000.
+</p></dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="C_002dSKY-Options.html">C-SKY Options</a>, Previous: <a href="C6X-Options.html">C6X Options</a>, Up: <a href="Submodel-Options.html">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

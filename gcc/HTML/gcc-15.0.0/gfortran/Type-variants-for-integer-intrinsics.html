@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Type variants for integer intrinsics (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Type variants for integer intrinsics (The GNU Fortran Compiler)">
+<meta name="keywords" content="Type variants for integer intrinsics (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Extensions-implemented-in-GNU-Fortran.html" rel="up" title="Extensions implemented in GNU Fortran">
+<link href="AUTOMATIC-and-STATIC-attributes.html" rel="next" title="AUTOMATIC and STATIC attributes">
+<link href="UNION-and-MAP.html" rel="prev" title="UNION and MAP">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Type-variants-for-integer-intrinsics">
+<div class="nav-panel">
+<p>
+Next: <a href="AUTOMATIC-and-STATIC-attributes.html" accesskey="n" rel="next"><code class="code">AUTOMATIC</code> and <code class="code">STATIC</code> attributes</a>, Previous: <a href="UNION-and-MAP.html" accesskey="p" rel="prev"><code class="code">UNION</code> and <code class="code">MAP</code></a>, Up: <a href="Extensions-implemented-in-GNU-Fortran.html" accesskey="u" rel="up">Extensions implemented in GNU Fortran</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Type-variants-for-integer-intrinsics-1"><span>5.1.24 Type variants for integer intrinsics<a class="copiable-link" href="#Type-variants-for-integer-intrinsics-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-intrinsics_002c-integer"></a>
+
+<p>Similar to the D/C prefixes to real functions to specify the input/output
+types, GNU Fortran offers B/I/J/K prefixes to integer functions for
+compatibility with DEC programs. The types implied by each are:
+</p>
+<div class="example">
+<pre class="example-preformatted"><code class="code">B</code> - <code class="code">INTEGER(kind=1)</code>
+<code class="code">I</code> - <code class="code">INTEGER(kind=2)</code>
+<code class="code">J</code> - <code class="code">INTEGER(kind=4)</code>
+<code class="code">K</code> - <code class="code">INTEGER(kind=8)</code>
+</pre></div>
+
+<p>GNU Fortran supports these with the flag <samp class="option">-fdec-intrinsic-ints</samp>.
+Intrinsics for which prefixed versions are available and in what form are noted
+in <a class="ref" href="Intrinsic-Procedures.html">Intrinsic Procedures</a>. The complete list of supported intrinsics is
+here:
+</p>
+<table class="multitable">
+<thead><tr><th width="20%">Intrinsic</th><th width="20%">B</th><th width="20%">I</th><th width="20%">J</th><th width="20%">K</th></tr></thead>
+<tbody><tr><td width="20%"><code class="code"><a class="ref" href="ABS.html"><code class="code">ABS</code> &mdash; Absolute value</a></code></td><td width="20%"><code class="code">BABS</code></td><td width="20%"><code class="code">IIABS</code></td><td width="20%"><code class="code">JIABS</code></td><td width="20%"><code class="code">KIABS</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="BTEST.html"><code class="code">BTEST</code> &mdash; Bit test function</a></code></td><td width="20%"><code class="code">BBTEST</code></td><td width="20%"><code class="code">BITEST</code></td><td width="20%"><code class="code">BJTEST</code></td><td width="20%"><code class="code">BKTEST</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IAND.html"><code class="code">IAND</code> &mdash; Bitwise logical and</a></code></td><td width="20%"><code class="code">BIAND</code></td><td width="20%"><code class="code">IIAND</code></td><td width="20%"><code class="code">JIAND</code></td><td width="20%"><code class="code">KIAND</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IBCLR.html"><code class="code">IBCLR</code> &mdash; Clear bit</a></code></td><td width="20%"><code class="code">BBCLR</code></td><td width="20%"><code class="code">IIBCLR</code></td><td width="20%"><code class="code">JIBCLR</code></td><td width="20%"><code class="code">KIBCLR</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IBITS.html"><code class="code">IBITS</code> &mdash; Bit extraction</a></code></td><td width="20%"><code class="code">BBITS</code></td><td width="20%"><code class="code">IIBITS</code></td><td width="20%"><code class="code">JIBITS</code></td><td width="20%"><code class="code">KIBITS</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IBSET.html"><code class="code">IBSET</code> &mdash; Set bit</a></code></td><td width="20%"><code class="code">BBSET</code></td><td width="20%"><code class="code">IIBSET</code></td><td width="20%"><code class="code">JIBSET</code></td><td width="20%"><code class="code">KIBSET</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IEOR.html"><code class="code">IEOR</code> &mdash; Bitwise logical exclusive or</a></code></td><td width="20%"><code class="code">BIEOR</code></td><td width="20%"><code class="code">IIEOR</code></td><td width="20%"><code class="code">JIEOR</code></td><td width="20%"><code class="code">KIEOR</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="IOR.html"><code class="code">IOR</code> &mdash; Bitwise logical or</a></code></td><td width="20%"><code class="code">BIOR</code></td><td width="20%"><code class="code">IIOR</code></td><td width="20%"><code class="code">JIOR</code></td><td width="20%"><code class="code">KIOR</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="ISHFT.html"><code class="code">ISHFT</code> &mdash; Shift bits</a></code></td><td width="20%"><code class="code">BSHFT</code></td><td width="20%"><code class="code">IISHFT</code></td><td width="20%"><code class="code">JISHFT</code></td><td width="20%"><code class="code">KISHFT</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="ISHFTC.html"><code class="code">ISHFTC</code> &mdash; Shift bits circularly</a></code></td><td width="20%"><code class="code">BSHFTC</code></td><td width="20%"><code class="code">IISHFTC</code></td><td width="20%"><code class="code">JISHFTC</code></td><td width="20%"><code class="code">KISHFTC</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="MOD.html"><code class="code">MOD</code> &mdash; Remainder function</a></code></td><td width="20%"><code class="code">BMOD</code></td><td width="20%"><code class="code">IMOD</code></td><td width="20%"><code class="code">JMOD</code></td><td width="20%"><code class="code">KMOD</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="NOT.html"><code class="code">NOT</code> &mdash; Logical negation</a></code></td><td width="20%"><code class="code">BNOT</code></td><td width="20%"><code class="code">INOT</code></td><td width="20%"><code class="code">JNOT</code></td><td width="20%"><code class="code">KNOT</code></td></tr>
+<tr><td width="20%"><code class="code"><a class="ref" href="REAL.html"><code class="code">REAL</code> &mdash; Convert to real type</a></code></td><td width="20%"><code class="code">--</code></td><td width="20%"><code class="code">FLOATI</code></td><td width="20%"><code class="code">FLOATJ</code></td><td width="20%"><code class="code">FLOATK</code></td></tr>
+</tbody>
+</table>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="AUTOMATIC-and-STATIC-attributes.html"><code class="code">AUTOMATIC</code> and <code class="code">STATIC</code> attributes</a>, Previous: <a href="UNION-and-MAP.html"><code class="code">UNION</code> and <code class="code">MAP</code></a>, Up: <a href="Extensions-implemented-in-GNU-Fortran.html">Extensions implemented in GNU Fortran</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

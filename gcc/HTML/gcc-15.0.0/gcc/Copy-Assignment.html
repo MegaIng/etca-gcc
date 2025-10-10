@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Copy Assignment (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="Copy Assignment (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="Copy Assignment (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="C_002b_002b-Misunderstandings.html" rel="up" title="C++ Misunderstandings">
+<link href="Temporaries.html" rel="prev" title="Temporaries">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="Copy-Assignment">
+<div class="nav-panel">
+<p>
+Previous: <a href="Temporaries.html" accesskey="p" rel="prev">Temporaries May Vanish Before You Expect</a>, Up: <a href="C_002b_002b-Misunderstandings.html" accesskey="u" rel="up">Common Misunderstandings with GNU C++</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Implicit-Copy_002dAssignment-for-Virtual-Bases"><span>14.7.4 Implicit Copy-Assignment for Virtual Bases<a class="copiable-link" href="#Implicit-Copy_002dAssignment-for-Virtual-Bases"> &para;</a></span></h4>
+
+<p>When a base class is virtual, only one subobject of the base class
+belongs to each full object.  Also, the constructors and destructors are
+invoked only once, and called from the most-derived class.  However, such
+objects behave unspecified when being assigned.  For example:
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">struct Base{
+  char *name;
+  Base(const char *n) : name(strdup(n)){}
+  Base&amp; operator= (const Base&amp; other){
+   free (name);
+   name = strdup (other.name);
+   return *this;
+  }
+};
+
+struct A:virtual Base{
+  int val;
+  A():Base(&quot;A&quot;){}
+};
+
+struct B:virtual Base{
+  int bval;
+  B():Base(&quot;B&quot;){}
+};
+
+struct Derived:public A, public B{
+  Derived():Base(&quot;Derived&quot;){}
+};
+
+void func(Derived &amp;d1, Derived &amp;d2)
+{
+  d1 = d2;
+}
+</pre></div>
+
+<p>The C++ standard specifies that &lsquo;<samp class="samp">Base::Base</samp>&rsquo; is only called once
+when constructing or copy-constructing a Derived object.  It is
+unspecified whether &lsquo;<samp class="samp">Base::operator=</samp>&rsquo; is called more than once when
+the implicit copy-assignment for Derived objects is invoked (as it is
+inside &lsquo;<samp class="samp">func</samp>&rsquo; in the example).
+</p>
+<p>G++ implements the &ldquo;intuitive&rdquo; algorithm for copy-assignment: assign all
+direct bases, then assign all members.  In that algorithm, the virtual
+base subobject can be encountered more than once.  In the example, copying
+proceeds in the following order: &lsquo;<samp class="samp">name</samp>&rsquo; (via <code class="code">strdup</code>),
+&lsquo;<samp class="samp">val</samp>&rsquo;, &lsquo;<samp class="samp">name</samp>&rsquo; again, and &lsquo;<samp class="samp">bval</samp>&rsquo;.
+</p>
+<p>If application code relies on copy-assignment, a user-defined
+copy-assignment operator removes any uncertainties.  With such an
+operator, the application can define whether and how the virtual base
+subobject is assigned.
+</p>
+</div>
+
+
+
+</body>
+</html>

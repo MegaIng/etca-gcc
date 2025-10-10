@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>CMPLX (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="CMPLX (The GNU Fortran Compiler)">
+<meta name="keywords" content="CMPLX (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="CO_005fBROADCAST.html" rel="next" title="CO_BROADCAST">
+<link href="CHMOD.html" rel="prev" title="CHMOD">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="CMPLX">
+<div class="nav-panel">
+<p>
+Next: <a href="CO_005fBROADCAST.html" accesskey="n" rel="next"><code class="code">CO_BROADCAST</code> &mdash; Copy a value to all images the current set of images</a>, Previous: <a href="CHMOD.html" accesskey="p" rel="prev"><code class="code">CHMOD</code> &mdash; Change access permissions of files</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="CMPLX-_002d_002d_002d-Complex-conversion-function"><span>8.62 <code class="code">CMPLX</code> &mdash; Complex conversion function<a class="copiable-link" href="#CMPLX-_002d_002d_002d-Complex-conversion-function"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-CMPLX"></a>
+<a class="index-entry-id" id="index-complex-numbers_002c-conversion-to"></a>
+<a class="index-entry-id" id="index-conversion_002c-to-complex"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p><code class="code">CMPLX(X [, Y [, KIND]])</code> returns a complex number where <var class="var">X</var> is converted to
+the real component.  If <var class="var">Y</var> is present it is converted to the imaginary
+component.  If <var class="var">Y</var> is not present then the imaginary component is set to
+0.0.  If <var class="var">X</var> is complex then <var class="var">Y</var> must not be present.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>Fortran 77 and later
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Elemental function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = CMPLX(X [, Y [, KIND]])</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">X</var></td><td width="70%">The type may be <code class="code">INTEGER</code>, <code class="code">REAL</code>,
+or <code class="code">COMPLEX</code>.</td></tr>
+<tr><td width="15%"><var class="var">Y</var></td><td width="70%">(Optional; only allowed if <var class="var">X</var> is not
+<code class="code">COMPLEX</code>.)  May be <code class="code">INTEGER</code> or <code class="code">REAL</code>.</td></tr>
+<tr><td width="15%"><var class="var">KIND</var></td><td width="70%">(Optional) A scalar <code class="code">INTEGER</code> constant
+expression indicating the kind parameter of the result.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>The return value is of <code class="code">COMPLEX</code> type, with a kind equal to
+<var class="var">KIND</var> if it is specified.  If <var class="var">KIND</var> is not specified, the
+result is of the default <code class="code">COMPLEX</code> kind, regardless of the kinds of
+<var class="var">X</var> and <var class="var">Y</var>. 
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">program test_cmplx
+    integer :: i = 42
+    real :: x = 3.14
+    complex :: z
+    z = cmplx(i, x)
+    print *, z, cmplx(x)
+end program test_cmplx
+</pre></div>
+
+</dd>
+<dt><em class="emph">See also</em>:</dt>
+<dd><p><a class="ref" href="COMPLEX.html"><code class="code">COMPLEX</code> &mdash; Complex conversion function</a>
+</p></dd>
+</dl>
+
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="CO_005fBROADCAST.html"><code class="code">CO_BROADCAST</code> &mdash; Copy a value to all images the current set of images</a>, Previous: <a href="CHMOD.html"><code class="code">CHMOD</code> &mdash; Change access permissions of files</a>, Up: <a href="Intrinsic-Procedures.html">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

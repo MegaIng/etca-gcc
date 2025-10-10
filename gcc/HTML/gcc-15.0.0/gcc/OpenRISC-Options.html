@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>OpenRISC Options (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="OpenRISC Options (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="OpenRISC Options (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Submodel-Options.html" rel="up" title="Submodel Options">
+<link href="PDP_002d11-Options.html" rel="next" title="PDP-11 Options">
+<link href="Nvidia-PTX-Options.html" rel="prev" title="Nvidia PTX Options">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="OpenRISC-Options">
+<div class="nav-panel">
+<p>
+Next: <a href="PDP_002d11-Options.html" accesskey="n" rel="next">PDP-11 Options</a>, Previous: <a href="Nvidia-PTX-Options.html" accesskey="p" rel="prev">Nvidia PTX Options</a>, Up: <a href="Submodel-Options.html" accesskey="u" rel="up">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="OpenRISC-Options-1"><span>3.19.36 OpenRISC Options<a class="copiable-link" href="#OpenRISC-Options-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-OpenRISC-Options"></a>
+
+<p>These options are defined for OpenRISC:
+</p>
+<dl class="table">
+<dt><a id="index-mboard"></a><span><code class="code">-mboard=<var class="var">name</var></code><a class="copiable-link" href="#index-mboard"> &para;</a></span></dt>
+<dd><p>Configure a board specific runtime.  This will be passed to the linker for
+newlib board library linking.  The default is <code class="code">or1ksim</code>.
+</p>
+</dd>
+<dt><a id="index-mnewlib"></a><span><code class="code">-mnewlib</code><a class="copiable-link" href="#index-mnewlib"> &para;</a></span></dt>
+<dd><p>This option is ignored; it is for compatibility purposes only.  This used to
+select linker and preprocessor options for use with newlib.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mhard_002ddiv"></a>
+<a id="index-msoft_002ddiv"></a><span><code class="code">-msoft-div</code><a class="copiable-link" href="#index-msoft_002ddiv"> &para;</a></span></dt>
+<dt><code class="code">-mhard-div</code></dt>
+<dd><p>Select software or hardware divide (<code class="code">l.div</code>, <code class="code">l.divu</code>) instructions.
+This default is hardware divide.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mhard_002dmul"></a>
+<a id="index-msoft_002dmul"></a><span><code class="code">-msoft-mul</code><a class="copiable-link" href="#index-msoft_002dmul"> &para;</a></span></dt>
+<dt><code class="code">-mhard-mul</code></dt>
+<dd><p>Select software or hardware multiply (<code class="code">l.mul</code>, <code class="code">l.muli</code>) instructions.
+This default is hardware multiply.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mhard_002dfloat-5"></a>
+<a id="index-msoft_002dfloat-9"></a><span><code class="code">-msoft-float</code><a class="copiable-link" href="#index-msoft_002dfloat-9"> &para;</a></span></dt>
+<dt><code class="code">-mhard-float</code></dt>
+<dd><p>Select software or hardware for floating point operations.
+The default is software.
+</p>
+</dd>
+<dt><a id="index-mdouble_002dfloat-3"></a><span><code class="code">-mdouble-float</code><a class="copiable-link" href="#index-mdouble_002dfloat-3"> &para;</a></span></dt>
+<dd><p>When <samp class="option">-mhard-float</samp> is selected, enables generation of double-precision
+floating point instructions.  By default functions from <samp class="file">libgcc</samp> are used
+to perform double-precision floating point operations.
+</p>
+</dd>
+<dt><a id="index-munordered_002dfloat"></a><span><code class="code">-munordered-float</code><a class="copiable-link" href="#index-munordered_002dfloat"> &para;</a></span></dt>
+<dd><p>When <samp class="option">-mhard-float</samp> is selected, enables generation of unordered
+floating point compare and set flag (<code class="code">lf.sfun*</code>) instructions.  By default
+functions from <samp class="file">libgcc</samp> are used to perform unordered floating point
+compare and set flag operations.
+</p>
+</dd>
+<dt><a id="index-mcmov-1"></a><span><code class="code">-mcmov</code><a class="copiable-link" href="#index-mcmov-1"> &para;</a></span></dt>
+<dd><p>Enable generation of conditional move (<code class="code">l.cmov</code>) instructions.  By
+default the equivalent will be generated using set and branch.
+</p>
+</dd>
+<dt><a id="index-mror"></a><span><code class="code">-mror</code><a class="copiable-link" href="#index-mror"> &para;</a></span></dt>
+<dd><p>Enable generation of rotate right (<code class="code">l.ror</code>) instructions.  By default
+functions from <samp class="file">libgcc</samp> are used to perform rotate right operations.
+</p>
+</dd>
+<dt><a id="index-mrori"></a><span><code class="code">-mrori</code><a class="copiable-link" href="#index-mrori"> &para;</a></span></dt>
+<dd><p>Enable generation of rotate right with immediate (<code class="code">l.rori</code>) instructions.
+By default functions from <samp class="file">libgcc</samp> are used to perform rotate right with
+immediate operations.
+</p>
+</dd>
+<dt><a id="index-msext"></a><span><code class="code">-msext</code><a class="copiable-link" href="#index-msext"> &para;</a></span></dt>
+<dd><p>Enable generation of sign extension (<code class="code">l.ext*</code>) instructions.  By default
+memory loads are used to perform sign extension.
+</p>
+</dd>
+<dt><a id="index-msfimm"></a><span><code class="code">-msfimm</code><a class="copiable-link" href="#index-msfimm"> &para;</a></span></dt>
+<dd><p>Enable generation of compare and set flag with immediate (<code class="code">l.sf*i</code>)
+instructions.  By default extra instructions will be generated to store the
+immediate to a register first.
+</p>
+</dd>
+<dt><a id="index-mshftimm"></a><span><code class="code">-mshftimm</code><a class="copiable-link" href="#index-mshftimm"> &para;</a></span></dt>
+<dd><p>Enable generation of shift with immediate (<code class="code">l.srai</code>, <code class="code">l.srli</code>,
+<code class="code">l.slli</code>) instructions.  By default extra instructions will be generated
+to store the immediate to a register first.
+</p>
+</dd>
+<dt><a class="index-entry-id" id="index-mcmodel_003dsmall-1"></a>
+<a id="index-mcmodel_003d-3"></a><span><code class="code">-mcmodel=small</code><a class="copiable-link" href="#index-mcmodel_003d-3"> &para;</a></span></dt>
+<dd><p>Generate OpenRISC code for the small model: The GOT is limited to 64k. This is
+the default model.
+</p>
+</dd>
+<dt><a id="index-mcmodel_003dlarge-1"></a><span><code class="code">-mcmodel=large</code><a class="copiable-link" href="#index-mcmodel_003dlarge-1"> &para;</a></span></dt>
+<dd><p>Generate OpenRISC code for the large model: The GOT may grow up to 4G in size.
+</p>
+
+</dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="PDP_002d11-Options.html">PDP-11 Options</a>, Previous: <a href="Nvidia-PTX-Options.html">Nvidia PTX Options</a>, Up: <a href="Submodel-Options.html">Machine-Dependent Options</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

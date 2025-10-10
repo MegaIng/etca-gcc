@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>NINT (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="NINT (The GNU Fortran Compiler)">
+<meta name="keywords" content="NINT (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="NORM2.html" rel="next" title="NORM2">
+<link href="NEW_005fLINE.html" rel="prev" title="NEW_LINE">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="NINT">
+<div class="nav-panel">
+<p>
+Next: <a href="NORM2.html" accesskey="n" rel="next"><code class="code">NORM2</code> &mdash; Euclidean vector norms</a>, Previous: <a href="NEW_005fLINE.html" accesskey="p" rel="prev"><code class="code">NEW_LINE</code> &mdash; New line character</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="NINT-_002d_002d_002d-Nearest-whole-number"><span>8.206 <code class="code">NINT</code> &mdash; Nearest whole number<a class="copiable-link" href="#NINT-_002d_002d_002d-Nearest-whole-number"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-NINT"></a>
+<a class="index-entry-id" id="index-IDNINT"></a>
+<a class="index-entry-id" id="index-rounding_002c-nearest-whole-number"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p><code class="code">NINT(A)</code> rounds its argument to the nearest whole number.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>Fortran 77 and later, with <var class="var">KIND</var> argument Fortran 90 and later
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Elemental function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = NINT(A [, KIND])</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">A</var></td><td width="70%">The type of the argument shall be <code class="code">REAL</code>.</td></tr>
+<tr><td width="15%"><var class="var">KIND</var></td><td width="70%">(Optional) A scalar <code class="code">INTEGER</code> constant
+expression indicating the kind parameter of the result.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>Returns <var class="var">A</var> with the fractional portion of its magnitude eliminated by
+rounding to the nearest whole number and with its sign preserved,
+converted to an <code class="code">INTEGER</code> of the default kind.
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">program test_nint
+  real(4) x4
+  real(8) x8
+  x4 = 1.234E0_4
+  x8 = 4.321_8
+  print *, nint(x4), idnint(x8)
+end program test_nint
+</pre></div>
+
+</dd>
+<dt><em class="emph">Specific names</em>:</dt>
+<dd><table class="multitable">
+<thead><tr><th width="20%">Name</th><th width="23%">Argument</th><th width="20%">Return Type</th><th width="33%">Standard</th></tr></thead>
+<tbody><tr><td width="20%"><code class="code">NINT(A)</code></td><td width="23%"><code class="code">REAL(4) A</code></td><td width="20%"><code class="code">INTEGER</code></td><td width="33%">Fortran 77 and later</td></tr>
+<tr><td width="20%"><code class="code">IDNINT(A)</code></td><td width="23%"><code class="code">REAL(8) A</code></td><td width="20%"><code class="code">INTEGER</code></td><td width="33%">Fortran 77 and later</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">See also</em>:</dt>
+<dd><p><a class="ref" href="CEILING.html"><code class="code">CEILING</code> &mdash; Integer ceiling function</a>, <br>
+<a class="ref" href="FLOOR.html"><code class="code">FLOOR</code> &mdash; Integer floor function</a>
+</p></dd>
+</dl>
+
+
+
+</div>
+
+
+
+</body>
+</html>

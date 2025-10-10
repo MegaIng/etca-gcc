@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>GNU Fortran and GCC (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="GNU Fortran and GCC (The GNU Fortran Compiler)">
+<meta name="keywords" content="GNU Fortran and GCC (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Introduction.html" rel="up" title="Introduction">
+<link href="Standards.html" rel="next" title="Standards">
+<link href="About-GNU-Fortran.html" rel="prev" title="About GNU Fortran">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="GNU-Fortran-and-GCC">
+<div class="nav-panel">
+<p>
+Next: <a href="Standards.html" accesskey="n" rel="next">Standards</a>, Previous: <a href="About-GNU-Fortran.html" accesskey="p" rel="prev">About GNU Fortran</a>, Up: <a href="Introduction.html" accesskey="u" rel="up">Introduction</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="GNU-Fortran-and-GCC-1"><span>1.2 GNU Fortran and GCC<a class="copiable-link" href="#GNU-Fortran-and-GCC-1"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-GNU-Compiler-Collection"></a>
+<a class="index-entry-id" id="index-GCC"></a>
+
+<p>GNU Fortran is a part of GCC, the <em class="dfn">GNU Compiler Collection</em>.  GCC
+consists of a collection of front ends for various languages, which
+translate the source code into a language-independent form called
+<em class="dfn">GENERIC</em>.  This is then processed by a common middle end which
+provides optimization, and then passed to one of a collection of back
+ends which generate code for different computer architectures and
+operating systems.
+</p>
+<p>Functionally, this is implemented with a driver program (<code class="command">gcc</code>)
+which provides the command-line interface for the compiler.  It calls
+the relevant compiler front-end program (e.g., <code class="command">f951</code> for
+Fortran) for each file in the source code, and then calls the assembler
+and linker as appropriate to produce the compiled output.  In a copy of
+GCC that has been compiled with Fortran language support enabled,
+<code class="command">gcc</code> recognizes files with <samp class="file">.f</samp>, <samp class="file">.for</samp>, <samp class="file">.ftn</samp>,
+<samp class="file">.f90</samp>, <samp class="file">.f95</samp>, <samp class="file">.f03</samp> and <samp class="file">.f08</samp> extensions as
+Fortran source code, and compiles it accordingly.  A <code class="command">gfortran</code>
+driver program is also provided, which is identical to <code class="command">gcc</code>
+except that it automatically links the Fortran runtime libraries into the
+compiled program.
+</p>
+<p>Source files with <samp class="file">.f</samp>, <samp class="file">.for</samp>, <samp class="file">.fpp</samp>, <samp class="file">.ftn</samp>, <samp class="file">.F</samp>,
+<samp class="file">.FOR</samp>, <samp class="file">.FPP</samp>, and <samp class="file">.FTN</samp> extensions are treated as fixed form.
+Source files with <samp class="file">.f90</samp>, <samp class="file">.f95</samp>, <samp class="file">.f03</samp>, <samp class="file">.f08</samp>,
+<samp class="file">.F90</samp>, <samp class="file">.F95</samp>, <samp class="file">.F03</samp> and <samp class="file">.F08</samp> extensions are
+treated as free form.  The capitalized versions of either form are run
+through preprocessing.  Source files with the lower case <samp class="file">.fpp</samp>
+extension are also run through preprocessing.
+</p>
+<p>This manual specifically documents the Fortran front end, which handles
+the programming language&rsquo;s syntax and semantics.  The aspects of GCC
+that relate to the optimization passes and the back-end code generation
+are documented in the GCC manual; see
+<a data-manual="gcc" href="https://gcc.gnu.org/onlinedocs/gcc/index.html#Top">Introduction</a> in <cite class="cite">Using the GNU Compiler Collection (GCC)</cite>.
+The two manuals together provide a complete reference for the GNU
+Fortran compiler.
+</p>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Standards.html">Standards</a>, Previous: <a href="About-GNU-Fortran.html">About GNU Fortran</a>, Up: <a href="Introduction.html">Introduction</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Bit Operation Intrinsics (The GNU D Compiler)</title>
+
+<meta name="description" content="Bit Operation Intrinsics (The GNU D Compiler)">
+<meta name="keywords" content="Bit Operation Intrinsics (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsics.html" rel="up" title="Intrinsics">
+<link href="Integer-Overflow-Intrinsics.html" rel="next" title="Integer Overflow Intrinsics">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Bit-Operation-Intrinsics">
+<div class="nav-panel">
+<p>
+Next: <a href="Integer-Overflow-Intrinsics.html" accesskey="n" rel="next">Integer Overflow Intrinsics</a>, Up: <a href="Intrinsics.html" accesskey="u" rel="up">Intrinsics</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Bit-Operation-Intrinsics-1"><span>2.5.1 Bit Operation Intrinsics<a class="copiable-link" href="#Bit-Operation-Intrinsics-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-intrinsics_002c-bitop"></a>
+
+<p>The following functions are a collection of intrinsics that do bit-level
+operations, available by importing the <code class="code">core.bitop</code> module.
+</p>
+<p>Although most are named after x86 hardware instructions, it is not guaranteed
+that they will result in generating equivalent assembly on x86.  If the
+compiler determines there is a better way to get the same result in hardware,
+then that will be used instead.
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebsf"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bsf</strong> <code class="def-code-arguments">(uint <var class="var">v</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebsf"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebsf-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bsf</strong> <code class="def-code-arguments">(ulong <var class="var">v</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebsf-1"> &para;</a></span></dt>
+<dd>
+<p>Scans the bits in <var class="var">v</var> starting with bit <code class="code">0</code>, looking for the first set
+bit.  Returns the bit number of the first bit set.  The return value is
+undefined if <var class="var">v</var> is zero.
+</p>
+<p>This intrinsic is the same as the GCC built-in function <code class="code">__builtin_ctz</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebsr"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bsr</strong> <code class="def-code-arguments">(uint <var class="var">v</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebsr"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebsr-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bsr</strong> <code class="def-code-arguments">(ulong <var class="var">v</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebsr-1"> &para;</a></span></dt>
+<dd>
+<p>Scans the bits in <var class="var">v</var> from the most significant bit to the least
+significant bit, looking for the first set bit.  Returns the bit number of the
+first bit set.  The return value is undefined if <var class="var">v</var> is zero.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">result = __builtin_clz(v) ^ (v.sizeof * 8 - 1)
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebt"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bt</strong> <code class="def-code-arguments">(scope const(uint*) <var class="var">p</var>, uint <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebt"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebt-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bt</strong> <code class="def-code-arguments">(scope const(uint*) <var class="var">p</var>, uint <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebt-1"> &para;</a></span></dt>
+<dd>
+<p>Tests the bit <var class="var">bitnum</var> in the input parameter <var class="var">p</var>.  Returns a non-zero
+value if the bit was set, and a zero if it was clear.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">immutable bits_per_unit = (*p).sizeof * 8;
+immutable bit_mask = size_t(1) &lt;&lt; (bitnum % bits_per_unit);
+
+result = (p[bitnum / bits_per_unit] &amp; bit_mask) != 0;
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebtc"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.btc</strong> <code class="def-code-arguments">(uint* <var class="var">p</var>, uint <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebtc"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebtc-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.btc</strong> <code class="def-code-arguments">(ulong* <var class="var">p</var>, ulong <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebtc-1"> &para;</a></span></dt>
+<dd>
+<p>Tests and complements the bit <var class="var">bitnum</var> in the input parameter <var class="var">p</var>.
+Returns a non-zero value if the bit was set, and a zero if it was clear.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">immutable bits_per_unit = (*p).sizeof * 8;
+immutable bit_mask = size_t(1) &lt;&lt; (bitnum % bits_per_unit);
+
+result = (p[bitnum / bits_per_unit] &amp; bit_mask) != 0;
+
+p[bitnum / bits_per_unit] ^= bit_mask;
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebtr"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.btr</strong> <code class="def-code-arguments">(uint* <var class="var">p</var>, uint <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebtr"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebtr-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.btr</strong> <code class="def-code-arguments">(ulong* <var class="var">p</var>, ulong <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebtr-1"> &para;</a></span></dt>
+<dd>
+<p>Tests and resets (sets to 0) the bit <var class="var">bitnum</var> in the input parameter
+<var class="var">p</var>.  Returns a non-zero value if the bit was set, and a zero if it was
+clear.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">immutable bits_per_unit = (*p).sizeof * 8;
+immutable bit_mask = size_t(1) &lt;&lt; (bitnum % bits_per_unit);
+
+result = (p[bitnum / bits_per_unit] &amp; bit_mask) != 0;
+
+p[bitnum / bits_per_unit] &amp;= ~bit_mask;
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebts"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bts</strong> <code class="def-code-arguments">(uint* <var class="var">p</var>, uint <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebts"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebts-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.bts</strong> <code class="def-code-arguments">(ulong* <var class="var">p</var>, ulong <var class="var">bitnum</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebts-1"> &para;</a></span></dt>
+<dd>
+<p>Tests and sets the bit <var class="var">bitnum</var> in the input parameter <var class="var">p</var>.  Returns a
+non-zero value if the bit was set, and a zero if it was clear.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">immutable bits_per_unit = (*p).sizeof * 8;
+immutable bit_mask = size_t(1) &lt;&lt; (bitnum % bits_per_unit);
+
+result = (p[bitnum / bits_per_unit] &amp; bit_mask) != 0;
+
+p[bitnum / bits_per_unit] |= bit_mask;
+</pre></div>
+</dd></dl>
+
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002ebyteswap"><span class="category-def">Function: </span><span><code class="def-type">ushort</code> <strong class="def-name">core.bitop.byteswap</strong> <code class="def-code-arguments">(ushort <var class="var">x</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebyteswap"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebswap"><span class="category-def">Function: </span><span><code class="def-type">uint</code> <strong class="def-name">core.bitop.bswap</strong> <code class="def-code-arguments">(uint <var class="var">x</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebswap"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002ebswap-1"><span class="category-def">Function: </span><span><code class="def-type">ulong</code> <strong class="def-name">core.bitop.bswap</strong> <code class="def-code-arguments">(ulong <var class="var">x</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002ebswap-1"> &para;</a></span></dt>
+<dd>
+<p>Swaps the bytes in <var class="var">x</var> end-to-end; for example, in a 4-byte <code class="code">uint</code>,
+byte <code class="code">0</code> becomes byte <code class="code">3</code>, byte <code class="code">1</code> becomes byte <code class="code">2</code>, etc.
+</p>
+<p>This intrinsic is the same as the GCC built-in function <code class="code">__builtin_bswap</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002epopcnt"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.popcnt</strong> <code class="def-code-arguments">(uint <var class="var">x</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002epopcnt"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002epopcnt-1"><span class="category-def">Function: </span><span><code class="def-type">int</code> <strong class="def-name">core.bitop.popcnt</strong> <code class="def-code-arguments">(ulong <var class="var">x</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002epopcnt-1"> &para;</a></span></dt>
+<dd>
+<p>Calculates the number of set bits in <var class="var">x</var>.
+</p>
+<p>This intrinsic is the same as the GCC built-in function
+<code class="code">__builtin_popcount</code>.
+</p></dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002erol"><span class="category-def">Template: </span><span><code class="def-type">T</code> <strong class="def-name">core.bitop.rol</strong> <code class="def-code-arguments">(T)(const T <var class="var">value</var>, const uint <var class="var">count</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002erol"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002erol-1"><span class="category-def">Template: </span><span><code class="def-type">T</code> <strong class="def-name">core.bitop.rol</strong> <code class="def-code-arguments">(uint <var class="var">count</var>, T)(const T <var class="var">value</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002erol-1"> &para;</a></span></dt>
+<dd>
+<p>Bitwise rotate <var class="var">value</var> left by <var class="var">count</var> bit positions.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">result = cast(T) ((value &lt;&lt; count) | (value &gt;&gt; (T.sizeof * 8 - count)));
+</pre></div>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-core_002ebitop_002eror"><span class="category-def">Template: </span><span><code class="def-type">T</code> <strong class="def-name">core.bitop.ror</strong> <code class="def-code-arguments">(T)(const T <var class="var">value</var>, const uint <var class="var">count</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002eror"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-core_002ebitop_002eror-1"><span class="category-def">Template: </span><span><code class="def-type">T</code> <strong class="def-name">core.bitop.ror</strong> <code class="def-code-arguments">(uint <var class="var">count</var>, T)(const T <var class="var">value</var>)</code><a class="copiable-link" href="#index-core_002ebitop_002eror-1"> &para;</a></span></dt>
+<dd>
+<p>Bitwise rotate <var class="var">value</var> right by <var class="var">count</var> bit positions.
+</p>
+<p>This intrinsic is equivalent to writing the following:
+</p><div class="example smallexample">
+<pre class="example-preformatted">result = cast(T) ((value &gt;&gt; count) | (value &lt;&lt; (T.sizeof * 8 - count)));
+</pre></div>
+</dd></dl>
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Integer-Overflow-Intrinsics.html">Integer Overflow Intrinsics</a>, Up: <a href="Intrinsics.html">Intrinsics</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Character conversion (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Character conversion (The GNU Fortran Compiler)">
+<meta name="keywords" content="Character conversion (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Extensions-implemented-in-GNU-Fortran.html" rel="up" title="Extensions implemented in GNU Fortran">
+<link href="Cray-pointers.html" rel="next" title="Cray pointers">
+<link href="Hollerith-constants-support.html" rel="prev" title="Hollerith constants support">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Character-conversion">
+<div class="nav-panel">
+<p>
+Next: <a href="Cray-pointers.html" accesskey="n" rel="next">Cray pointers</a>, Previous: <a href="Hollerith-constants-support.html" accesskey="p" rel="prev">Hollerith constants support</a>, Up: <a href="Extensions-implemented-in-GNU-Fortran.html" accesskey="u" rel="up">Extensions implemented in GNU Fortran</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Character-conversion-1"><span>5.1.15 Character conversion<a class="copiable-link" href="#Character-conversion-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-conversion_002c-to-character"></a>
+
+<p>Allowing character literals to be used in a similar way to Hollerith constants
+is a non-standard extension.  This feature is enabled using
+-fdec-char-conversions and only applies to character literals of <code class="code">kind=1</code>.
+</p>
+<p>Character literals can be used in <code class="code">DATA</code> statements and assignments with
+numeric (<code class="code">INTEGER</code>, <code class="code">REAL</code>, or <code class="code">COMPLEX</code>) or <code class="code">LOGICAL</code>
+variables. Like Hollerith constants they are copied byte-wise fashion. The
+constant will be padded with spaces or truncated to fit the size of the
+variable in which it is stored.
+</p>
+<p>Examples:
+</p><div class="example smallexample">
+<pre class="example-preformatted">      integer*4 x
+      data x / 'abcd' /
+
+      x = 'A'       ! Will be padded.
+      x = 'ab1234'  ! Will be truncated.
+</pre></div>
+
+
+</div>
+
+
+
+</body>
+</html>

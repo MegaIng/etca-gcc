@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Integer Overflow Builtins (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="Integer Overflow Builtins (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="Integer Overflow Builtins (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="C-Extensions.html" rel="up" title="C Extensions">
+<link href="x86-specific-memory-model-extensions-for-transactional-memory.html" rel="next" title="x86 specific memory model extensions for transactional memory">
+<link href="_005f_005fatomic-Builtins.html" rel="prev" title="__atomic Builtins">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="section-level-extent" id="Integer-Overflow-Builtins">
+<div class="nav-panel">
+<p>
+Next: <a href="x86-specific-memory-model-extensions-for-transactional-memory.html" accesskey="n" rel="next">x86-Specific Memory Model Extensions for Transactional Memory</a>, Previous: <a href="_005f_005fatomic-Builtins.html" accesskey="p" rel="prev">Built-in Functions for Memory Model Aware Atomic Operations</a>, Up: <a href="C-Extensions.html" accesskey="u" rel="up">Extensions to the C Language Family</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Built_002din-Functions-to-Perform-Arithmetic-with-Overflow-Checking"><span>6.60 Built-in Functions to Perform Arithmetic with Overflow Checking<a class="copiable-link" href="#Built_002din-Functions-to-Perform-Arithmetic-with-Overflow-Checking"> &para;</a></span></h3>
+
+<p>The following built-in functions allow performing simple arithmetic operations
+together with checking whether the operations overflowed.
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fadd_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_add_overflow</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fadd_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsadd_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_sadd_overflow</strong> <code class="def-code-arguments">(int <var class="var">a</var>, int <var class="var">b</var>, int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsadd_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsaddl_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_saddl_overflow</strong> <code class="def-code-arguments">(long int <var class="var">a</var>, long int <var class="var">b</var>, long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsaddl_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsaddll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_saddll_overflow</strong> <code class="def-code-arguments">(long long int <var class="var">a</var>, long long int <var class="var">b</var>, long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsaddll_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fuadd_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_uadd_overflow</strong> <code class="def-code-arguments">(unsigned int <var class="var">a</var>, unsigned int <var class="var">b</var>, unsigned int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fuadd_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fuaddl_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_uaddl_overflow</strong> <code class="def-code-arguments">(unsigned long int <var class="var">a</var>, unsigned long int <var class="var">b</var>, unsigned long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fuaddl_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fuaddll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_uaddll_overflow</strong> <code class="def-code-arguments">(unsigned long long int <var class="var">a</var>, unsigned long long int <var class="var">b</var>, unsigned long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fuaddll_005foverflow"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions promote the first two operands into infinite precision signed
+type and perform addition on those promoted operands.  The result is then
+cast to the type the third pointer argument points to and stored there.
+If the stored result is equal to the infinite precision result, the built-in
+functions return <code class="code">false</code>, otherwise they return <code class="code">true</code>.  As the addition is
+performed in infinite signed precision, these built-in functions have fully defined
+behavior for all argument values.
+</p>
+<p>The first built-in function allows arbitrary integral types for operands and
+the result type must be pointer to some integral type other than enumerated or
+boolean type, the rest of the built-in functions have explicit integer types.
+</p>
+<p>The compiler will attempt to use hardware instructions to implement
+these built-in functions where possible, like conditional jump on overflow
+after addition, conditional jump on carry etc.
+</p>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fsub_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_sub_overflow</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsub_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fssub_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_ssub_overflow</strong> <code class="def-code-arguments">(int <var class="var">a</var>, int <var class="var">b</var>, int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fssub_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fssubl_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_ssubl_overflow</strong> <code class="def-code-arguments">(long int <var class="var">a</var>, long int <var class="var">b</var>, long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fssubl_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fssubll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_ssubll_overflow</strong> <code class="def-code-arguments">(long long int <var class="var">a</var>, long long int <var class="var">b</var>, long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fssubll_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fusub_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_usub_overflow</strong> <code class="def-code-arguments">(unsigned int <var class="var">a</var>, unsigned int <var class="var">b</var>, unsigned int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fusub_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fusubl_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_usubl_overflow</strong> <code class="def-code-arguments">(unsigned long int <var class="var">a</var>, unsigned long int <var class="var">b</var>, unsigned long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fusubl_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fusubll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_usubll_overflow</strong> <code class="def-code-arguments">(unsigned long long int <var class="var">a</var>, unsigned long long int <var class="var">b</var>, unsigned long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fusubll_005foverflow"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions are similar to the add overflow checking built-in
+functions above, except they perform subtraction, subtract the second argument
+from the first one, instead of addition.
+</p>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fmul_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_mul_overflow</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fmul_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsmul_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_smul_overflow</strong> <code class="def-code-arguments">(int <var class="var">a</var>, int <var class="var">b</var>, int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsmul_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsmull_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_smull_overflow</strong> <code class="def-code-arguments">(long int <var class="var">a</var>, long int <var class="var">b</var>, long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsmull_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsmulll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_smulll_overflow</strong> <code class="def-code-arguments">(long long int <var class="var">a</var>, long long int <var class="var">b</var>, long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsmulll_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fumul_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_umul_overflow</strong> <code class="def-code-arguments">(unsigned int <var class="var">a</var>, unsigned int <var class="var">b</var>, unsigned int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fumul_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fumull_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_umull_overflow</strong> <code class="def-code-arguments">(unsigned long int <var class="var">a</var>, unsigned long int <var class="var">b</var>, unsigned long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fumull_005foverflow"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fumulll_005foverflow"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_umulll_overflow</strong> <code class="def-code-arguments">(unsigned long long int <var class="var">a</var>, unsigned long long int <var class="var">b</var>, unsigned long long int *<var class="var">res</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fumulll_005foverflow"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions are similar to the add overflow checking built-in
+functions above, except they perform multiplication, instead of addition.
+</p>
+</dd></dl>
+
+<p>The following built-in functions allow checking if simple arithmetic operation
+would overflow.
+</p>
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fadd_005foverflow_005fp"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_add_overflow_p</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> <var class="var">c</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fadd_005foverflow_005fp"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsub_005foverflow_005fp"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_sub_overflow_p</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> <var class="var">c</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsub_005foverflow_005fp"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fmul_005foverflow_005fp"><span class="category-def">Built-in Function: </span><span><code class="def-type">bool</code> <strong class="def-name">__builtin_mul_overflow_p</strong> <code class="def-code-arguments">(<var class="var">type1</var> <var class="var">a</var>, <var class="var">type2</var> <var class="var">b</var>, <var class="var">type3</var> <var class="var">c</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fmul_005foverflow_005fp"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions are similar to <code class="code">__builtin_add_overflow</code>,
+<code class="code">__builtin_sub_overflow</code>, or <code class="code">__builtin_mul_overflow</code>, except that
+they don&rsquo;t store the result of the arithmetic operation anywhere and the
+last argument is not a pointer, but some expression with integral type other
+than enumerated or boolean type.
+</p>
+<p>The built-in functions promote the first two operands into infinite precision signed type
+and perform addition on those promoted operands. The result is then
+cast to the type of the third argument.  If the cast result is equal to the infinite
+precision result, the built-in functions return <code class="code">false</code>, otherwise they return <code class="code">true</code>.
+The value of the third argument is ignored, just the side effects in the third argument
+are evaluated, and no integral argument promotions are performed on the last argument.
+If the third argument is a bit-field, the type used for the result cast has the
+precision and signedness of the given bit-field, rather than precision and signedness
+of the underlying type.
+</p>
+<p>For example, the following macro can be used to portably check, at
+compile-time, whether or not adding two constant integers will overflow,
+and perform the addition only when it is known to be safe and not to trigger
+a <samp class="option">-Woverflow</samp> warning.
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">#define INT_ADD_OVERFLOW_P(a, b) \
+   __builtin_add_overflow_p (a, b, (__typeof__ ((a) + (b))) 0)
+
+enum {
+    A = INT_MAX, B = 3,
+    C = INT_ADD_OVERFLOW_P (A, B) ? 0 : A + B,
+    D = __builtin_add_overflow_p (1, SCHAR_MAX, (signed char) 0)
+};
+</pre></div>
+
+<p>The compiler will attempt to use hardware instructions to implement
+these built-in functions where possible, like conditional jump on overflow
+after addition, conditional jump on carry etc.
+</p> 
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005faddc"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned int</code> <strong class="def-name">__builtin_addc</strong> <code class="def-code-arguments">(unsigned int <var class="var">a</var>, unsigned int <var class="var">b</var>, unsigned int <var class="var">carry_in</var>, unsigned int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005faddc"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005faddcl"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned long int</code> <strong class="def-name">__builtin_addcl</strong> <code class="def-code-arguments">(unsigned long int <var class="var">a</var>, unsigned long int <var class="var">b</var>, unsigned int <var class="var">carry_in</var>, unsigned long int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005faddcl"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005faddcll"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned long long int</code> <strong class="def-name">__builtin_addcll</strong> <code class="def-code-arguments">(unsigned long long int <var class="var">a</var>, unsigned long long int <var class="var">b</var>, unsigned long long int <var class="var">carry_in</var>, unsigned long long int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005faddcll"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions are equivalent to:
+</p><div class="example smallexample">
+<pre class="example-preformatted">  ({ __typeof__ (<var class="var">a</var>) s; \
+      __typeof__ (<var class="var">a</var>) c1 = __builtin_add_overflow (<var class="var">a</var>, <var class="var">b</var>, &amp;s); \
+      __typeof__ (<var class="var">a</var>) c2 = __builtin_add_overflow (s, <var class="var">carry_in</var>, &amp;s); \
+      *(<var class="var">carry_out</var>) = c1 | c2; \
+      s; })
+</pre></div>
+
+<p>i.e. they add 3 unsigned values, set what the last argument
+points to to 1 if any of the two additions overflowed (otherwise 0)
+and return the sum of those 3 unsigned values.  Note, while all
+the first 3 arguments can have arbitrary values, better code will be
+emitted if one of them (preferrably the third one) has only values
+0 or 1 (i.e. carry-in).
+</p>
+</dd></dl>
+
+<dl class="first-deftypefn">
+<dt class="deftypefn" id="index-_005f_005fbuiltin_005fsubc"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned int</code> <strong class="def-name">__builtin_subc</strong> <code class="def-code-arguments">(unsigned int <var class="var">a</var>, unsigned int <var class="var">b</var>, unsigned int <var class="var">carry_in</var>, unsigned int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsubc"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsubcl"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned long int</code> <strong class="def-name">__builtin_subcl</strong> <code class="def-code-arguments">(unsigned long int <var class="var">a</var>, unsigned long int <var class="var">b</var>, unsigned int <var class="var">carry_in</var>, unsigned long int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsubcl"> &para;</a></span></dt>
+<dt class="deftypefnx def-cmd-deftypefn" id="index-_005f_005fbuiltin_005fsubcll"><span class="category-def">Built-in Function: </span><span><code class="def-type">unsigned long long int</code> <strong class="def-name">__builtin_subcll</strong> <code class="def-code-arguments">(unsigned long long int <var class="var">a</var>, unsigned long long int <var class="var">b</var>, unsigned long long int <var class="var">carry_in</var>, unsigned long long int *<var class="var">carry_out</var>)</code><a class="copiable-link" href="#index-_005f_005fbuiltin_005fsubcll"> &para;</a></span></dt>
+<dd>
+<p>These built-in functions are equivalent to:
+</p><div class="example smallexample">
+<pre class="example-preformatted">  ({ __typeof__ (<var class="var">a</var>) s; \
+      __typeof__ (<var class="var">a</var>) c1 = __builtin_sub_overflow (<var class="var">a</var>, <var class="var">b</var>, &amp;s); \
+      __typeof__ (<var class="var">a</var>) c2 = __builtin_sub_overflow (s, <var class="var">carry_in</var>, &amp;s); \
+      *(<var class="var">carry_out</var>) = c1 | c2; \
+      s; })
+</pre></div>
+
+<p>i.e. they subtract 2 unsigned values from the first unsigned value,
+set what the last argument points to to 1 if any of the two subtractions
+overflowed (otherwise 0) and return the result of the subtractions.
+Note, while all the first 3 arguments can have arbitrary values, better code
+will be emitted if one of them (preferrably the third one) has only values
+0 or 1 (i.e. carry-in).
+</p>
+</dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="x86-specific-memory-model-extensions-for-transactional-memory.html">x86-Specific Memory Model Extensions for Transactional Memory</a>, Previous: <a href="_005f_005fatomic-Builtins.html">Built-in Functions for Memory Model Aware Atomic Operations</a>, Up: <a href="C-Extensions.html">Extensions to the C Language Family</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

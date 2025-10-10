@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>SECNDS (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="SECNDS (The GNU Fortran Compiler)">
+<meta name="keywords" content="SECNDS (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="SECOND.html" rel="next" title="SECOND">
+<link href="SCAN.html" rel="prev" title="SCAN">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="SECNDS">
+<div class="nav-panel">
+<p>
+Next: <a href="SECOND.html" accesskey="n" rel="next"><code class="code">SECOND</code> &mdash; CPU time function</a>, Previous: <a href="SCAN.html" accesskey="p" rel="prev"><code class="code">SCAN</code> &mdash; Scan a string for the presence of a set of characters</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="SECNDS-_002d_002d_002d-Time-function"><span>8.237 <code class="code">SECNDS</code> &mdash; Time function<a class="copiable-link" href="#SECNDS-_002d_002d_002d-Time-function"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-SECNDS"></a>
+<a class="index-entry-id" id="index-time_002c-elapsed-3"></a>
+<a class="index-entry-id" id="index-elapsed-time-1"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p><code class="code">SECNDS(X)</code> gets the time in seconds from the real-time system clock.
+<var class="var">X</var> is a reference time, also in seconds. If this is zero, the time in
+seconds from midnight is returned. This function is non-standard and its
+use is discouraged.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>GNU extension
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = SECNDS (X)</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">T</var></td><td width="70%">Shall be of type <code class="code">REAL(4)</code>.</td></tr>
+<tr><td width="15%"><var class="var">X</var></td><td width="70%">Shall be of type <code class="code">REAL(4)</code>.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>None
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">program test_secnds
+    integer :: i
+    real(4) :: t1, t2
+    print *, secnds (0.0)   ! seconds since midnight
+    t1 = secnds (0.0)       ! reference time
+    do i = 1, 10000000      ! do something
+    end do
+    t2 = secnds (t1)        ! elapsed time
+    print *, &quot;Something took &quot;, t2, &quot; seconds.&quot;
+end program test_secnds
+</pre></div>
+</dd>
+</dl>
+
+
+
+</div>
+
+
+
+</body>
+</html>

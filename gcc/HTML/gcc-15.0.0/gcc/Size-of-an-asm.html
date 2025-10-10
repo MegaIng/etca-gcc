@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This file documents the use of the GNU compilers.
+
+Copyright © 1988-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Size of an asm (Using the GNU Compiler Collection (GCC))</title>
+
+<meta name="description" content="Size of an asm (Using the GNU Compiler Collection (GCC))">
+<meta name="keywords" content="Size of an asm (Using the GNU Compiler Collection (GCC))">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Indices.html" rel="index" title="Indices">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Using-Assembly-Language-with-C.html" rel="up" title="Using Assembly Language with C">
+<link href="Explicit-Register-Variables.html" rel="prev" title="Explicit Register Variables">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en_US">
+<div class="subsection-level-extent" id="Size-of-an-asm">
+<div class="nav-panel">
+<p>
+Previous: <a href="Explicit-Register-Variables.html" accesskey="p" rel="prev">Variables in Specified Registers</a>, Up: <a href="Using-Assembly-Language-with-C.html" accesskey="u" rel="up">How to Use Inline Assembly Language in C Code</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Indices.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Size-of-an-asm-1"><span>6.50.6 Size of an <code class="code">asm</code><a class="copiable-link" href="#Size-of-an-asm-1"> &para;</a></span></h4>
+
+<p>Some targets require that GCC track the size of each instruction used
+in order to generate correct code.  Because the final length of the
+code produced by an <code class="code">asm</code> statement is only known by the
+assembler, GCC must make an estimate as to how big it will be.  It
+does this by counting the number of instructions in the pattern of the
+<code class="code">asm</code> and multiplying that by the length of the longest
+instruction supported by that processor.  (When working out the number
+of instructions, it assumes that any occurrence of a newline or of
+whatever statement separator character is supported by the assembler &mdash;
+typically &lsquo;<samp class="samp">;</samp>&rsquo; &mdash; indicates the end of an instruction.)
+</p>
+<p>Normally, GCC&rsquo;s estimate is adequate to ensure that correct
+code is generated, but it is possible to confuse the compiler if you use
+pseudo instructions or assembler macros that expand into multiple real
+instructions, or if you use assembler directives that expand to more
+space in the object file than is needed for a single instruction.
+If this happens then the assembler may produce a diagnostic saying that
+a label is unreachable.
+</p>
+<a class="index-entry-id" id="index-asm-inline"></a>
+<p>This size is also used for inlining decisions.  If you use <code class="code">asm inline</code>
+instead of just <code class="code">asm</code>, then for inlining purposes the size of the asm
+is taken as the minimum size, ignoring how many instructions GCC thinks it is.
+</p>
+</div>
+
+
+
+</body>
+</html>

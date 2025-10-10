@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>IANY (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="IANY (The GNU Fortran Compiler)">
+<meta name="keywords" content="IANY (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="IARGC.html" rel="next" title="IARGC">
+<link href="IAND.html" rel="prev" title="IAND">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="IANY">
+<div class="nav-panel">
+<p>
+Next: <a href="IARGC.html" accesskey="n" rel="next"><code class="code">IARGC</code> &mdash; Get the number of command line arguments</a>, Previous: <a href="IAND.html" accesskey="p" rel="prev"><code class="code">IAND</code> &mdash; Bitwise logical and</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="IANY-_002d_002d_002d-Bitwise-OR-of-array-elements"><span>8.138 <code class="code">IANY</code> &mdash; Bitwise OR of array elements<a class="copiable-link" href="#IANY-_002d_002d_002d-Bitwise-OR-of-array-elements"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-IANY"></a>
+<a class="index-entry-id" id="index-array_002c-OR"></a>
+<a class="index-entry-id" id="index-bits_002c-OR-of-array-elements"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd><p>Reduces with bitwise OR (inclusive or) the elements of <var class="var">ARRAY</var> along
+dimension <var class="var">DIM</var> if the corresponding element in <var class="var">MASK</var> is <code class="code">TRUE</code>.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>Fortran 2008 and later
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Transformational function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="80%"><code class="code">RESULT = IANY(ARRAY[, MASK])</code></td></tr>
+<tr><td width="80%"><code class="code">RESULT = IANY(ARRAY, DIM[, MASK])</code></td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">ARRAY</var></td><td width="70%">Shall be an array of type <code class="code">INTEGER</code></td></tr>
+<tr><td width="15%"><var class="var">DIM</var></td><td width="70%">(Optional) shall be a scalar of type 
+<code class="code">INTEGER</code> with a value in the range from 1 to n, where n 
+equals the rank of <var class="var">ARRAY</var>.</td></tr>
+<tr><td width="15%"><var class="var">MASK</var></td><td width="70%">(Optional) shall be of type <code class="code">LOGICAL</code> 
+and either be a scalar or an array of the same shape as <var class="var">ARRAY</var>.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>The result is of the same type as <var class="var">ARRAY</var>.
+</p>
+<p>If <var class="var">DIM</var> is absent, a scalar with the bitwise OR of all elements in
+<var class="var">ARRAY</var> is returned. Otherwise, an array of rank n-1, where n equals
+the rank of <var class="var">ARRAY</var>, and a shape similar to that of <var class="var">ARRAY</var> with
+dimension <var class="var">DIM</var> dropped is returned.
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">PROGRAM test_iany
+  INTEGER(1) :: a(2)
+
+  a(1) = b'00100100'
+  a(2) = b'01101010'
+
+  ! prints 01101110
+  PRINT '(b8.8)', IANY(a)
+END PROGRAM
+</pre></div>
+
+</dd>
+<dt><em class="emph">See also</em>:</dt>
+<dd><p><a class="ref" href="IPARITY.html"><code class="code">IPARITY</code> &mdash; Bitwise XOR of array elements</a>, <br>
+<a class="ref" href="IALL.html"><code class="code">IALL</code> &mdash; Bitwise AND of array elements</a>, <br>
+<a class="ref" href="IOR.html"><code class="code">IOR</code> &mdash; Bitwise logical or</a>
+</p></dd>
+</dl>
+
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="IARGC.html"><code class="code">IARGC</code> &mdash; Get the number of command line arguments</a>, Previous: <a href="IAND.html"><code class="code">IAND</code> &mdash; Bitwise logical and</a>, Up: <a href="Intrinsic-Procedures.html">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Target Attributes (The GNU D Compiler)</title>
+
+<meta name="description" content="Target Attributes (The GNU D Compiler)">
+<meta name="keywords" content="Target Attributes (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Attributes.html" rel="up" title="Attributes">
+<link href="Other-Attributes.html" rel="prev" title="Other Attributes">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Target-Attributes">
+<div class="nav-panel">
+<p>
+Previous: <a href="Other-Attributes.html" accesskey="p" rel="prev">Other Attributes</a>, Up: <a href="Attributes.html" accesskey="u" rel="up">Attributes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Target_002dspecific-Attributes"><span>2.1.4 Target-specific Attributes<a class="copiable-link" href="#Target_002dspecific-Attributes"> &para;</a></span></h4>
+
+<p>Many targets have their own target-specific attributes.  These are also exposed
+via the <code class="code">gcc.attributes</code> module with use of the generic
+<code class="code">@(gcc.attributes.attribute)</code> UDA function.
+</p>
+<p>See <a class="xref" href="Attribute-Syntax.html">Attribute Syntax</a>, for details of the exact syntax for using attributes.
+</p>
+<p>See the function and variable attribute documentation in the GCC manual for
+more information about what attributes are available on each target.
+</p>
+<p>Examples of using x86-specific target attributes are shown as follows:
+</p>
+<div class="example smallexample">
+<pre class="example-preformatted">import gcc.attributes;
+
+@attribute(&quot;cdecl&quot;)
+@attribute(&quot;fastcall&quot;)
+@attribute(&quot;ms_abi&quot;)
+@attribute(&quot;sysv_abi&quot;)
+@attribute(&quot;callee_pop_aggregate_return&quot;, 1)
+@attribute(&quot;ms_hook_prologue&quot;)
+@attribute(&quot;naked&quot;)
+@attribute(&quot;regparm&quot;, 2)
+@attribute(&quot;sseregparm&quot;)
+@attribute(&quot;force_align_arg_pointer&quot;)
+@attribute(&quot;stdcall&quot;)
+@attribute(&quot;no_caller_saved_registers&quot;)
+@attribute(&quot;interrupt&quot;)
+@attribute(&quot;indirect_branch&quot;, &quot;thunk&quot;)
+@attribute(&quot;function_return&quot;, &quot;keep&quot;))
+@attribute(&quot;nocf_check&quot;)
+@attribute(&quot;cf_check&quot;)
+@attribute(&quot;indirect_return&quot;)
+@attribute(&quot;fentry_name&quot;, &quot;nop&quot;)
+@attribute(&quot;fentry_section&quot;, &quot;__entry_loc&quot;)
+@attribute(&quot;nodirect_extern_access&quot;)
+
+</pre></div>
+
+
+
+</div>
+
+
+
+</body>
+</html>

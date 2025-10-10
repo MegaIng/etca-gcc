@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>COUNT (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="COUNT (The GNU Fortran Compiler)">
+<meta name="keywords" content="COUNT (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Intrinsic-Procedures.html" rel="up" title="Intrinsic Procedures">
+<link href="CPU_005fTIME.html" rel="next" title="CPU_TIME">
+<link href="COTAND.html" rel="prev" title="COTAND">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="COUNT">
+<div class="nav-panel">
+<p>
+Next: <a href="CPU_005fTIME.html" accesskey="n" rel="next"><code class="code">CPU_TIME</code> &mdash; CPU elapsed time in seconds</a>, Previous: <a href="COTAND.html" accesskey="p" rel="prev"><code class="code">COTAND</code> &mdash; Cotangent function, degrees</a>, Up: <a href="Intrinsic-Procedures.html" accesskey="u" rel="up">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="COUNT-_002d_002d_002d-Count-function"><span>8.78 <code class="code">COUNT</code> &mdash; Count function<a class="copiable-link" href="#COUNT-_002d_002d_002d-Count-function"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-COUNT"></a>
+<a class="index-entry-id" id="index-array_002c-conditionally-count-elements"></a>
+<a class="index-entry-id" id="index-array_002c-element-counting"></a>
+<a class="index-entry-id" id="index-array_002c-number-of-elements"></a>
+
+<dl class="table">
+<dt><em class="emph">Description</em>:</dt>
+<dd>
+<p>Counts the number of <code class="code">.TRUE.</code> elements in a logical <var class="var">MASK</var>,
+or, if the <var class="var">DIM</var> argument is supplied, counts the number of
+elements along each row of the array in the <var class="var">DIM</var> direction.
+If the array has zero size, or all of the elements of <var class="var">MASK</var> are
+<code class="code">.FALSE.</code>, then the result is <code class="code">0</code>.
+</p>
+</dd>
+<dt><em class="emph">Standard</em>:</dt>
+<dd><p>Fortran 90 and later, with <var class="var">KIND</var> argument Fortran 2003 and later
+</p>
+</dd>
+<dt><em class="emph">Class</em>:</dt>
+<dd><p>Transformational function
+</p>
+</dd>
+<dt><em class="emph">Syntax</em>:</dt>
+<dd><p><code class="code">RESULT = COUNT(MASK [, DIM, KIND])</code>
+</p>
+</dd>
+<dt><em class="emph">Arguments</em>:</dt>
+<dd><table class="multitable">
+<tbody><tr><td width="15%"><var class="var">MASK</var></td><td width="70%">The type shall be <code class="code">LOGICAL</code>.</td></tr>
+<tr><td width="15%"><var class="var">DIM</var></td><td width="70%">(Optional) The type shall be <code class="code">INTEGER</code>.</td></tr>
+<tr><td width="15%"><var class="var">KIND</var></td><td width="70%">(Optional) A scalar <code class="code">INTEGER</code> constant
+expression indicating the kind parameter of the result.</td></tr>
+</tbody>
+</table>
+
+</dd>
+<dt><em class="emph">Return value</em>:</dt>
+<dd><p>The return value is of type <code class="code">INTEGER</code> and of kind <var class="var">KIND</var>. If
+<var class="var">KIND</var> is absent, the return value is of default integer kind.
+If <var class="var">DIM</var> is present, the result is an array with a rank one less
+than the rank of <var class="var">ARRAY</var>, and a size corresponding to the shape
+of <var class="var">ARRAY</var> with the <var class="var">DIM</var> dimension removed.
+</p>
+</dd>
+<dt><em class="emph">Example</em>:</dt>
+<dd><div class="example smallexample">
+<pre class="example-preformatted">program test_count
+    integer, dimension(2,3) :: a, b
+    logical, dimension(2,3) :: mask
+    a = reshape( (/ 1, 2, 3, 4, 5, 6 /), (/ 2, 3 /))
+    b = reshape( (/ 0, 7, 3, 4, 5, 8 /), (/ 2, 3 /))
+    print '(3i3)', a(1,:)
+    print '(3i3)', a(2,:)
+    print *
+    print '(3i3)', b(1,:)
+    print '(3i3)', b(2,:)
+    print *
+    mask = a.ne.b
+    print '(3l3)', mask(1,:)
+    print '(3l3)', mask(2,:)
+    print *
+    print '(3i3)', count(mask)
+    print *
+    print '(3i3)', count(mask, 1)
+    print *
+    print '(3i3)', count(mask, 2)
+end program test_count
+</pre></div>
+</dd>
+</dl>
+
+
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="CPU_005fTIME.html"><code class="code">CPU_TIME</code> &mdash; CPU elapsed time in seconds</a>, Previous: <a href="COTAND.html"><code class="code">COTAND</code> &mdash; Cotangent function, degrees</a>, Up: <a href="Intrinsic-Procedures.html">Intrinsic Procedures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

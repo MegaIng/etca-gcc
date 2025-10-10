@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 2006-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the
+section entitled "GNU Free Documentation License". -->
+<title>Linking (The GNU D Compiler)</title>
+
+<meta name="description" content="Linking (The GNU D Compiler)">
+<meta name="keywords" content="Linking (The GNU D Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Invoking-gdc.html" rel="up" title="Invoking gdc">
+<link href="Developer-Options.html" rel="next" title="Developer Options">
+<link href="Warnings.html" rel="prev" title="Warnings">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Linking">
+<div class="nav-panel">
+<p>
+Next: <a href="Developer-Options.html" accesskey="n" rel="next">Developer Options</a>, Previous: <a href="Warnings.html" accesskey="p" rel="prev">Warnings</a>, Up: <a href="Invoking-gdc.html" accesskey="u" rel="up">Invoking gdc</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Options-for-Linking"><span>1.6 Options for Linking<a class="copiable-link" href="#Options-for-Linking"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-options_002c-linking"></a>
+<a class="index-entry-id" id="index-linking_002c-static"></a>
+
+<p>These options come into play when the compiler links object files into an
+executable output file.  They are meaningless if the compiler is not doing
+a link step.
+</p>
+<dl class="table">
+<dt><a id="index-defaultlib_003d"></a><span><code class="code">-defaultlib=<var class="var">libname</var></code><a class="copiable-link" href="#index-defaultlib_003d"> &para;</a></span></dt>
+<dd><p>Specify the library to use instead of libphobos when linking.  Options
+specifying the linkage of libphobos, such as <samp class="option">-static-libphobos</samp>
+or <samp class="option">-shared-libphobos</samp>, are ignored.
+</p>
+</dd>
+<dt><a id="index-debuglib_003d"></a><span><code class="code">-debuglib=<var class="var">libname</var></code><a class="copiable-link" href="#index-debuglib_003d"> &para;</a></span></dt>
+<dd><p>Specify the debug library to use instead of libphobos when linking.
+This option has no effect unless the <samp class="option">-g</samp> option was also given
+on the command line.  Options specifying the linkage of libphobos, such
+as <samp class="option">-static-libphobos</samp> or <samp class="option">-shared-libphobos</samp>, are ignored.
+</p>
+</dd>
+<dt><a id="index-nophoboslib"></a><span><code class="code">-nophoboslib</code><a class="copiable-link" href="#index-nophoboslib"> &para;</a></span></dt>
+<dd><p>Do not use the Phobos or D runtime library when linking.  Options specifying
+the linkage of libphobos, such as <samp class="option">-static-libphobos</samp> or
+<samp class="option">-shared-libphobos</samp>, are ignored.  The standard system libraries are
+used normally, unless <samp class="option">-nostdlib</samp> or <samp class="option">-nodefaultlibs</samp> is used.
+</p>
+</dd>
+<dt><a id="index-shared_002dlibphobos"></a><span><code class="code">-shared-libphobos</code><a class="copiable-link" href="#index-shared_002dlibphobos"> &para;</a></span></dt>
+<dd><p>On systems that provide <samp class="file">libgphobos</samp> and <samp class="file">libgdruntime</samp> as a
+shared and a static library, this option forces the use of the shared
+version.  If no shared version was built when the compiler was configured,
+this option has no effect.
+</p>
+</dd>
+<dt><a id="index-static_002dlibphobos"></a><span><code class="code">-static-libphobos</code><a class="copiable-link" href="#index-static_002dlibphobos"> &para;</a></span></dt>
+<dd><p>On systems that provide <samp class="file">libgphobos</samp> and <samp class="file">libgdruntime</samp> as a
+shared and a static library, this option forces the use of the static
+version.  If no static version was built when the compiler was configured,
+this option has no effect.
+</p>
+</dd>
+</dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Developer-Options.html">Developer Options</a>, Previous: <a href="Warnings.html">Warnings</a>, Up: <a href="Invoking-gdc.html">Invoking gdc</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

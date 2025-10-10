@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright © 1999-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being "Funding Free Software", the Front-Cover
+Texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+"GNU Free Documentation License".
+
+(a) The FSF's Front-Cover Text is:
+
+A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development. -->
+<title>Unsigned integers (The GNU Fortran Compiler)</title>
+
+<meta name="description" content="Unsigned integers (The GNU Fortran Compiler)">
+<meta name="keywords" content="Unsigned integers (The GNU Fortran Compiler)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Option-Index.html" rel="index" title="Option Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Experimental-features-for-Fortran-202Y.html" rel="up" title="Experimental features for Fortran 202Y">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+ul.mark-bullet {list-style-type: disc}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Unsigned-integers">
+<div class="nav-panel">
+<p>
+Up: <a href="Experimental-features-for-Fortran-202Y.html" accesskey="u" rel="up">Experimental features for Fortran 202Y</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Unsigned-integers-1"><span>5.3.1 Unsigned integers<a class="copiable-link" href="#Unsigned-integers-1"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-Unsigned-integers"></a>
+<p>GNU Fortran supports unsigned integers according to
+<a class="uref" href="https://j3-fortran.org/doc/year/24/24-116.txt">J3/24-116</a>.  The
+data type is called <code class="code">UNSIGNED</code>.  For an unsigned type with $n$ bits,
+it implements integer arithmetic modulo <code class="code">2**n</code>, comparable to the
+<code class="code">unsigned</code> data type in C.
+</p>
+<p>The data type has <code class="code">KIND</code> numbers comparable to other Fortran data
+types, which can be selected via the <code class="code">SELECTED_UNSIGNED_KIND</code>
+function.
+</p>
+<p>Mixed arithmetic, comparisons and assignment between <code class="code">UNSIGNED</code>
+and other types are only possible via explicit conversion.  Conversion
+from <code class="code">UNSIGNED</code> to other types is done via type conversion
+functions like <code class="code">INT</code> or <code class="code">REAL</code>. Conversion from other types
+to <code class="code">UNSIGNED</code> is done via <code class="code">UINT</code>. Unsigned variables cannot be
+used as index variables in <code class="code">DO</code> loops or as array indices.
+</p>
+<p>Unsigned numbers have a trailing <code class="code">u</code> as suffix, optionally followed
+by a <code class="code">KIND</code> number separated by an underscore.
+</p>
+<p>Input and output can be done using the <code class="code">I</code>, <code class="code">B</code>, <code class="code">O</code>
+and <code class="code">Z</code> descriptors, plus unformatted I/O.
+</p>
+<p>Here is a small, somewhat contrived example of their use:
+</p><div class="example smallexample">
+<pre class="example-preformatted">program main
+  unsigned(kind=8) :: v
+  v = huge(v) - 32u_8
+  print *,v
+end program main
+</pre></div>
+<p>which will output the number 18446744073709551583.
+</p>
+<p>Arithmetic operations work on unsigned integers, except for exponentiation,
+which is prohibited.  Unary minus is not permitted when <code class="code">-pedantic</code>
+is in force; this prohibition is part of J3/24-116.txt.
+</p>
+<p>In intrinsic procedures, unsigned arguments are typically permitted
+for arguments for the data to be processed, analogous to the
+use of <code class="code">REAL</code> arguments. Unsigned values are prohibited
+as index variables in <code class="code">DO</code> loops and as array indices.
+</p>
+<p>Unsigned numbers can be read and written using list-directed,
+formatted and unformatted I/O.  For formatted I/O, the <code class="code">B</code>,
+<code class="code">I</code>, <code class="code">O</code> and <code class="code">Z</code> descriptors are valid.  Negative
+values and values which would overflow are rejected with
+<code class="code">-pedantic</code>.
+</p>
+<p>As of now, the following intrinsics take unsigned arguments:
+</p><ul class="itemize mark-bullet">
+<li><code class="code">BLT</code>, <code class="code">BLE</code>, <code class="code">BGE</code> and <code class="code">BGT</code>. These intrinsics
+      are actually redundant because comparison operators could be used
+      directly.
+</li><li><code class="code">IAND</code>, <code class="code">IOR</code>, <code class="code">IEOR</code> and <code class="code">NOT</code>
+</li><li><code class="code">BIT_SIZE</code>, <code class="code">DIGITS</code> and <code class="code">HUGE</code>
+</li><li><code class="code">DSHIFTL</code> and <code class="code">DSHIFTR</code>
+</li><li><code class="code">IBCLR</code>, <code class="code">IBITS</code> and <code class="code">IBSET</code>
+</li><li><code class="code">MIN</code> and <code class="code">MAX</code>
+</li><li><code class="code">ISHFT</code>, <code class="code">ISHFTC</code>, <code class="code">SHIFTL</code>, <code class="code">SHIFTR</code> and
+      <code class="code">SHIFTA</code>.
+</li><li><code class="code">MERGE_BITS</code>
+</li><li><code class="code">MOD</code> and <code class="code">MODULO</code>
+</li><li><code class="code">MVBITS</code>
+</li><li><code class="code">RANGE</code>
+</li><li><code class="code">TRANSFER</code>
+</li><li><code class="code">SUM</code>, <code class="code">PRODUCT</code>, <code class="code">MATMUL</code> and <code class="code">DOT_PRODUCT</code>
+</li><li><code class="code">IANY</code>, <code class="code">IALL</code> and <code class="code">IPARITY</code>
+</li><li><code class="code">RANDOM_NUMBER</code>
+</li><li><code class="code">CSHIFT</code> and <code class="code">EOSHIFT</code>
+</li><li><code class="code">FINDLOC</code>
+</li><li><code class="code">MAXVAL</code> and <code class="code">MINVAL</code>.
+</li></ul>
+<p>This list will grow in the near future.
+</p>
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Up: <a href="Experimental-features-for-Fortran-202Y.html">Experimental features for Fortran 202Y</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Option-Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

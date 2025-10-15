@@ -143,7 +143,10 @@ enum reg_class
   do {									\
     (OFFSET) = etca_initial_elimination_offset ((FROM), (TO));		\
   } while (0)
-#define TRAMPOLINE_SIZE  (abort (), 0)
+
+/* Trampolines not supported yet. */
+#define TRAMPOLINE_SIZE  0
+// #define TRAMPOLINE_ALIGNMENT 16 // probably? Might be multilib dependent.
 
 /* func types to be used in machine_function.func_type*/
 #define ETCA_FT_UNKNOWN		0x0000

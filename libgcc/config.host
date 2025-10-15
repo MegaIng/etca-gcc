@@ -116,6 +116,10 @@ bpf-*-*)
 csky*-*-*)
 	cpu_type=csky
 	;;
+etca*)
+	cpu_type=etca
+	;;
+
 fido-*-*)
 	cpu_type=m68k
 	;;
@@ -672,6 +676,10 @@ csky-*-linux*)
 epiphany-*-elf* | epiphany-*-rtems*)
 	tmake_file="$tmake_file epiphany/t-epiphany t-fdpbit epiphany/t-custom-eqsf"
 	extra_parts="$extra_parts crti.o crtint.o crtrunc.o crtm1reg-r43.o crtm1reg-r63.o crtn.o"
+	;;
+etca-*-elf)
+	tmake_file="$tmake_file etca/t-etca"
+	extra_parts="$extra_parts crti.o crtn.o crtbegin.o crtend.o"
 	;;
 fr30-*-elf)
 	tmake_file="$tmake_file fr30/t-fr30 t-fdpbit"

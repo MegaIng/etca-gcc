@@ -2,5 +2,5 @@
 
 	* config/etca/crti.S: New file.
 	* config/etca/crtn.S: New file.
-  * config/etca/sfp-machine.h: New file.
+  * config/etca/sfp-machine.h: New file copied from Moxie.
   * config.host: Add etca support.

@@ -123,3 +123,12 @@
 2025-10-09 Shivam Patel <shivamp12@hotmail.com>
 		* It seems I may have gotten the python script to work. regenerate-opt-urls.py does generate etca.opt.urls
 			although it only generates the top comment and then not the UrlSuffix, which I believe is related to documentation.
+
+2025-10-14 JKTKops <zerglingk9012@gmail.com>
+		* Punted the trampoline `abort`s from TRAMPOLINE_SIZE to the implementation hooks,
+			because libgcc needs TRAMPOLINE_SIZE just to configure itself.
+			(etca.h --> etca.cc)
+		* Reformatted etca.cc with tabs. Ew.
+		* Include <stdbool.h> from etca-protos. As far as I can tell this really shouldn't be necessary,
+			but libgcc somehow manages to include etca.h before including stdbool.h itself.
+			It doesn't look like Moxie has this problem. We may want to investigate that further.

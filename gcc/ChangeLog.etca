@@ -83,116 +83,13 @@
 				checks 
 		* Current problem is with nested loops failing for some reason.
 
-2025-09-25 Shivam Pate; <shivamp12@hotmail.com>
+2025-09-25 Shivam Patel <shivamp12@hotmail.com>
 		* I tried to create etca.opt, but GCC complains that I must have etca.opt.url, but this file needs to be generated
 			by regenerate-opt-urls.py.
 		* Added more debug ouput for etca_print_operand
 		* I need to figure out a way to add expansions next, in case I have solved optimizations, I believe parsing -mextensions
 		  is probably the way to do it. For that, I need to figure out a way to generate etca.opt.urls with the python script since I need etca.opt.
 			Also, I think hardest extension may be REX, cause it would require the conditionnally include registers which I haven't seen in
-			other backends (atleast or1k and moxie)
-		* in etca_print_operand added case for return and simple_return which cause internal compiler errors. This fixed a few issues, notably with nested loops.
-			I don't see moxie nor or1k handle this case, so I wonder if this should be a temporary fix, or if it works it works kind of thing.
-			Of course, since I haven't assembled, linked and then tested the code, but I plan on doing that next to check my implementation.
-		* I'm also going to create more test files to test other C functionalities with the base ISA GCC implementation. Something to note,
-			#include doesn't work, but I was wondering how I could make that work or if it would even be possible.
-
-2023-07-20  MegaIng  <trampchamp@hotmail.de>
-
-	* config/etca/etca.c: New file.
-	* config/etca/etca.h: New file.
-	* config/etca/t-etca: Created.
-	* config/etca/etca.md: Created.
-    * config.gcc: Add etca support.
-
-2025-09-11 Shivam Patel <shivamp12@hotmail.com>
-
-	* No changes yet, just testing.
-
-2025-09-16 Shivam Patel <shivamp12@hotmail.com>
-
-	* Been testing optimizations (-O1, -O2, -O3) on test programs.
-	* For -O2 & -O3: During extract_insn, GCC could not find matching
-						 			 insn pattern which causes error in recog.cc for a 
-									 simple fib program I am testing. Other small programs
-									 seem to work though.
-	* Some resources I've been reading:
-		- RTL representation: https://gcc.gnu.org/onlinedocs/gccint/RTL.html
-		- Machine Descriptions: https://gcc.gnu.org/onlinedocs/gccint/Machine-Desc.html
-		- GCC low-level IR: https://kristerw.blogspot.com/2017/08/gcc-low-level-ir-and-basic-code.html
-
-2025-09-17 Shivam Patel <shivamp12@hotmail.com>
-
-		* Local changes: made test script to test simple C files.
-		* make -j4 all-gcc fails after adding fallback patterns in etca.md to fix
-			error from this RTL: (set (reg:HI %sp) (minus:HI (reg:HI %sp) (const_int 46)))
-			the immediate is out of range, so it fails. The problem is likely due to the predicates.md
-			file restricting constant immediates to 5 bits (signed) and 32 bits (unsigned). To change this
-			I'd have to make sure that ETC-a can handle me increasing the range.
-		* TODO: - Make many more C test files to test optimizations
-						- See if widening the immediate range is feasible for ETC-a backend
-
-2025-09-19 Shivam Patel <shivamp12@hotmail.com>
-		* config/etca/etca-extensions.h: New file.
-		*	My idea is to basically store the extensions in a struct and check if the extension
-			is enabled or not and then decide what gcc should know to compile the C code depending
-			on which extension is available
-		* I've attempted to make GCC recognize the FI extension and am testing it.
-			The output for -O0 is fine I believe, but -O2, -O3 is super long (400+ lines)
-			and I'd have to read through some parts to make sure it makes sense.
-			A suspicious line from the get go is subx %spx 46. This is actually the same value
-			which was causing an error 2 days ago since it was out of range, but it's also just weird
-			since frame sizes should be stack aligned.
-		*	Instead of failing with -O2, -O3, there is assembly being outputted, but 
-		  it's probably bogus. It's only because I changed predicates.md to allow for larger immediates
-			for now. But I need to fix the underlying issue and figure out why I'm getting something
-			like subx %spx 46. 
-		* I've also tried assembling with etca-elf-as but I seem to be running into
-		  a problem where I'm getting Error: unknown opcode for many of the instructions.
-			I imagine this has probably something to do with the way I've installed it.
-
-2025-09-20 Shivam Patel <shivamp12@hotmail.com>
-		* config/etca/etca-extensions.h: Removed file.
-		* I'm starting back from scratch. I really need to fix optimizations before I implement extensions.
-			I reinstalled etca-binutils-gdb. I've scraped the extensions idea for now and removed etca-expansion.h
-			for now.
-
-2025-09-23 Shivam Patel <shivamp12@hotmail.com>
-		* Tried adding etca.opt, but seems I need to run a python script beforehand. The script is called
-			regenerate-opt-urls.py, but the script seems to fail due to it needing an HTML. I'll worry about it later.
-			But for future reference: It's failing because it couldn't find the generated Option-Index.html pages it needs 
-			so it raised FileNotFoundError. I'm not sure how to fix this for now.
-		* I've tried again to fix the large immediate problem, but the only fix that works is making predicates.md accept a larger range
-			when adding fallback patterns, it keeps giving me the error that the emit-file-10 is not found since it wasn't created in
-			the first place. Removing the fallback pattern resolves the issue so wonder if it's due to me badly implementing it? I might
-			have to find an alternative solution, but I need to fix this ASAP since it's halting progress. Also look into expand_prologue and
-			expand_epilogue functions in etca.cc, they may be causing this.
-
-2025-09-24 Shivam Patel <shivamp12@hotmail.com>
-		* I need to figure out a way to possibly speed up build time if possible cause I'm losing too much time on it.
-		* Fixed the tmp-emit-10.cc build error and large immediate handling in prologue and epilogue:
-			- I ditched the fallback patterns (add_fallback<mode>3, sub_fallback<mode>3) from etca.md that were 
-			  causing gen_reg_rtx() calls during prologue and epilogue expansion (not allowed at that stage?)
-			- Updated expand_prologue() and expand_epilogue() in etca.cc to handle large immediates 
-			  directly by splitting them into: load immediate into temp register (ETCA_R8/t0) + arithmetic
-			- For small immediates (-16 to 15): uses direct gen_subhi3/gen_addhi3 as before
-			- For large immediates: uses movhi + subhi3/addhi3 with temp register to avoid predicate violations
-			- I believe I fixed missing ret instruction issue by using emit_jump_insn(gen_returner()) instead of emit_insn(),
-				also added new pattern in etca.md for return & simple_return. Created function etca_can_use_simple_return_p which
-				checks 
-			- There was an instruction that would not allow for ret to be properly printed notably "!reload_completed" which the GCC docs explain:
-				"For example, ‘!reload_completed’ and ‘can_create_pseudo_p ()’ are both invalid instruction conditions, because they are true during 
-				the earlier RTL passes and false during the later ones. For the same reason, if a condition accepts an instruction before register 
-				allocation, it cannot later try to control register allocation by excluding certain register or value combinations."
-		* Current problem is with nested loops failing for some reason.
-
-2025-09-25 Shivam Patel <shivamp12@hotmail.com>
-		* I tried to create etca.opt, but GCC complains that I must have etca.opt.url, but this file needs to be generated
-			by regenerate-opt-urls.py.
-		* Added more debug ouput for etca_print_operand
-		* I need to figure out a way to add extensions next, in case I have solved optimizations, I believe parsing -mextensions
-		  is probably the way to do it. For that, I need to figure out a way to generate etca.opt.urls with the python script since I need etca.opt.
-			Also, I think hardest extension may be REX, cause it would require the conditionally include registers which I haven't seen in
 			other backends (atleast or1k and moxie)
 		* in etca_print_operand added case for return and simple_return which cause internal compiler errors. This fixed a few issues, notably with nested loops.
 			I don't see moxie nor or1k handle this case, so I wonder if this should be a temporary fix, or if it works it works kind of thing.
@@ -225,4 +122,4 @@
 
 2025-10-09 Shivam Patel <shivamp12@hotmail.com>
 		* It seems I may have gotten the python script to work. regenerate-opt-urls.py does generate etca.opt.urls
-			although it only generates 
+			although it only generates the top comment and then not the UrlSuffix, which I believe is related to documentation.

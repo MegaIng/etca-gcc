@@ -56,13 +56,13 @@
   [(set (mem:SS (pre_dec:SS (reg:SS ETCA_SP)))
         (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
   ""
-  "push<x>\t%<x>0")
+  "push<x>\\t\\t%<x>0")
 
 (define_insn "pop<mode>1"
   [(set (mem:SS (post_inc:SS (reg:SS ETCA_SP)))
         (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
   ""
-  "pop<x>\t%<x>0")
+  "pop<x>\\t\\t%<x>0")
 
 ;; -------------------------------------------------------------------------
 ;; Move instructions
@@ -73,7 +73,7 @@
  [(set (match_operand:SS 0 "nonimmediate_operand" "=rm,r")
 	   (match_operand:SS 1 "etca_general_movsrc_operand" "r,mi"))]
   ""
-  "mov\\t\\t%<x>0, %<x>1")
+  "mov\\t\\t\\t%<x>0, %<x>1")
 
 (define_expand "mov<mode>"
    [(set (match_operand:SS 0 "general_operand" "")
@@ -107,7 +107,7 @@
 	   (match_operand:SS 1 "register_operand" "%0")
 	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
-  "add<x>\\t%<x>0, %<x>2"
+  "add<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "sub<mode>3"
@@ -117,8 +117,8 @@
 	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri,0")))]
   ""
   "@
-  sub<x>\\t%<x>0, %<x>2
-  rsub<x>\\t%<x>0, %<x>2"
+  sub<x>\\t\\t%<x>0, %<x>2
+  rsub<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "ior<mode>3"
@@ -127,7 +127,7 @@
 	   (match_operand:SS 1 "register_operand" "%0")
 	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
-  "or<x>\\t%<x>0, %<x>2"
+  "or<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "xor<mode>3"
@@ -136,7 +136,7 @@
 	   (match_operand:SS 1 "register_operand" "%0")
 	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
-  "xor<x>\\t%<x>0, %<x>2"
+  "xor<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "and<mode>3"
@@ -145,7 +145,7 @@
 	   (match_operand:SS 1 "register_operand" "%0")
 	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
   ""
-  "and<x>\\t%<x>0, %<x>2"
+  "and<x>\\t\\t%<x>0, %<x>2"
 )
 
 
@@ -198,7 +198,7 @@
 (define_insn "indirect_jump"
  [(set (pc) (match_operand:HI 0 "nonimmediate_operand" "r"))]
   ""
-  "jmp\\t\\t%0")
+  "jmp\\t\\t\\t%0")
 
 (define_expand "jump"
   [(set (pc)
@@ -209,7 +209,7 @@
   [(set (pc)
 	(label_ref (match_operand 0 "" "")))]
   ""
-  "jmp\\t\\t%l0")
+  "jmp\\t\\t\\t%l0")
 
 (define_expand "call"
   [(parallel [(call (match_operand:QI 0 "memory_operand" "")
@@ -227,7 +227,7 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI ETCA_LN))]
   ""
-  "call\\t%0")
+  "call\\t\\t%0")
 
 (define_expand "call_value"
   [(parallel [(set (match_operand 0 "" "")
@@ -245,7 +245,7 @@
 	           (match_operand 2 "" "")))
    (clobber (reg:SI ETCA_LN))]
   ""
-  "call\\t%1")
+  "call\\t\\t%1")
 
 
 ;; -------------------------------------------------------------------------
@@ -276,7 +276,7 @@
          (match_operand:SS 0 "register_operand" "r")
          (match_operand:SS 1 "etca_arithmetic_operand_signed" "ri")))]
   ""
-  "cmp<x>	%<x>0, %<x>1")
+  "cmp<x>\\t\\t%<x>0, %<x>1")
 
 
 
@@ -294,4 +294,4 @@
 		          (match_operand 0 "" "")
 		          (pc)))]
   ""
-  "j<asm_cond>		%0")
+  "j<asm_cond>\\t\\t\\t%0")

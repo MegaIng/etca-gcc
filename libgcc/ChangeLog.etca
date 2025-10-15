@@ -1,0 +1,6 @@
+2025-10-14  JKTKops  <zerglingk9012@gmail.com>
+
+	* config/etca/crti.S: New file.
+	* config/etca/crtn.S: New file.
+  * config/etca/sfp-machine.h: New file.
+  * config.host: Add etca support.

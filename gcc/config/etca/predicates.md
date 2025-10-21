@@ -33,15 +33,36 @@
   return general_operand (op, mode);
 })
 
-(define_predicate "etca_mode_mask_operand"
-  (match_code "const_int")
+
+(define_predicate "etca_and_immediate_operand"
+  (match_code "const_int, reg")
 {
-  if (CONST_INT_P (op))
-  {
-    HOST_WIDE_INT v = UINTVAL (op);
-    if (v == (unsigned HOST_WIDE_INT) GET_MODE_MASK (HImode)
-        || v == (unsigned HOST_WIDE_INT) GET_MODE_MASK (SImode))
-      return 1;
+  if (!CONST_INT_P (op))
+    return 0;
+  HOST_WIDE_INT val = INTVAL(op);
+
+  if (GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_INT
+      && val == (HOST_WIDE_INT)GET_MODE_MASK(mode))
+    return 1;
+
+  if (IN_RANGE(val, -16, 15))
+    return 1;
+
+  if (REG_P(op)) {
+    return 1;
+  }
+
+  return 0;
+})
+
+(define_predicate "etca_cmp_immediate_operand"
+  (match_code "const_int, reg")
+{
+  if (CONST_INT_P (op)) {
+  	return IN_RANGE(INTVAL(op), -16, 15);
+  }
+  if (REG_P(op)) {
+    return 1;
   }
   return 0;
 })

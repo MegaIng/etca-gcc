@@ -143,7 +143,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_and_immediate_operand" "ri")))]
   ""
   "and<x>\\t\\t%<x>0, %<x>2"
 )
@@ -274,7 +274,7 @@
   [(set (reg:CC_NZCV ETCA_CC)
         (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
-         (match_operand:SS 1 "etca_arithmetic_operand_signed" "ri")))]
+         (match_operand:SS 1 "etca_cmp_immediate_operand" "ri")))]
   ""
   "cmp<x>\\t\\t%<x>0, %<x>1")
 

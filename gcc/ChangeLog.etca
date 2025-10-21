@@ -178,3 +178,10 @@
 		(all 1s). In our case we're trying to solve why the backend is turning the 16 bit 0xFFFF (-1) to 65535 in 32 bit.
 		I think one solution may be to add predicates specifically for each different mode, so like addx, andd, etc instead
 		of using mode, but I don't think that's the right way to go.
+
+2025-10-20 Shivam Patel <shivamp12@hotmail.com>
+ 	* I made a new predicate in predicates.md for the and instruction specifically. It was too permissive and
+	 etca_arithmetic_operand_signed would allow any immediate in the range of -16 to 15 regardless of mode.
+	 I may need to change this for other operations as well but we will see.
+ 	* I get a new error now in _negdi2 on line 34: cmpq		%tq0, -9223372036854775808. Likely some overflow check
+		cause that's the most negative 64 bit number. I'll have to tweak predicates again.

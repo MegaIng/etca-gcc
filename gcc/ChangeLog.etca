@@ -132,3 +132,49 @@
 		* Include <stdbool.h> from etca-protos. As far as I can tell this really shouldn't be necessary,
 			but libgcc somehow manages to include etca.h before including stdbool.h itself.
 			It doesn't look like Moxie has this problem. We may want to investigate that further.
+
+2025-10-14 Shivam Patel <shivamp12@hotmail.com>
+	* Changed the way whitespaces are generated in the assembly through etca.md.
+	* Changed etca.opt but did not test it yet. May need to remove those changes if it affects build.
+	* I'm currently investigating a bug where 16-bit immediates (e.g., 0xFFFF) were incorrectly allowed in 32-bit instructions (e.g., andd), 
+	  due to mode iterator (define_mode_iterator SS [QI HI SI DI]) generating patterns for all modes without mode-aware predicates. 
+		The bug is caused by sign-extension issues: 0xFFFF is -1 in 16 bits but 65535 in 32 bits, so using it as an immediate in SI-mode instructions is incorrect.
+	* Discussed that the solution is to make predicates mode-aware or restrict the mode iterator to only HI mode for a pure 16-bit ISA.
+	* Goal is to get libgcc to fully build first and then move on to extensions (Probably starting with REX)
+
+2025-10-16 Shivam Patel <shivamp12@hotmail.com>
+	* Changed STACK_BOUNDARY and PARM_BOUNDARY from 16 to 128 in etca.h
+	* Change uint32_t to HOST__WIDE_INT in etca.cc machine_function struct
+
+2025-10-17 Shivam Patel <shivamp12@hotmail.com>
+	* Changed back uint32_t to HOST__WIDE_INT in etca.cc machine_function struct (should be fine the way it was)
+	* Removed check for negative value check from frame_size in etca.cc, that is unnecessary.
+	* Instead of decrementing the stack by a large immediate via a temp register, which is only available with REX,
+		could use the method or1k uses at line 226 of or1k.cc
+
+2025-10-18 Shivam Patel <shivamp12@hotmail.com>
+	* Tried to add expand pattern for and to solve failed libgcc compilation. Did not work. Fails with the following segfault:
+		../../../etca-gcc/libgcc/libgcc2.c: In function ‘__muldi3’:
+		../../../etca-gcc/libgcc/../include/longlong.h:1682:10: internal compiler error: Segmentation fault
+ 		1682 |     (w0) = __ll_lowpart (__x1) * __ll_B + __ll_lowpart (__x0);          \
+    	   |          ^
+		../../../etca-gcc/libgcc/../include/longlong.h:1689:5: note: in expansion of macro ‘umul_ppmm’
+ 		1689 |     umul_ppmm (__w.s.high, __w.s.low, u, v);                            \
+         |     ^~~~~~~~~
+		../../../etca-gcc/libgcc/libgcc2.c:532:22: note: in expansion of macro ‘__umulsidi3’
+  	 532 |   DWunion w = {.ll = __umulsidi3 (uu.s.low, vv.s.low)};
+         |                      ^~~~~~~~~~~
+		0x1bf6115 internal_error(char const*, ...)
+        		../../etca-gcc/gcc/diagnostic-global-context.cc:517
+		0xf43a93 crash_signal
+        		../../etca-gcc/gcc/toplev.cc:321
+		0x7b52c5e4532f ???
+        		./signal/../sysdeps/unix/sysv/linux/x86_64/libc_sigaction.c:0
+		0x0 subreg_lowpart_offset(machine_mode, machine_mode)
+        		../../etca-gcc/gcc/rtl.h:3280
+	* Without my edits there is still the two and instructions in ‘__muldi3’ that have 65535 as immediates.
+		I feel as though the error has to be in etca.md's and insn pattern so I tried an expand pattern for it
+		and I can't get it to work. I also added a predicate that would recognize when the operand would be a mode mask
+		(all 1s). In our case we're trying to solve why the backend is turning the 16 bit 0xFFFF (-1) to 65535 in 32 bit.
+		I think one solution may be to add predicates specifically for each different mode, so like addx, andd, etc instead
+		of using mode, but I don't think that's the right way to go.

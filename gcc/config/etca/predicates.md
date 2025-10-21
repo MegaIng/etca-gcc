@@ -32,3 +32,16 @@
   }
   return general_operand (op, mode);
 })
+
+(define_predicate "etca_mode_mask_operand"
+  (match_code "const_int")
+{
+  if (CONST_INT_P (op))
+  {
+    HOST_WIDE_INT v = UINTVAL (op);
+    if (v == (unsigned HOST_WIDE_INT) GET_MODE_MASK (HImode)
+        || v == (unsigned HOST_WIDE_INT) GET_MODE_MASK (SImode))
+      return 1;
+  }
+  return 0;
+})

@@ -395,7 +395,7 @@ etca_expand_prologue (void) {
 	if (cfun->machine->local_vars_size) {
 		HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
 		
-		if (frame_size >= -16 && frame_size <= 15) {
+		if (frame_size <= 15) {
 			// use direct subtraction for small immediates
 			insn = emit_insn (gen_subhi3 (
 				gen_rtx_REG (Pmode, ETCA_SP),
@@ -433,7 +433,7 @@ etca_expand_epilogue ()
 	if(cfun->machine->local_vars_size) {
 		HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
 		
-		if (frame_size >= -16 && frame_size <= 15) {
+		if (frame_size <= 15) {
 			// use direct addition for small immediates
 			insn = emit_insn (gen_addhi3 (
 				gen_rtx_REG (Pmode, ETCA_SP),

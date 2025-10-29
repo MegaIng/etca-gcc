@@ -32,13 +32,13 @@
 #define POINTERS_EXTEND_UNSIGNED 0
 
 /* Stack alignment */
-#define PARM_BOUNDARY 16
-#define STACK_BOUNDARY 16
+#define PARM_BOUNDARY 128
+#define STACK_BOUNDARY 128
 
 /* Function entry point alignment */
 #define FUNCTION_BOUNDARY 8
 
-#define BIGGEST_ALIGNMENT 64
+#define BIGGEST_ALIGNMENT 128
 
 /* This should depend on if the UMA feature is enabled or not*/
 #define STRICT_ALIGNMENT 1

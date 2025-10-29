@@ -54,15 +54,3 @@
 
   return 0;
 })
-
-(define_predicate "etca_cmp_immediate_operand"
-  (match_code "const_int, reg")
-{
-  if (CONST_INT_P (op)) {
-  	return IN_RANGE(INTVAL(op), -16, 15);
-  }
-  if (REG_P(op)) {
-    return 1;
-  }
-  return 0;
-})

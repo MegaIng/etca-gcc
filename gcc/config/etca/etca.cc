@@ -384,6 +384,11 @@ etca_expand_prologue (void) {
 		insn = emit_insn (gen_movhi (gen_rtx_REG (Pmode, ETCA_BP), gen_rtx_REG (Pmode, ETCA_SP)));
 		RTX_FRAME_RELATED_P (insn) = 1;
 	}
+	/* Save return address */
+	insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_LN)));
+	RTX_FRAME_RELATED_P (insn) = 1;
+
+	/* Save callee-saved registers.  */
 	for (regno = 0; regno <= ETCA_R15; regno++) {
 		if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
 		if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
@@ -450,12 +455,18 @@ etca_expand_epilogue ()
 				temp_reg));
 		}
 	}
+	/* Restore callee-saved registers.  */
 	for (regno = ETCA_R15; regno >= 0; regno--) {
 		if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
 		if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
 			insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, regno)));
 		}
 	}
+
+	/* Restore return address */
+	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_LN)));
+
+	/* Restore old base pointer */
 	if(MUST_SAVE_FRAME_POINTER) {
 		insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
 	}

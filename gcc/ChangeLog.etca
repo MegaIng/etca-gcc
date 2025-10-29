@@ -144,7 +144,7 @@
 
 2025-10-16 Shivam Patel <shivamp12@hotmail.com>
 	* Changed STACK_BOUNDARY and PARM_BOUNDARY from 16 to 128 in etca.h
-	* Change uint32_t to HOST__WIDE_INT in etca.cc machine_function struct
+	* Changed uint32_t to HOST__WIDE_INT in etca.cc machine_function struct
 
 2025-10-17 Shivam Patel <shivamp12@hotmail.com>
 	* Changed back uint32_t to HOST__WIDE_INT in etca.cc machine_function struct (should be fine the way it was)
@@ -181,7 +181,17 @@
 
 2025-10-20 Shivam Patel <shivamp12@hotmail.com>
  	* I made a new predicate in predicates.md for the and instruction specifically. It was too permissive and
-	 etca_arithmetic_operand_signed would allow any immediate in the range of -16 to 15 regardless of mode.
-	 I may need to change this for other operations as well but we will see.
+	  etca_arithmetic_operand_signed would allow any immediate in the range of -16 to 15 regardless of mode.
+	  I may need to change this for other operations as well but we will see.
  	* I get a new error now in _negdi2 on line 34: cmpq		%tq0, -9223372036854775808. Likely some overflow check
 		cause that's the most negative 64 bit number. I'll have to tweak predicates again.
+
+2025-10-24 Shivam Patel <shivamp12@hotmail.com>
+	* Reverted back changes that 'solved' the __muldi3 problem. It wasn't emitting -1, which is what it should be.
+	* Added cmp predicate to store large immediate value in a register before using compare (this was the __negdi2 error)
+
+2025-10-25 Shivam Patel <shivamp12@hotmail.com>
+	* Removed the cmp predicate, need to rework it
+
+2025-10-26 Shivam Patel <shivamp12@hotmail.com>
+	* May have fixed error with prologue and epilogue code not using ETCA_LN

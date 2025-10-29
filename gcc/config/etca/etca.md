@@ -73,7 +73,7 @@
  [(set (match_operand:SS 0 "nonimmediate_operand" "=rm,r")
 	   (match_operand:SS 1 "etca_general_movsrc_operand" "r,mi"))]
   ""
-  "mov\\t\\t\\t%<x>0, %<x>1")
+  "mov\\t\\t%<x>0, %<x>1")
 
 (define_expand "mov<mode>"
    [(set (match_operand:SS 0 "general_operand" "")
@@ -198,7 +198,7 @@
 (define_insn "indirect_jump"
  [(set (pc) (match_operand:HI 0 "nonimmediate_operand" "r"))]
   ""
-  "jmp\\t\\t\\t%0")
+  "jmp\\t\\t%0")
 
 (define_expand "jump"
   [(set (pc)
@@ -209,7 +209,7 @@
   [(set (pc)
 	(label_ref (match_operand 0 "" "")))]
   ""
-  "jmp\\t\\t\\t%l0")
+  "jmp\\t\\t%l0")
 
 (define_expand "call"
   [(parallel [(call (match_operand:QI 0 "memory_operand" "")
@@ -294,4 +294,4 @@
 		          (match_operand 0 "" "")
 		          (pc)))]
   ""
-  "j<asm_cond>\\t\\t\\t%0")
+  "j<asm_cond>\\t\\t%0")

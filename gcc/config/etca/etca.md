@@ -139,7 +139,8 @@
   "xor<x>\\t\\t%<x>0, %<x>2"
 )
 
-(define_insn "and<mode>3"
+
+(define_insn "*and<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
@@ -295,3 +296,9 @@
 		          (pc)))]
   ""
   "j<asm_cond>\\t\\t%0")
+
+
+
+
+
+

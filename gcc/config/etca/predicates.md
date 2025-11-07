@@ -9,7 +9,7 @@
       && GET_CODE (XEXP (op, 0)) == PLUS
       && GET_CODE (XEXP (XEXP (op, 0), 0)) == REG
       && GET_CODE (XEXP (XEXP (op, 0), 1)) == CONST_INT
-      && IN_RANGE (INTVAL (XEXP (XEXP (op, 0), 1)), -32768, 32767))
+      && IN_RANGE (INTVAL (XEXP (XEXP (op, 0), 1)), -9223372036854775808, 9223372036854775807))
     return 1;
 
   return general_operand (op, mode);
@@ -33,24 +33,3 @@
   return general_operand (op, mode);
 })
 
-
-(define_predicate "etca_and_immediate_operand"
-  (match_code "const_int, reg")
-{
-  if (!CONST_INT_P (op))
-    return 0;
-  HOST_WIDE_INT val = INTVAL(op);
-
-  if (GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_INT
-      && val == (HOST_WIDE_INT)GET_MODE_MASK(mode))
-    return 1;
-
-  if (IN_RANGE(val, -16, 15))
-    return 1;
-
-  if (REG_P(op)) {
-    return 1;
-  }
-
-  return 0;
-})

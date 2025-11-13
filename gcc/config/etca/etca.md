@@ -1,4 +1,4 @@
-
+(include "constraints.md")
 (include "predicates.md")
 
 ;; -------------------------------------------------------------------------
@@ -105,7 +105,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (plus:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
   ""
   "add<x>\\t\\t%<x>0, %<x>2"
 )
@@ -113,8 +113,8 @@
 (define_insn "sub<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r,r")
 	  (minus:SS
-	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,ri")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri,0")))]
+	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,rN")
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN,0")))]
   ""
   "@
   sub<x>\\t\\t%<x>0, %<x>2
@@ -125,7 +125,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (ior:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
   ""
   "or<x>\\t\\t%<x>0, %<x>2"
 )
@@ -134,17 +134,17 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (xor:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
   ""
   "xor<x>\\t\\t%<x>0, %<x>2"
 )
 
 
-(define_insn "*and<mode>3"
+(define_insn "and<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
   ""
   "and<x>\\t\\t%<x>0, %<x>2"
 )
@@ -275,7 +275,7 @@
   [(set (reg:CC_NZCV ETCA_CC)
         (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
-         (match_operand:SS 1 "etca_arithmetic_operand_signed" "ri")))]
+         (match_operand:SS 1 "etca_arithmetic_operand_signed" "rN")))]
   ""
   "cmp<x>\\t\\t%<x>0, %<x>1")
 

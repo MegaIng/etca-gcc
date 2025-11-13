@@ -1,3 +1,19 @@
+2025-11-12 Shivam Patel <shovamp12@hotmail.com>
+	* config/etca/constraints.md: New file.
+	* After emailing the gcc mailing list, I finally solved the major issues with the immediates. I changed general_operand
+		to register_operand and stopped matching const for the predicates as advised. I was able to
+		build libgcc further thanks to Jeff Law, Segher Boessenkool and Georg-Johann Lay's advice. Instead of using i for the pattern matching
+		in etca.md, I replaced it with N, a constraint I defined in constraints.md which is an immediate between -16 and 15
+
+	
+
+2025-11-10 Shivam Patel <shivamp12@hotmail.com>
+	* It seems every problem I encounter with libgcc building seems to be related to immediates and the assembler complaining
+		of immediates being out of range. Happened for clzsi2, clzdi2, muldi3, mulsc3 and more. It boils down to this:
+		A constant that is legal for some higher-level reason ends up as an immediate that the assembler cannot encode.
+		And now for whatever reason, after doing a make distclean and rebuilding everything the problem is back to
+		_muldi3 and error where they have bad immediates... No idea why this wasn't showing up before.
+
 2025-11-05 Shivam Patel <shivamp12@hotmail.com>
 	* Printed to stdout and made some ETC-a assembly programs to test rust simulator further.
 	* Worked on GCC, but of course, still dealing with _muldi3 problem. Checked out a few files and some specific lines

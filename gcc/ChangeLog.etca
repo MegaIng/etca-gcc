@@ -1,11 +1,23 @@
-2025-11-12 Shivam Patel <shovamp12@hotmail.com>
+2025-11-20 Shivam Patel <shivamp12@hotmail.com>
+	* It seems that running the configure script doesn't configure the tmake file properly. In the Makefile it appears as
+		tmake="". I'm not sure why this is happening even when I try to configure and build in a new tree. Also --enable-threads=single
+		doesn't work either. I may need to ask the gcc-help forum once again.
+
+2025-11-16 Shivam Patel <shivamp12@hotmail.com>
+	* The pthread error is still not resolved. I've tried most solutions from the internet, but not sure what to do next.
+		Reconfiguring doesn't work. Building in a new tree doesn't solve the issue.
+
+2025-11-13 Shivam Patel <shivamp12@hotmail.com>
+	* I seem to now be dealing with an error with pthreads trying to be included. A few solutions I tried were changing
+		the configure flags to having a --disable-threads and also adding tmake_file="${tmake_file} t-slibgcc-nolc-override" to both
+		config.gcc and config.host, no luck yet though.
+
+2025-11-12 Shivam Patel <shivamp12@hotmail.com>
 	* config/etca/constraints.md: New file.
 	* After emailing the gcc mailing list, I finally solved the major issues with the immediates. I changed general_operand
 		to register_operand and stopped matching const for the predicates as advised. I was able to
 		build libgcc further thanks to Jeff Law, Segher Boessenkool and Georg-Johann Lay's advice. Instead of using i for the pattern matching
 		in etca.md, I replaced it with N, a constraint I defined in constraints.md which is an immediate between -16 and 15
-
-	
 
 2025-11-10 Shivam Patel <shivamp12@hotmail.com>
 	* It seems every problem I encounter with libgcc building seems to be related to immediates and the assembler complaining

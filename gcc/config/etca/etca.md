@@ -54,13 +54,13 @@
 
 (define_insn "push<mode>1"
   [(set (mem:SS (pre_dec:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "rI"))]
   ""
   "push<x>\\t\\t%<x>0")
 
 (define_insn "pop<mode>1"
   [(set (mem:SS (post_inc:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "rI"))]
   ""
   "pop<x>\\t\\t%<x>0")
 
@@ -105,7 +105,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (plus:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
   "add<x>\\t\\t%<x>0, %<x>2"
 )
@@ -113,8 +113,8 @@
 (define_insn "sub<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r,r")
 	  (minus:SS
-	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,rN")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN,0")))]
+	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,rI")
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI,0")))]
   ""
   "@
   sub<x>\\t\\t%<x>0, %<x>2
@@ -125,7 +125,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (ior:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
   "or<x>\\t\\t%<x>0, %<x>2"
 )
@@ -134,7 +134,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (xor:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
   "xor<x>\\t\\t%<x>0, %<x>2"
 )
@@ -144,7 +144,7 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rN")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
   "and<x>\\t\\t%<x>0, %<x>2"
 )
@@ -275,7 +275,7 @@
   [(set (reg:CC_NZCV ETCA_CC)
         (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
-         (match_operand:SS 1 "etca_arithmetic_operand_signed" "rN")))]
+         (match_operand:SS 1 "etca_arithmetic_operand_signed" "rI")))]
   ""
   "cmp<x>\\t\\t%<x>0, %<x>1")
 

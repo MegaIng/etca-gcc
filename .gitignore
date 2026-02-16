@@ -71,10 +71,3 @@ stamp-*
 /gmp*
 /isl*
 /gettext*
-
-# ignore build products
-build/*
-autom4te.cache
-*.o
-*.s
-*.bin

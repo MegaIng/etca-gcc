@@ -26,169 +26,183 @@
 static rtx
 etca_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 {
-    CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+	CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-    if (*cum <= ETCA_R2)
-	return gen_rtx_REG (arg.mode, *cum);
-    else
-	return NULL_RTX;
+	if (*cum <= ETCA_R2)
+		return gen_rtx_REG (arg.mode, *cum);
+	else
+		return NULL_RTX;
 }
 
 static void
 etca_function_arg_advance (cumulative_args_t cum_v,
-			    const function_arg_info &arg ATTRIBUTE_UNUSED)
+							const function_arg_info &arg ATTRIBUTE_UNUSED)
 {
-    CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+	CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-    *cum = (*cum <= ETCA_R2
-	    ? *cum + 1
-	    : *cum);
+	*cum = (*cum <= ETCA_R2
+			? *cum + 1
+			: *cum);
 }
 
 
 static rtx
 etca_function_value (const_tree valtype,
-		     const_tree fntype_or_decl ATTRIBUTE_UNUSED,
-		     bool outgoing ATTRIBUTE_UNUSED)
+					 const_tree fntype_or_decl ATTRIBUTE_UNUSED,
+					 bool outgoing ATTRIBUTE_UNUSED)
 {
-    return gen_rtx_REG (TYPE_MODE (valtype), ETCA_R0);
+	return gen_rtx_REG (TYPE_MODE (valtype), ETCA_R0);
 }
 static bool
 etca_function_value_regno_p (const unsigned int regno)
 {
-    return regno == 0;
+	return regno == 0;
 }
 
 static bool
 etca_reg_ok_for_base_p (const_rtx reg, bool strict_p)
 {
-    int regno = REGNO (reg);
+	int regno = REGNO (reg);
 
-    if (strict_p)
-	return REGNO_OK_FOR_BASE_P (regno)
-	       || REGNO_OK_FOR_BASE_P (reg_renumber[regno]);
-    else
-	return !HARD_REGISTER_NUM_P (regno)
-	       || REGNO_OK_FOR_BASE_P (regno);
+	if (strict_p)
+		return REGNO_OK_FOR_BASE_P (regno)
+			   || REGNO_OK_FOR_BASE_P (reg_renumber[regno]);
+	else
+		return !HARD_REGISTER_NUM_P (regno)
+			   || REGNO_OK_FOR_BASE_P (regno);
 }
 
 
 static bool
 etca_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
-			   rtx x, bool strict_p,
-			   addr_space_t as,
-			   code_helper = ERROR_MARK)
+						   rtx x, bool strict_p,
+						   addr_space_t as,
+						   code_helper = ERROR_MARK)
 {
-    gcc_assert (ADDR_SPACE_GENERIC_P (as));
+	gcc_assert (ADDR_SPACE_GENERIC_P (as));
 
-    if (REG_P (x) && etca_reg_ok_for_base_p (x, strict_p))
-	return true;
-    if (GET_CODE (x) == SYMBOL_REF
-	|| GET_CODE (x) == LABEL_REF
-	|| GET_CODE (x) == CONST)
-	return true;
-    return false;
+	if (REG_P (x) && etca_reg_ok_for_base_p (x, strict_p))
+		return true;
+	if (GET_CODE (x) == SYMBOL_REF
+		|| GET_CODE (x) == LABEL_REF
+		|| GET_CODE (x) == CONST)
+		return true;
+	return false;
 }
 
 
 static void
 etca_print_operand (FILE *file, rtx x, int code)
 {
-    rtx operand = x;
-    if (!(code == 0 || code == 'h' || code == 'x' || code == 'd' || code == 'q')) {
-	debug_rtx (x);
-	output_operand_lossage ("invalid operand modifier code: '%c'", code);
-	return;
-    }
-
-    switch (GET_CODE (operand))
-    {
-	case REG: {
-	    if (REGNO(operand) > ETCA_R15)
-		internal_error("internal error: bad register: %d", REGNO(operand));
-	    const char* reg_name = reg_names[REGNO(operand)];
-	    /* reg_name is always 3 chars long (plus 0 term)
-	     * first is either % for a real register or ? for a virtual one
-	     * second is always a letter
-	     * third is either a letter or a digit.
-	     *
-	     * Depending on whether the third is a letter, the modifier
-	     * goes either between or after the name.
-	     * */
-	    if (code == 0) {
-		fprintf(file, "%s", reg_name);
-	    } else if ('0' <= reg_name[2] && reg_name[2] < '9') {
-		fprintf(file, "%c%c%c%c", reg_name[0], reg_name[1], code, reg_name[2]);
-	    } else {
-		fprintf(file, "%s%c", reg_name, code);
-	    }
-
-	    return;
+	rtx operand = x;
+	if (!(code == 0 || code == 'h' || code == 'x' || code == 'd' || code == 'q')) {
+		/* Debug: print what modifier and operand we received */
+		fprintf (stderr, "etca_print_operand: invalid modifier code '%c' - operand GET_CODE=%d\n",
+				 code, (int) GET_CODE (x));
+		debug_rtx (x);
+		fflush (stderr);
+		output_operand_lossage ("invalid operand modifier code: '%c'", code);
+		return;
 	}
-	case MEM:
-	    output_address (GET_MODE (XEXP (operand, 0)), XEXP (operand, 0));
-	    return;
 
+	switch (GET_CODE (operand))
+	{
+	case RETURN:
+	case SIMPLE_RETURN:
+		fprintf (file, "ret");
+		return;
+
+		case REG: {
+			if (REGNO(operand) > ETCA_R15)
+				internal_error("internal error: bad register: %d", REGNO(operand));
+			const char* reg_name = reg_names[REGNO(operand)];
+			/* reg_name is always 3 chars long (plus 0 term)
+			 * first is either % for a real register or ? for a virtual one
+			 * second is always a letter
+			 * third is either a letter or a digit.
+			 *
+			 * Depending on whether the third is a letter, the modifier
+			 * goes either between or after the name.
+			 * */
+			if (code == 0) {
+				fprintf(file, "%s", reg_name);
+			} else if ('0' <= reg_name[2] && reg_name[2] < '9') {
+				fprintf(file, "%c%c%c%c", reg_name[0], reg_name[1], code, reg_name[2]);
+			} else {
+				fprintf(file, "%s%c", reg_name, code);
+			}
+
+			return;
+		}
+		case MEM:
+			output_address (GET_MODE (XEXP (operand, 0)), XEXP (operand, 0));
+			return;
+
+		
 	default:
-	    if (CONSTANT_P (operand))
-	    {
+		if (CONSTANT_P (operand))
+		{
 		output_addr_const (file, operand);
 		return;
-	    }
+		}
 
-	    debug_rtx (operand);
-	    output_operand_lossage ("unexpected operand");
-	    return;
-    }
+		/* Debug: show the exact RTL that the final printer couldn't handle. */
+		fprintf (stderr, "etca_print_operand: unexpected operand (code='%c') GET_CODE=%d\n",
+				 code, (int) GET_CODE (operand));
+		debug_rtx (operand);
+		fflush (stderr);
+		output_operand_lossage ("unexpected operand");
+		return;
+	}
 }
 
 
 static void
 etca_print_operand_address (FILE *file, machine_mode, rtx x)
 {
-    switch (GET_CODE (x))
-    {
-	case REG:
-	    fprintf (file, "[%s]", reg_names[REGNO (x)]);
-	    break;
+	switch (GET_CODE (x))
+	{
+		case REG:
+			fprintf (file, "[%s]", reg_names[REGNO (x)]);
+			break;
 
-	case PLUS:
-	    switch (GET_CODE (XEXP (x, 1)))
-	    {
-		case CONST_INT:
-		    fprintf (file, "[%s + %ld]",
-			     reg_names[REGNO (XEXP (x, 0))], INTVAL(XEXP (x, 1)));
-		    break;
-		case SYMBOL_REF:
-		    fprintf (file, "[%s + ", reg_names[REGNO (XEXP (x, 0))]);
-		    output_addr_const (file, XEXP (x, 1));
-		    fprintf (file, "]");
-		    break;
-		    /*
-		case CONST:
-		{
-		    rtx plus = XEXP (XEXP (x, 1), 0);
-		    if (GET_CODE (XEXP (plus, 0)) == SYMBOL_REF
-			&& CONST_INT_P (XEXP (plus, 1)))
-		    {
-			output_addr_const(file, XEXP (plus, 0));
-			fprintf (file,"+%ld(%s)", INTVAL (XEXP (plus, 1)),
-				 reg_names[REGNO (XEXP (x, 0))]);
-		    }
-		    else
-			abort();
-		}
-		    break;
-		     */
+		case PLUS:
+			switch (GET_CODE (XEXP (x, 1)))
+			{
+				case CONST_INT:
+					fprintf (file, "[%s + %ld]",
+							 reg_names[REGNO (XEXP (x, 0))], INTVAL(XEXP (x, 1)));
+					break;
+				case SYMBOL_REF:
+					fprintf (file, "[%s + ", reg_names[REGNO (XEXP (x, 0))]);
+					output_addr_const (file, XEXP (x, 1));
+					fprintf (file, "]");
+					break;
+					/*
+				case CONST:
+				{
+					rtx plus = XEXP (XEXP (x, 1), 0);
+					if (GET_CODE (XEXP (plus, 0)) == SYMBOL_REF
+						&& CONST_INT_P (XEXP (plus, 1)))
+					{
+						output_addr_const(file, XEXP (plus, 0));
+						fprintf (file,"+%ld(%s)", INTVAL (XEXP (plus, 1)),
+								 reg_names[REGNO (XEXP (x, 0))]);
+					}
+					else
+						abort();
+				}
+					break;
+					 */
+				default:
+					abort();
+			}
+			break;
+
 		default:
-		    abort();
-	    }
-	    break;
-
-	default:
-	    output_addr_const (file, x);
-	    break;
-    }
+			output_addr_const (file, x);
+			break;
+	}
 }
 
 /* Return the fixed registers used for condition codes.  */
@@ -196,9 +210,9 @@ etca_print_operand_address (FILE *file, machine_mode, rtx x)
 static bool
 etca_fixed_condition_code_regs (unsigned int *p1, unsigned int *p2)
 {
-    *p1 = ETCA_CC;
-    *p2 = INVALID_REGNUM;
-    return false; /* The pass that get's enabled probably does nothing for us. */
+	*p1 = ETCA_CC;
+	*p2 = INVALID_REGNUM;
+	return false; /* The pass that get's enabled probably does nothing for us. */
 }
 
 /* We need to override this because otherwise GCC thinks the CC registers is split up.
@@ -208,9 +222,9 @@ etca_fixed_condition_code_regs (unsigned int *p1, unsigned int *p2)
 static unsigned int
 etca_hard_regno_nregs (unsigned int regno, machine_mode mode)
 {
-    if (regno < ETCA_PC)
-	return CEIL (GET_MODE_SIZE (mode), UNITS_PER_WORD);
-    return 1;
+	if (regno < ETCA_PC)
+		return CEIL (GET_MODE_SIZE (mode), UNITS_PER_WORD);
+	return 1;
 }
 
 
@@ -218,12 +232,12 @@ etca_hard_regno_nregs (unsigned int regno, machine_mode mode)
 /* Per-function machine data.  */
 struct GTY(()) machine_function
 {
-    /* various flags for how to treat the function */
-    uint32_t func_type;
-    /* Number of bytes saved on the stack for callee saved registers.  */
-    uint32_t callee_saved_reg_size;
-    /* Number of bytes saved on the stack for local variables.  */
-    uint32_t local_vars_size;
+	/* various flags for how to treat the function */
+	uint32_t func_type;
+	/* Number of bytes saved on the stack for callee saved registers.  */
+	uint32_t callee_saved_reg_size;
+	/* Number of bytes saved on the stack for local variables.  */
+	uint32_t local_vars_size;
 };
 
 /* Zero initialization is OK for all current fields.  */
@@ -231,31 +245,31 @@ struct GTY(()) machine_function
 static struct machine_function *
 etca_init_machine_status (void)
 {
-    return ggc_cleared_alloc<machine_function> ();
+	return ggc_cleared_alloc<machine_function> ();
 }
 
 static uint32_t
 etca_compute_function_type (void)
 {
-    uint32_t res = ETCA_FT_NORMAL | ETCA_FT_CC_UNKNOWN;
-    tree a;
-    tree attr;
+	uint32_t res = ETCA_FT_NORMAL | ETCA_FT_CC_UNKNOWN;
+	tree a;
+	tree attr;
 
-    attr = DECL_ATTRIBUTES (current_function_decl);
-    a = lookup_attribute ("naked", attr);
-    if (a != NULL_TREE) {
-	res |= ETCA_FT_NAKED;
-    }
-    return res;
+	attr = DECL_ATTRIBUTES (current_function_decl);
+	a = lookup_attribute ("naked", attr);
+	if (a != NULL_TREE) {
+		res |= ETCA_FT_NAKED;
+	}
+	return res;
 }
 
 
 static uint32_t
 etca_get_function_type (void) {
-    if (cfun->machine->func_type == ETCA_FT_UNKNOWN) {
-	cfun->machine->func_type = etca_compute_function_type ();
-    }
-    return cfun->machine->func_type;
+	if (cfun->machine->func_type == ETCA_FT_UNKNOWN) {
+		cfun->machine->func_type = etca_compute_function_type ();
+	}
+	return cfun->machine->func_type;
 }
 
 /* Compute the size of the local area and the size to be adjusted by the
@@ -264,122 +278,199 @@ etca_get_function_type (void) {
 static void
 etca_compute_frame (void)
 {
-    /* For aligning the local variables.  */
-    int stack_alignment = STACK_BOUNDARY / BITS_PER_UNIT;
-    int padding_locals;
-    int regno;
+	/* For aligning the local variables.  */
+	int stack_alignment = STACK_BOUNDARY / BITS_PER_UNIT;
+	int padding_locals;
+	int regno;
 
-    /* Padding needed for each element of the frame.  */
-    cfun->machine->local_vars_size = get_frame_size ();
-    cfun->machine->func_type = etca_compute_function_type ();
+	/* Padding needed for each element of the frame.  */
+	cfun->machine->local_vars_size = get_frame_size ();
+	cfun->machine->func_type = etca_compute_function_type ();
 
-    /* Align to the stack alignment.  */
-    padding_locals = cfun->machine->local_vars_size % stack_alignment;
-    if (padding_locals) {
-	padding_locals = stack_alignment - padding_locals;
-    }
-
-    cfun->machine->local_vars_size += padding_locals;
-
-    cfun->machine->callee_saved_reg_size = 0;
-
-    /* Save callee-saved registers.  */
-    for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++) {
-	if (df_regs_ever_live_p(regno) && (!call_used_or_fixed_reg_p(regno))) {
-	    cfun->machine->callee_saved_reg_size += 2;
+	/* Align to the stack alignment.  */
+	padding_locals = cfun->machine->local_vars_size % stack_alignment;
+	if (padding_locals) {
+		padding_locals = stack_alignment - padding_locals;
 	}
-    }
+
+	cfun->machine->local_vars_size += padding_locals;
+
+	cfun->machine->callee_saved_reg_size = 0;
+
+	/* Save callee-saved registers.  */
+	for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++) {
+		if (df_regs_ever_live_p(regno) && (!call_used_or_fixed_reg_p(regno))) {
+			cfun->machine->callee_saved_reg_size += 2;
+		}
+	}
 }
 
+/* Generate the trampoline asm template on the stream f.
+	Trampolines are not currently implemented. */
+static void
+etca_asm_trampoline_template(FILE *f) {
+	abort();
+}
+
+/*
+	This hook is called to initialize a trampoline.
+	m_tramp is an RTX for the memory block for the trampoline;
+	fndecl is the FUNCTION_DECL for the nested function;
+	static_chain is an RTX for the static chain value that
+	should be passed to the function when it is called.
+
+	If the target defines TARGET_ASM_TRAMPOLINE_TEMPLATE,
+	then the first thing this hook should do is emit a block move
+	into m_tramp from the memory block returned by
+	assemble_trampoline_template.
+	Note that the block move need only cover the constant parts
+	of the trampoline. If the target isolates the variable parts
+	of the trampoline to the end,
+	not all TRAMPOLINE_SIZE bytes need be copied.
+
+	If the target requires any other actions,
+	such as flushing caches (possibly calling function maybe_emit_call_builtin___clear_cache)
+	or enabling stack execution,
+	these actions should be performed after initializing the trampoline proper. 
+
+	ETCa: Trampolines are not currently implemented. Above TBD.
+ */
+static void
+etca_trampoline_init(rtx m_tramp, tree fndecl, rtx static_chain) {
+	abort();
+}
 
 void
 etca_init_expanders (void) {
-    /* Arrange to initialize and mark the machine per-function status.  */
-    init_machine_status = etca_init_machine_status;
+	/* Arrange to initialize and mark the machine per-function status.  */
+	init_machine_status = etca_init_machine_status;
 }
 
 int
 etca_initial_elimination_offset (int from, int to)
 {
-    int ret;
+	int ret;
 
-    if ((from) == ARG_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
-    {
-	ret = 2;
-    } else if ((from) == FRAME_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
-    {
-	ret = cfun->machine->callee_saved_reg_size;
-    }  else if ((from) == HARD_FRAME_POINTER_REGNUM && (to) == STACK_POINTER_REGNUM)
-    {
-	ret = -(cfun->machine->callee_saved_reg_size + cfun->machine->local_vars_size);
-    } else {
-	abort();
-    }
-    return ret;
+	if ((from) == ARG_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
+	{
+		ret = 2;
+	} else if ((from) == FRAME_POINTER_REGNUM && (to) == HARD_FRAME_POINTER_REGNUM)
+	{
+		ret = cfun->machine->callee_saved_reg_size;
+	}  else if ((from) == HARD_FRAME_POINTER_REGNUM && (to) == STACK_POINTER_REGNUM)
+	{
+		ret = -(cfun->machine->callee_saved_reg_size + cfun->machine->local_vars_size);
+	} else {
+		abort();
+	}
+	return ret;
 }
 #define MUST_SAVE_FRAME_POINTER	 (df_regs_ever_live_p (HARD_FRAME_POINTER_REGNUM)  || frame_pointer_needed)
 
 
 void
 etca_expand_prologue (void) {
-    int regno;
-    rtx insn;
-    uint32_t ft = etca_get_function_type();
-    if (IS_NAKED(ft)) {
-	return;
-    }
-    if (MUST_SAVE_FRAME_POINTER) {
-	/* Store base old base pointer */
-	insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_BP)));
-	RTX_FRAME_RELATED_P (insn) = 1;
-	/* Create the new base pointer*/
-	insn = emit_insn (gen_movhi (gen_rtx_REG (Pmode, ETCA_BP), gen_rtx_REG (Pmode, ETCA_SP)));
-	RTX_FRAME_RELATED_P (insn) = 1;
-    }
-    for (regno = 0; regno <= ETCA_R15; regno++) {
-	if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
-	if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
-	    insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, regno)));
-	    RTX_FRAME_RELATED_P (insn) = 1;
+	int regno;
+	rtx insn;
+	uint32_t ft = etca_get_function_type();
+	if (IS_NAKED(ft)) {
+		return;
 	}
-    }
-    /* Allocated memory for the local variables */
-    if (cfun->machine->local_vars_size) {
-	insn = emit_insn (gen_subhi3 (
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
+	if (MUST_SAVE_FRAME_POINTER) {
+		/* Store base old base pointer */
+		insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_BP)));
+		RTX_FRAME_RELATED_P (insn) = 1;
+		/* Create the new base pointer*/
+		insn = emit_insn (gen_movhi (gen_rtx_REG (Pmode, ETCA_BP), gen_rtx_REG (Pmode, ETCA_SP)));
+		RTX_FRAME_RELATED_P (insn) = 1;
+	}
+	/* Save return address */
+	insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, ETCA_LN)));
 	RTX_FRAME_RELATED_P (insn) = 1;
-    }
+
+	/* Save callee-saved registers.  */
+	for (regno = 0; regno <= ETCA_R15; regno++) {
+		if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
+		if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
+			insn = emit_insn (gen_pushhi1 (gen_rtx_REG (Pmode, regno)));
+			RTX_FRAME_RELATED_P (insn) = 1;
+		}
+	}
+	/* Allocated memory for the local variables */
+	if (cfun->machine->local_vars_size) {
+		HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
+		
+		if (frame_size <= 15) {
+			// use direct subtraction for small immediates
+			insn = emit_insn (gen_subhi3 (
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_int_mode (frame_size, Pmode)));
+		} else {
+			// for large immediates, use t0 as temp reg
+			rtx temp_reg = gen_rtx_REG (Pmode, ETCA_R8); 
+			
+			// load the large immediate into temp register
+			insn = emit_insn (gen_movhi (temp_reg, gen_int_mode (frame_size, Pmode)));
+			RTX_FRAME_RELATED_P (insn) = 1;
+			
+			// subtract using the temp reg
+			insn = emit_insn (gen_subhi3 (
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_rtx_REG (Pmode, ETCA_SP),
+				temp_reg));
+		}
+		RTX_FRAME_RELATED_P (insn) = 1;
+	}
 }
 
 
 void
 etca_expand_epilogue ()
 {
-    int regno;
-    rtx insn;
-    uint32_t ft = etca_get_function_type();
-    if (IS_NAKED(ft)) {
-	/* We don't even have a return instruction in this case. That's the job of the programmer now */
-	return;
-    }
-    if(cfun->machine->local_vars_size) {
-	insn = emit_insn (gen_addhi3 (
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_rtx_REG (Pmode, ETCA_SP),
-		gen_int_mode (cfun->machine->local_vars_size, Pmode)));
-    }
-    for (regno = ETCA_R15; regno >= 0; regno--) {
-	if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
-	if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
-	    insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, regno)));
+	int regno;
+	rtx insn;
+	uint32_t ft = etca_get_function_type();
+	if (IS_NAKED(ft)) {
+		/* We don't even have a return instruction in this case. That's the job of the programmer now */
+		return;
 	}
-    }
-    if(MUST_SAVE_FRAME_POINTER) {
-	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
-    }
-    emit_insn (gen_returner());
+	if(cfun->machine->local_vars_size) {
+		HOST_WIDE_INT frame_size = cfun->machine->local_vars_size;
+		
+		if (frame_size <= 15) {
+			// use direct addition for small immediates
+			insn = emit_insn (gen_addhi3 (
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_int_mode (frame_size, Pmode)));
+		} else {
+			rtx temp_reg = gen_rtx_REG (Pmode, ETCA_R8);
+			insn = emit_insn (gen_movhi (temp_reg, gen_int_mode (frame_size, Pmode)));
+
+			// add using the temp reg
+			insn = emit_insn (gen_addhi3 (
+				gen_rtx_REG (Pmode, ETCA_SP),
+				gen_rtx_REG (Pmode, ETCA_SP),
+				temp_reg));
+		}
+	}
+	/* Restore callee-saved registers.  */
+	for (regno = ETCA_R15; regno >= 0; regno--) {
+		if (regno == ETCA_SP || regno == ETCA_BP) { continue; }
+		if (df_regs_ever_live_p(regno) && !call_used_or_fixed_reg_p(regno)) {
+			insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, regno)));
+		}
+	}
+
+	/* Restore return address */
+	insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_LN)));
+
+	/* Restore old base pointer */
+	if(MUST_SAVE_FRAME_POINTER) {
+		insn = emit_insn (gen_pophi1 (gen_rtx_REG (Pmode, ETCA_BP)));
+	}
+	emit_jump_insn (gen_returner());
 }
 
 
@@ -387,22 +478,32 @@ etca_expand_epilogue ()
    arguments as in struct attribute_spec.handler.  */
 static tree
 etca_handle_fndecl_attribute (tree *node, tree name, tree args ATTRIBUTE_UNUSED,
-			     int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+							 int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
-    if (TREE_CODE (*node) != FUNCTION_DECL)
-    {
-	warning (OPT_Wattributes, "%qE attribute only applies to functions",
-		 name);
-	*no_add_attrs = true;
-    }
+	if (TREE_CODE (*node) != FUNCTION_DECL)
+	{
+		warning (OPT_Wattributes, "%qE attribute only applies to functions",
+				 name);
+		*no_add_attrs = true;
+	}
 
-    return NULL_TREE;
+	return NULL_TREE;
+}
+
+bool
+etca_can_use_simple_return_p (void)
+{
+  uint32_t ft = etca_get_function_type();
+	/* The md 'return' expander (and the 'returner' insn) should be used
+		 for ordinary functions. Naked functions manage
+		 their own return sequence*/
+	return !IS_NAKED(ft);
 }
 
 /* Table of machine attributes.  */
 TARGET_GNU_ATTRIBUTES (etca_attribute_table, {
-	/* { name, min_len, max_len, decl_req, type_req, fn_type_req, affects_type_identity, handler, exclusion, exclude } */
-	{ "naked",        0, 0, true,  false, false, false, etca_handle_fndecl_attribute, NULL },
+		/* { name, min_len, max_len, decl_req, type_req, fn_type_req, affects_type_identity, handler, exclusion, exclude } */
+		{ "naked",        0, 0, true,  false, false, false, etca_handle_fndecl_attribute, NULL },
 });
 
 
@@ -417,6 +518,11 @@ TARGET_GNU_ATTRIBUTES (etca_attribute_table, {
 
 #undef TARGET_COMPUTE_FRAME_LAYOUT
 #define TARGET_COMPUTE_FRAME_LAYOUT	etca_compute_frame
+
+#undef TARGET_ASM_TRAMPOLINE_TEMPLATE
+#define TARGET_ASM_TRAMPOLINE_TEMPLATE etca_asm_trampoline_template
+#undef TARGET_TRAMPOLINE_INIT
+#define TARGET_TRAMPOLINE_INIT etca_trampoline_init
 
 #undef  TARGET_FIXED_CONDITION_CODE_REGS
 #define TARGET_FIXED_CONDITION_CODE_REGS	etca_fixed_condition_code_regs

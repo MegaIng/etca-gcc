@@ -5,6 +5,10 @@
 #ifndef GCC_ETCA_H
 #define GCC_ETCA_H
 
+/* Experiment (maybe remove later)*/
+
+#include "etca-protos.h"
+
  /* Memory model Specification */
 
 #define BITS_BIG_ENDIAN 0
@@ -28,13 +32,13 @@
 #define POINTERS_EXTEND_UNSIGNED 0
 
 /* Stack alignment */
-#define PARM_BOUNDARY 16
-#define STACK_BOUNDARY 16
+#define PARM_BOUNDARY 128
+#define STACK_BOUNDARY 128
 
 /* Function entry point alignment */
 #define FUNCTION_BOUNDARY 8
 
-#define BIGGEST_ALIGNMENT 64
+#define BIGGEST_ALIGNMENT 128
 
 /* This should depend on if the UMA feature is enabled or not*/
 #define STRICT_ALIGNMENT 1
@@ -139,7 +143,10 @@ enum reg_class
   do {									\
     (OFFSET) = etca_initial_elimination_offset ((FROM), (TO));		\
   } while (0)
-#define TRAMPOLINE_SIZE  (abort (), 0)
+
+/* Trampolines not supported yet. */
+#define TRAMPOLINE_SIZE  0
+// #define TRAMPOLINE_ALIGNMENT 16 // probably? Might be multilib dependent.
 
 /* func types to be used in machine_function.func_type*/
 #define ETCA_FT_UNKNOWN		0x0000
@@ -200,7 +207,7 @@ enum reg_class
 
 
 #undef  ASM_SPEC
-#define ASM_SPEC "-mextensions=SAF,BYTE,DW,QW" /*TODO: We shouldn't depend on all these being present to generate valid assembly (only SAF should be an unconditional requirement)*/
+#define ASM_SPEC "-mextensions=SAF,BYTE,DW,QW,REX" /*TODO: We shouldn't depend on all these being present to generate valid assembly (only SAF should be an unconditional requirement)*/
 
 #define ASM_COMMENT_START ";"
 #define ASM_APP_ON ""
@@ -216,6 +223,8 @@ enum reg_class
 	fprintf (STREAM, "\t.p2align\t%d\n", POWER);
 
 #define GLOBAL_ASM_OP "\t.global\t"
+
+
 
 /* Run-time Target Specification */
 

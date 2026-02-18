@@ -17,7 +17,10 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#include <stdbool.h> // libgcc freaks out without this
+
 extern void	etca_expand_prologue (void);
 extern void	etca_expand_epilogue (void);
 extern int	etca_initial_elimination_offset (int, int);
 extern void	etca_init_expanders (void);
+extern bool etca_can_use_simple_return_p (void);

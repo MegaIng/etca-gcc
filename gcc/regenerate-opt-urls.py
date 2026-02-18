@@ -267,6 +267,7 @@ TARGET_SPECIFIC_PAGES = {
     'gcc/Xtensa-Options.html' : 'gcc/config/xtensa/',
     'gcc/eBPF-Options.html' : 'gcc/config/bpf/',
     'gcc/x86-Options.html' : 'gcc/config/i386/',
+    'gcc/ETC-a-Options.html' : 'gcc/config/etca/',
 }
 
 def target_specific(url_suffix):

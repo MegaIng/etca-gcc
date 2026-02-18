@@ -9,26 +9,27 @@
       && GET_CODE (XEXP (op, 0)) == PLUS
       && GET_CODE (XEXP (XEXP (op, 0), 0)) == REG
       && GET_CODE (XEXP (XEXP (op, 0), 1)) == CONST_INT
-      && IN_RANGE (INTVAL (XEXP (XEXP (op, 0), 1)), -32768, 32767))
+      && IN_RANGE (INTVAL (XEXP (XEXP (op, 0), 1)), -9223372036854775808, 9223372036854775807))
     return 1;
 
   return general_operand (op, mode);
 })
 
 (define_predicate "etca_arithmetic_operand_signed"
-  (match_code "const_int,reg,subreg,const")
+  (match_code "const_int,reg,subreg")
 {
   if (CONST_INT_P (op)) {
   	return IN_RANGE(INTVAL(op), -16, 15);
   }
-  return general_operand (op, mode);
+  return register_operand (op, mode);
 })
 
 (define_predicate "etca_arithmetic_operand_unsigned"
-  (match_code "const_int,reg,subreg,const")
+  (match_code "const_int,reg,subreg")
 {
   if (CONST_INT_P (op)) {
-  	return IN_RANGE(INTVAL(op), 0, 32);
+  	return IN_RANGE(INTVAL(op), 0, 31);
   }
-  return general_operand (op, mode);
+  return register_operand (op, mode);
 })
+

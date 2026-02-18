@@ -1,7 +1,267 @@
+2025-11-20 Shivam Patel <shivamp12@hotmail.com>
+	* It seems that running the configure script doesn't configure the tmake file properly. In the Makefile it appears as
+		tmake="". I'm not sure why this is happening even when I try to configure and build in a new tree. Also --enable-threads=single
+		doesn't work either. I may need to ask the gcc-help forum once again.
+
+2025-11-16 Shivam Patel <shivamp12@hotmail.com>
+	* The pthread error is still not resolved. I've tried most solutions from the internet, but not sure what to do next.
+		Reconfiguring doesn't work. Building in a new tree doesn't solve the issue.
+
+2025-11-13 Shivam Patel <shivamp12@hotmail.com>
+	* I seem to now be dealing with an error with pthreads trying to be included. A few solutions I tried were changing
+		the configure flags to having a --disable-threads and also adding tmake_file="${tmake_file} t-slibgcc-nolc-override" to both
+		config.gcc and config.host, no luck yet though.
+
+2025-11-12 Shivam Patel <shivamp12@hotmail.com>
+	* config/etca/constraints.md: New file.
+	* After emailing the gcc mailing list, I finally solved the major issues with the immediates. I changed general_operand
+		to register_operand and stopped matching const for the predicates as advised. I was able to
+		build libgcc further thanks to Jeff Law, Segher Boessenkool and Georg-Johann Lay's advice. Instead of using i for the pattern matching
+		in etca.md, I replaced it with N, a constraint I defined in constraints.md which is an immediate between -16 and 15
+
+2025-11-10 Shivam Patel <shivamp12@hotmail.com>
+	* It seems every problem I encounter with libgcc building seems to be related to immediates and the assembler complaining
+		of immediates being out of range. Happened for clzsi2, clzdi2, muldi3, mulsc3 and more. It boils down to this:
+		A constant that is legal for some higher-level reason ends up as an immediate that the assembler cannot encode.
+		And now for whatever reason, after doing a make distclean and rebuilding everything the problem is back to
+		_muldi3 and error where they have bad immediates... No idea why this wasn't showing up before.
+
+2025-11-05 Shivam Patel <shivamp12@hotmail.com>
+	* Printed to stdout and made some ETC-a assembly programs to test rust simulator further.
+	* Worked on GCC, but of course, still dealing with _muldi3 problem. Checked out a few files and some specific lines
+	 	where the andd instruction was in build directory:
+		build/gcc/insn-emit-9.cc:333:gen_anddi3 and build/gcc/insn-output.cc:2186:    { (insn_gen_fn::stored_funcptr) gen_anddi3 }
+		to try and diagnose the issue further.
+	* Ok now the problem randomly switched to being a cmp issue? I'm not sure what happened as I didn't change anything.
+		The error happens in _clzsi2.s where I see cmpd		%td2, 255.
+		But this is so odd, I have no idea why it changed into this error instead.
+
+2025-11-04 Shivam Patel <shivamp12@hotmail.com>
+	* Tested the cool rust simulator and made some assembly files to play around and get a feel for it. Could be very useful
+		for testing later on when more fully fleshed out.
+
+2025-11-02 Shivam Patel <shivamp12@hotmail.com>
+	* Sucessfully built etca-binutils-gdb on my laptop and make libgcc-target-all works on my laptop as well (by works I mean
+	  crashes at the same place my desktop does)
+
+2025-11-01 Shivam Patel <shivamp12@hotmail.com>
+	* Finally successfully ran make all-gcc on my laptop and can generate ETC-a assembly on it
+
+2025-10-31 Shivam Patel <shivamp12@hotmail.com>
+	* Tried again with an expander pattern that would attempt to match an 'and' instruction when the operand[2] is an immediate
+		and tries to sign-extend it but to no luck. So either the pattern is not being matched, or it is being matched but doesn't0
+		do what it is supposed to do.
+
+2025-10-30 Shivam Patel <shivamp12@hotmail.com>
+	* I am now dealing with an error with __clzsi2 (count leading zero for 32 bit integers). There is a line with:
+		cmpd %td2, 255, which is obviously not allowed. I reverted the changes and reconfigured and I still get the error?
+
+2025-10-29 Shivam Patel <shivamp12@hotmail.com>
+	* Tried adding a new predicate and expander for and again, and this time __muldi3 completely omits the andd instruction.
+		It's probably because the pattern is not being matched at all. I reverted the changes. I'm trying to figure out why
+		the backend is emitting large immediates for even when the predicates wouldn't allow it. I tried playing around with the
+		predicate to not match with general_operand and instead match with register_operand specifically, but to no avail.
+
+2025-10-28 Shivam Patel <shivamp12@hotmail.com>
+	* Tried many options to get libgcc to build but nothing is really working. I tried to add new predicate for the and
+		instruction specifically, but I get an emit-insn-10 file does not exist error. So the predicate was wrong and may have caused
+		gcc to fail its self-tests.
+
+2025-10-26 Shivam Patel <shivamp12@hotmail.com>
+	* Fixed error with prologue and epilogue code not using ETCA_LN. But it will do this even when not necessary.
+		This will need to be optimized in the future.
+
+2025-10-25 Shivam Patel <shivamp12@hotmail.com>
+	* Removed the cmp predicate, need to rework it
+
+2025-10-24 Shivam Patel <shivamp12@hotmail.com>
+	* Reverted back changes that 'solved' the __muldi3 problem. It wasn't emitting -1, which is what it should be.
+	* Added cmp predicate to store large immediate value in a register before using compare (this was the __negdi2 error)
+
+2025-10-20 Shivam Patel <shivamp12@hotmail.com>
+ 	* I made a new predicate in predicates.md for the and instruction specifically. It was too permissive and
+ 	  etca_arithmetic_operand_signed would allow any immediate in the range of -16 to 15 regardless of mode.
+ 	  I may need to change this for other operations as well but we will see.
+ 	* I get a new error now in _negdi2 on line 34: cmpq		%tq0, -9223372036854775808. Likely some overflow check
+	cause that's the most negative 64 bit number. I'll have to tweak predicates again.
+
+2025-10-18 Shivam Patel <shivamp12@hotmail.com>
+	* Tried to add expand pattern for and to solve failed libgcc compilation. Did not work. Fails with the following segfault:
+		../../../etca-gcc/libgcc/libgcc2.c: In function ‘__muldi3’:
+		../../../etca-gcc/libgcc/../include/longlong.h:1682:10: internal compiler error: Segmentation fault
+	 	1682 |     (w0) = __ll_lowpart (__x1) * __ll_B + __ll_lowpart (__x0);          \
+	    	   |          ^
+		../../../etca-gcc/libgcc/../include/longlong.h:1689:5: note: in expansion of macro ‘umul_ppmm’
+	 	1689 |     umul_ppmm (__w.s.high, __w.s.low, u, v);                            \
+	         |     ^~~~~~~~~
+		../../../etca-gcc/libgcc/libgcc2.c:532:22: note: in expansion of macro ‘__umulsidi3’
+	 	532 |   DWunion w = {.ll = __umulsidi3 (uu.s.low, vv.s.low)};
+	         |                      ^~~~~~~~~~~
+		0x1bf6115 internal_error(char const*, ...)
+				../../etca-gcc/gcc/diagnostic-global-context.cc:517
+		0xf43a93 crash_signal
+				../../etca-gcc/gcc/toplev.cc:321
+		0x7b52c5e4532f ???
+				./signal/../sysdeps/unix/sysv/linux/x86_64/libc_sigaction.c:0
+		0x0 subreg_lowpart_offset(machine_mode, machine_mode)
+				../../etca-gcc/gcc/rtl.h:3280
+	* Without my edits there is still the two and instructions in ‘__muldi3’ that have 65535 as immediates.
+		I feel as though the error has to be in etca.md's and insn pattern so I tried an expand pattern for it
+		and I can't get it to work. I also added a predicate that would recognize when the operand would be a mode mask
+		(all 1s). In our case we're trying to solve why the backend is turning the 16 bit 0xFFFF (-1) to 65535 in 32 bit.
+		I think one solution may be to add predicates specifically for each different mode, so like addx, andd, etc instead
+		of using mode, but I don't think that's the right way to go.
+
+2025-10-17 Shivam Patel <shivamp12@hotmail.com>
+	* Changed back uint32_t to HOST__WIDE_INT in etca.cc machine_function struct (should be fine the way it was)
+	* Removed check for negative value check from frame_size in etca.cc, that is unnecessary.
+	* Instead of decrementing the stack by a large immediate via a temp register, which is only available with REX,
+		could use the method or1k uses at line 226 of or1k.cc
+
+2025-10-16 Shivam Patel <shivamp12@hotmail.com>
+	* Changed STACK_BOUNDARY and PARM_BOUNDARY from 16 to 128 in etca.h
+	* Changed uint32_t to HOST__WIDE_INT in etca.cc machine_function struct
+
+2025-10-14 Shivam Patel <shivamp12@hotmail.com>
+	* Changed the way whitespaces are generated in the assembly through etca.md.
+	* Changed etca.opt but did not test it yet. May need to remove those changes if it affects build.
+	* I'm currently investigating a bug where 16-bit immediates (e.g., 0xFFFF) were incorrectly allowed in 32-bit instructions (e.g., andd), 
+	  due to mode iterator (define_mode_iterator SS [QI HI SI DI]) generating patterns for all modes without mode-aware predicates. 
+		The bug is caused by sign-extension issues: 0xFFFF is -1 in 16 bits but 65535 in 32 bits, so using it as an immediate in SI-mode instructions is incorrect.
+	* Discussed that the solution is to make predicates mode-aware or restrict the mode iterator to only HI mode for a pure 16-bit ISA.
+	* Goal is to get libgcc to fully build first and then move on to extensions (Probably starting with REX)
+
+2025-10-14 JKTKops <zerglingk9012@gmail.com>
+	* Punted the trampoline `abort`s from TRAMPOLINE_SIZE to the implementation hooks,
+			because libgcc needs TRAMPOLINE_SIZE just to configure itself.
+			(etca.h --> etca.cc)
+	* Reformatted etca.cc with tabs. Ew.
+	* Include <stdbool.h> from etca-protos. As far as I can tell this really shouldn't be necessary,
+		but libgcc somehow manages to include etca.h before including stdbool.h itself.
+		It doesn't look like Moxie has this problem. We may want to investigate that further.
+
+2025-10-09 Shivam Patel <shivamp12@hotmail.com>
+	* It seems I may have gotten the python script to work. regenerate-opt-urls.py does generate etca.opt.urls
+		although it only generates the top comment and then not the UrlSuffix, which I believe is related to documentation.
+
+2025-10-08 Shivam Patel <shivamp12@hotmail.com>
+	* I'm running into issues with the linker and the rust simulator. I'm going to delay getting that up and running for a bit
+		to not delay progress.
+	* HTML: new directory
+	* I've changed the source tree a bit, but I don't know if it was necessary. I'm struggling with
+		with this opt file and the python script that goes along with it.
+
+2025-10-05 Shivam Patel <shivamp12@hotmail.com>
+	* config/etca/etca.opt: New file.
+		The file will be crucial in adding extensions. Currently, a python script necessary for the creation of
+		etca-opt-urls.py is not working properly and I am investigating the matter
+
+2025-10-02 Shivam Patel <shivamp12@hotmail.com>
+	* I noticed that the backend seems to be assuming that the FI extension is available since it's using large immediates.
+		I'll need to change predicates.md and possibly mov in etca.md to only use large immediates to decrement the stack pointer.
+		For parsing of mextensions, I'll have to copy a lot of the code from binutils as they have already implemented it.
+		For the switching between address spaces, I believe I'll have to look at riscv and see how they did it?
+
+2025-10-01 Shivam Patel <shivamp12@hotmail.com>
+	* Made longer C programs to test the backend with and it seems to compile fine. I also
+		assembled it and linked it. I'm working on using etca-simulator-rust to actually execute
+		the files and test.
+
+2025-09-25 Shivam Patel <shivamp12@hotmail.com>
+		* I tried to create etca.opt, but GCC complains that I must have etca.opt.url, but this file needs to be generated
+			by regenerate-opt-urls.py.
+		* Added more debug ouput for etca_print_operand
+		* I need to figure out a way to add expansions next, in case I have solved optimizations, I believe parsing -mextensions
+		  is probably the way to do it. For that, I need to figure out a way to generate etca.opt.urls with the python script since I need etca.opt.
+			Also, I think hardest extension may be REX, cause it would require the conditionnally include registers which I haven't seen in
+			other backends (atleast or1k and moxie)
+		* in etca_print_operand added case for return and simple_return which cause internal compiler errors. This fixed a few issues, notably with nested loops.
+			I don't see moxie nor or1k handle this case, so I wonder if this should be a temporary fix, or if it works it works kind of thing.
+			Of course, since I haven't assembled, linked and then tested the code, but I plan on doing that next to check my implementation.
+		* I'm also going to create more test files to test other C functionalities with the base ISA GCC implementation. Something to note,
+			#include doesn't work, but I was wondering how I could make that work or if it would even be possible.
+
+2025-09-24 Shivam Patel <shivamp12@hotmail.com>
+	* I need to figure out a way to possibly speed up build time if possible cause I'm losing too much time on it.
+	* Fixed the tmp-emit-10.cc build error and large immediate handling in prologue and epilogue:
+		- I ditched the fallback patterns (add_fallback<mode>3, sub_fallback<mode>3) from etca.md that were 
+		  causing gen_reg_rtx() calls during prologue and epilogue expansion (not allowed at that stage?)
+		- Updated expand_prologue() and expand_epilogue() in etca.cc to handle large immediates 
+		  directly by splitting them into: load immediate into temp register (ETCA_R8/t0) + arithmetic
+		- For small immediates (-16 to 15): uses direct gen_subhi3/gen_addhi3 as before
+		- For large immediates: uses movhi + subhi3/addhi3 with temp register to avoid predicate violations
+		- I believe I fixed missing ret instruction issue by using emit_jump_insn(gen_returner()) instead of emit_insn(),
+			also added new pattern in etca.md for return & simple_return. Created function etca_can_use_simple_return_p which
+			checks 
+	* Current problem is with nested loops failing for some reason.
+
+2025-09-23 Shivam Patel <shivamp12@hotmail.com>
+		* Tried adding etca.opt, but seems I need to run a python script beforehand. The script is called
+			regenerate-opt-urls.py, but the script seems to fail due to it needing an HTML. I'll worry about it later.
+			But for future reference: It's failing because it couldn't find the generated Option-Index.html pages it needs 
+			so it raised FileNotFoundError. I'm not sure how to fix this for now.
+		* I've tried again to fix the large immediate problem, but the only fix that works is making predicates.md accept a larger range
+			when adding fallback patterns, it keeps giving me the error that the emit-file-10 is not found since it wasn't created in
+			the first place. Removing the fallback pattern resolves the issue so wonder if it's due to me badly implementing it? I might
+			have to find an alternative solution, but I need to fix this ASAP since it's halting progress. Also look into expand_prologue and
+			expand_epilogue functions in etca.cc, they may be causing this.
+
+2025-09-20 Shivam Patel <shivamp12@hotmail.com>
+		* config/etca/etca-extensions.h: Removed file.
+		* I'm starting back from scratch. I really need to fix optimizations before I implement extensions.
+			I reinstalled etca-binutils-gdb. I've scraped the extensions idea for now and removed etca-expansion.h
+			for now.
+
+2025-09-19 Shivam Patel <shivamp12@hotmail.com>
+		* config/etca/etca-extensions.h: New file.
+		*	My idea is to basically store the extensions in a struct and check if the extension
+			is enabled or not and then decide what gcc should know to compile the C code depending
+			on which extension is available
+		* I've attempted to make GCC recognize the FI extension and am testing it.
+			The output for -O0 is fine I believe, but -O2, -O3 is super long (400+ lines)
+			and I'd have to read through some parts to make sure it makes sense.
+			A suspicious line from the get go is subx %spx 46. This is actually the same value
+			which was causing an error 2 days ago since it was out of range, but it's also just weird
+			since frame sizes should be stack aligned.
+		*	Instead of failing with -O2, -O3, there is assembly being outputted, but 
+			it's probably bogus. It's only because I changed predicates.md to allow for larger immediates
+			for now. But I need to fix the underlying issue and figure out why I'm getting something
+			like subx %spx 46. 
+		* I've also tried assembling with etca-elf-as but I seem to be running into
+			 a problem where I'm getting Error: unknown opcode for many of the instructions.
+			I imagine this has probably something to do with the way I've installed it.
+
+2025-09-17 Shivam Patel <shivamp12@hotmail.com>
+
+	* Local changes: made test script to test simple C files.
+	* make -j4 all-gcc fails after adding fallback patterns in etca.md to fix
+		error from this RTL: (set (reg:HI %sp) (minus:HI (reg:HI %sp) (const_int 46)))
+		the immediate is out of range, so it fails. The problem is likely due to the predicates.md
+		file restricting constant immediates to 5 bits (signed) and 32 bits (unsigned). To change this
+		I'd have to make sure that ETC-a can handle me increasing the range.
+	* TODO: - Make many more C test files to test optimizations
+			- See if widening the immediate range is feasible for ETC-a backend
+
+2025-09-16 Shivam Patel <shivamp12@hotmail.com>
+
+	* Been testing optimizations (-O1, -O2, -O3) on test programs.
+	* For -O2 & -O3: During extract_insn, GCC could not find matching
+				 insn pattern which causes error in recog.cc for a 
+					 simple fib program I am testing. Other small programs
+					 seem to work though.
+	* Some resources I've been reading:
+		- RTL representation: https://gcc.gnu.org/onlinedocs/gccint/RTL.html
+		- Machine Descriptions: https://gcc.gnu.org/onlinedocs/gccint/Machine-Desc.html
+		- GCC low-level IR: https://kristerw.blogspot.com/2017/08/gcc-low-level-ir-and-basic-code.html
+
+2025-09-11 Shivam Patel <shivamp12@hotmail.com>
+
+	* No changes yet, just testing.
+
 2023-07-20  MegaIng  <trampchamp@hotmail.de>
 
 	* config/etca/etca.c: New file.
 	* config/etca/etca.h: New file.
 	* config/etca/t-etca: Created.
 	* config/etca/etca.md: Created.
-    * config.gcc: Add etca support.
+	* config.gcc: Add etca support.

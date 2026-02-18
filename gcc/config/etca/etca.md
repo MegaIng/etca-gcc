@@ -1,4 +1,4 @@
-
+(include "constraints.md")
 (include "predicates.md")
 
 ;; -------------------------------------------------------------------------
@@ -54,15 +54,15 @@
 
 (define_insn "push<mode>1"
   [(set (mem:SS (pre_dec:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "rI"))]
   ""
-  "push<x>\t%<x>0")
+  "push<x>\\t\\t%<x>0")
 
 (define_insn "pop<mode>1"
   [(set (mem:SS (post_inc:SS (reg:SS ETCA_SP)))
-        (match_operand:SS 0 "etca_arithmetic_operand_signed" "ri"))]
+        (match_operand:SS 0 "etca_arithmetic_operand_signed" "rI"))]
   ""
-  "pop<x>\t%<x>0")
+  "pop<x>\\t\\t%<x>0")
 
 ;; -------------------------------------------------------------------------
 ;; Move instructions
@@ -105,47 +105,48 @@
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (plus:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
-  "add<x>\\t%<x>0, %<x>2"
+  "add<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "sub<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r,r")
 	  (minus:SS
-	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,ri")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri,0")))]
+	   (match_operand:SS 1 "etca_arithmetic_operand_signed" "0,rI")
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI,0")))]
   ""
   "@
-  sub<x>\\t%<x>0, %<x>2
-  rsub<x>\\t%<x>0, %<x>2"
+  sub<x>\\t\\t%<x>0, %<x>2
+  rsub<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "ior<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (ior:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
-  "or<x>\\t%<x>0, %<x>2"
+  "or<x>\\t\\t%<x>0, %<x>2"
 )
 
 (define_insn "xor<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (xor:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
-  "xor<x>\\t%<x>0, %<x>2"
+  "xor<x>\\t\\t%<x>0, %<x>2"
 )
+
 
 (define_insn "and<mode>3"
   [(set (match_operand:SS 0 "register_operand" "=r")
 	  (and:SS
 	   (match_operand:SS 1 "register_operand" "%0")
-	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "ri")))]
+	   (match_operand:SS 2 "etca_arithmetic_operand_signed" "rI")))]
   ""
-  "and<x>\\t%<x>0, %<x>2"
+  "and<x>\\t\\t%<x>0, %<x>2"
 )
 
 
@@ -172,14 +173,21 @@
 }
 ")
 
+
 (define_expand "return"
   [(simple_return)]
-  "reload_completed & !reload_completed"
+  "etca_can_use_simple_return_p ()"
 {
 })
 
+
 (define_insn "returner"
   [(return)]
+  ""
+  "ret")
+
+(define_insn "returner_simple"
+  [(simple_return)]
   ""
   "ret")
 
@@ -220,7 +228,7 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI ETCA_LN))]
   ""
-  "call\\t%0")
+  "call\\t\\t%0")
 
 (define_expand "call_value"
   [(parallel [(set (match_operand 0 "" "")
@@ -238,7 +246,7 @@
 	           (match_operand 2 "" "")))
    (clobber (reg:SI ETCA_LN))]
   ""
-  "call\\t%1")
+  "call\\t\\t%1")
 
 
 ;; -------------------------------------------------------------------------
@@ -267,9 +275,9 @@
   [(set (reg:CC_NZCV ETCA_CC)
         (compare:CC_NZCV
          (match_operand:SS 0 "register_operand" "r")
-         (match_operand:SS 1 "etca_arithmetic_operand_signed" "ri")))]
+         (match_operand:SS 1 "etca_arithmetic_operand_signed" "rI")))]
   ""
-  "cmp<x>	%<x>0, %<x>1")
+  "cmp<x>\\t\\t%<x>0, %<x>1")
 
 
 
@@ -287,4 +295,10 @@
 		          (match_operand 0 "" "")
 		          (pc)))]
   ""
-  "j<asm_cond>		%0")
+  "j<asm_cond>\\t\\t%0")
+
+
+
+
+
+
